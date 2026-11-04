@@ -42,6 +42,7 @@ class Views
         $initial = Metrics::initialFinancing($c);
         $paid = Metrics::totalPaid($c);
         $latest = Metrics::latestEntry($c);
+        $renewal = !empty($c['renewals']) ? end($c['renewals']) : null;
         $v = [
             'id' => $c['id'], 'number' => $c['number'], 'title' => $c['title'], 'phaseId' => $c['phase_id'], 'phase' => $c['phase'],
             'companyId' => $c['company_id'], 'company' => $c['company'], 'category' => $c['category'], 'province' => $c['province'],
@@ -55,12 +56,17 @@ class Views
             'sitesCount' => count($c['sites']), 'renewalNo' => $c['renewal_no'], 'renewedAmount' => $c['renewed_amount'],
             // Numéro proposé au prochain renouvellement : 144 → 144/R1, 144/R1 → 144/R2.
             'nextRenewalNumber' => preg_replace('~/R\d+$~', '', $c['number']) . '/R' . ($c['renewal_no'] + 1),
+            // Période affichée : la dernière période de renouvellement, sinon celle du contrat ; les mois passés ne se cumulent pas.
+            'periodStart' => $renewal ? $renewal['period_start'] : $c['start_date'], 'periodMonths' => $renewal ? $renewal['months'] : $c['duration_months'],
+            'unitId' => $c['unit_id'] ?? null, 'unitName' => $c['unit_name'] ?? null,
+            'goodsMinAmount' => $c['goods_min_amount'] ?? null, 'goodsMaxAmount' => $c['goods_max_amount'] ?? null,
             'canRenew' => GoodsProcedure::renewable((string) $c['category'], $c['goods_procedure'] ?? null),
             'goodsProcedure' => $c['goods_procedure'] ?? null, 'goodsProcedureLabel' => GoodsProcedure::label($c['goods_procedure'] ?? null),
             'goodsOrigin' => $c['goods_origin'] ?? null, 'goodsOriginLabel' => GoodsProcedure::originLabel($c['goods_origin'] ?? null),
             'paymentSchedule' => $c['payment_schedule'] ?? [], 'delayPenaltyRate' => $c['delay_penalty_rate'] ?? null, 'delayPenaltyCap' => $c['delay_penalty_cap'] ?? null, 'penalties' => (float) ($c['penalties'] ?? 0),
             // Avance sur demande : montant prévu, et demande en cours ou payée.
-            'advanceOnRequest' => GoodsProcedure::governs($c['goods_procedure'] ?? null), 'advanceDue' => round((float) $c['amount'] * (float) $c['initial_rate'] / 100, 2), 'advanceRequest' => self::advance($c['advance'] ?? null),
+            'advanceOnRequest' => GoodsProcedure::governs($c['goods_procedure'] ?? null), 'stockOnly' => GoodsProcedure::stockOnly($c['goods_procedure'] ?? null),
+            'advanceDue' => round((float) $c['amount'] * (float) $c['initial_rate'] / 100, 2), 'advanceRequest' => self::advance($c['advance'] ?? null),
         ];
         if ($withSites) {
             $v['sites'] = array_map([self::class, 'site'], $c['sites']);

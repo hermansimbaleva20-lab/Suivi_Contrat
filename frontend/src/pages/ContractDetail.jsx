@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, apiError, download, fieldErrors } from '../api.js';
+import GoodsProcedurePanel from '../modules/payments/GoodsProcedurePanel.jsx';
+import { ReadOnlyNote } from '../modules/shared/ReadOnlyNote.jsx';
 import { useLoad } from '../lib/hooks.js';
 import { addMonths, fr, frDateTime, money, num, parseDecimal, todayISO } from '../lib/format.js';
 import { DecimalInput, Empty, Field, Kpi, Loading, Modal, Notice, PageHead, Progress, ReasonDialog, StatusPill } from '../components/ui.jsx';
@@ -32,7 +34,7 @@ export default function ContractDetail({ readOnly = false }) {
   const c = d.contract;
   const g = d.guarantee;
   const manage = !readOnly;
-  const canEdit = manage && can('canManageContracts') && !c.isTerminated;
+  const canEdit = manage && c.canManage && !c.isTerminated;
 
   const say = (text, type = 'success') => setFlash({ type, text });
   const act = async (fn, ok) => {
@@ -82,9 +84,9 @@ export default function ContractDetail({ readOnly = false }) {
             <Link to="/contracts" className="btn btn-light"><i className="bi bi-arrow-left me-1" /> Contrats</Link>
             {canEdit && <Link to={`/contracts/${id}/edit`} className="btn btn-outline-primary"><i className="bi bi-pencil me-1" /> Modifier</Link>}
             {canEdit && <button className="btn btn-outline-primary" onClick={() => setDialog('amend')}><i className="bi bi-calendar-plus me-1" /> Avenant</button>}
-            {canEdit && ['BIENS', 'BIEN'].includes(c.category) && <button className="btn btn-outline-success" onClick={openRenew}><i className="bi bi-arrow-repeat me-1" /> Renouveler</button>}
+            {canEdit && c.canRenew && <button className="btn btn-outline-success" onClick={openRenew}><i className="bi bi-arrow-repeat me-1" /> Renouveler</button>}
             {canEdit && <button className="btn btn-outline-warning" onClick={() => setDialog('terminate')}><i className="bi bi-slash-circle me-1" /> Résilier</button>}
-            {can('canDeleteContracts') && <button className="btn btn-outline-danger" onClick={() => setDialog('delete')}><i className="bi bi-trash me-1" /> Supprimer</button>}
+            {can('canDeleteContracts') && (!c.stockOnly || c.canManage) && <button className="btn btn-outline-danger" onClick={() => setDialog('delete')}><i className="bi bi-trash me-1" /> Supprimer</button>}
           </>
         )}
       </PageHead>
@@ -95,40 +97,61 @@ export default function ContractDetail({ readOnly = false }) {
         <div className="alert alert-danger"><strong><i className="bi bi-slash-circle me-1" /> Contrat résilié le {fr(c.terminationDate)}.</strong><div className="small mt-1">{c.terminationReason}</div></div>
       )}
 
-      <div className="row g-3 mb-3">
+      {c.stockOnly && !c.canManage && <ReadOnlyNote unitName={c.unitName} />}
+
+      {!c.stockOnly && <div className="row g-3 mb-3">
         <div className="col-xl-3 col-md-6"><Kpi tone="green" label="AVANCEMENT PHYSIQUE" value={`${num(c.progress, 1)} %`} sub={`${c.sitesCount} site(s)`} /></div>
         <div className="col-xl-3 col-md-6"><Kpi tone="orange" label="JOURS CONSOMMÉS" value={`${num(c.elapsed, 1)} %`} sub={c.daysRemaining !== null ? (c.daysRemaining >= 0 ? `${c.daysRemaining} jour(s) restant(s)` : `${-c.daysRemaining} jour(s) de dépassement`) : ''} /></div>
         <div className="col-xl-3 col-md-6"><Kpi label="TAUX DE PAIEMENT" value={`${num(c.paymentRate, 1)} %`} sub={`${money(c.paidIncludingInitial)} versés`} /></div>
         <div className="col-xl-3 col-md-6"><div className="cardx kpi"><div className="label">STATUT</div><div className="value" style={{ fontSize: 22 }}><StatusPill status={c.status} /></div><div className="small text-secondary">Écart : {num(c.gap, 1)} pts</div></div></div>
-      </div>
+      </div>}
 
       <div className="cardx p-3 mb-3">
         <div className="section-title mb-3">Informations générales</div>
         <div className="info-grid">
           <div><span>Entreprise</span><strong>{c.company}</strong></div>
           <div><span>Catégorie</span><strong>{c.category || '—'}</strong></div>
+          {c.goodsProcedureLabel && <div><span>Procédure du marché</span><strong>{c.goodsProcedureLabel}</strong></div>}
+          {c.stockOnly && <div><span>Unité</span><strong>{c.unitName || '—'}</strong></div>}
           <div><span>Nature des travaux</span><strong>{c.workTypeText || '—'}</strong></div>
           <div><span>Signature</span><strong>{fr(c.signatureDate)}</strong></div>
-          <div><span>Démarrage</span><strong>{fr(c.startDate)}</strong></div>
-          <div><span>Fin prévue</span><strong>{fr(c.endDate)} ({c.durationMonths} mois)</strong></div>
-          <div><span>Montant du contrat</span><strong className="text-money">{money(c.amount)}</strong></div>
-          <div><span>Avance de démarrage</span><strong className="text-money">{num(c.initialFinancingRate, 2)} % — {money(c.initialFinancing)}</strong></div>
-          <div><span>Paiements enregistrés</span><strong className="text-money">{money(c.totalPaid)}</strong></div>
+          <div><span>{c.renewalNo > 0 ? 'Début de la période' : 'Démarrage'}</span><strong>{fr(c.periodStart)}</strong></div>
+          <div><span>Fin prévue</span><strong>{fr(c.endDate)} ({c.periodMonths} mois)</strong></div>
+          {c.stockOnly ? (
+            <>
+              <div><span>Montant minimum d’une commande</span><strong className="text-money">{money(c.goodsMinAmount)} USD</strong></div>
+              <div><span>Montant maximum d’une commande</span><strong className="text-money">{money(c.goodsMaxAmount)} USD</strong></div>
+            </>
+          ) : <div><span>Montant du contrat</span><strong className="text-money">{money(c.amount)}</strong></div>}
+          {!c.stockOnly && <div><span>Avance de démarrage</span><strong className="text-money">{num(c.initialFinancingRate, 2)} % — {money(c.advanceOnRequest ? c.advanceDue : c.initialFinancing)}{c.advanceOnRequest && <span className="small text-secondary fw-normal d-block">{c.advanceRequest?.status === 'PAYEE' ? `Payée le ${fr(c.advanceRequest.paidDate)}` : c.advanceRequest ? 'Demandée, à payer' : 'Sur demande de l’entreprise'}</span>}</strong></div>}
+          {!c.stockOnly && <div><span>Paiements enregistrés</span><strong className="text-money">{money(c.totalPaid)}</strong></div>}
           {d.startupAdvance && <div><span>Avance de démarrage</span><strong className="text-money">{money(d.startupAdvance.amount)} ({fr(d.startupAdvance.date)})</strong></div>}
           <div className="grid-span"><span>Activité</span><strong>{c.activity || '—'}</strong></div>
         </div>
       </div>
 
+      <GoodsProcedurePanel c={c} rules={d.goodsRules} />
+
+      {c.stockOnly && (
+        <div className="cardx p-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <div className="section-title">Suivi par le stock</div>
+            <div className="section-subtitle">Ce contrat de fournitures de bureau se suit uniquement par les entrées et les sorties de ses articles.</div>
+          </div>
+          {(can('canViewStock') || can('canManageStock')) && <Link to={`/stock?contrat=${c.id}${c.unitId ? `&unit=${c.unitId}` : ''}`} className="btn btn-primary"><i className="bi bi-box-seam me-1" /> Voir les articles du contrat</Link>}
+        </div>
+      )}
+
       <div className="cardx p-3 mb-3">
         <div className="section-title mb-3">Sites d’exécution</div>
         <div className="table-wrap">
           <table className="table align-middle">
-            <thead><tr><th>Site</th><th>Province</th><th>Type d’ouvrage</th><th>Description</th><th>Quantité</th><th style={{ minWidth: 150 }}>Avancement</th></tr></thead>
+            <thead><tr><th>Site</th><th>Province</th><th>Type d’ouvrage</th><th>Description</th><th>Quantité</th>{!c.stockOnly && <th style={{ minWidth: 150 }}>Avancement</th>}</tr></thead>
             <tbody>
               {c.sites.map((s) => (
                 <tr key={s.id}>
                   <td><strong>{s.name}</strong></td><td>{s.province}</td><td>{s.workType || '—'}</td><td>{s.description || '—'}</td><td>{num(s.quantity, 2)}</td>
-                  <td><strong>{num(s.progress, 1)}%</strong><Progress value={s.progress} /></td>
+                  {!c.stockOnly && <td><strong>{num(s.progress, 1)}%</strong><Progress value={s.progress} /></td>}
                 </tr>
               ))}
               {!c.sites.length && <tr><td colSpan="6"><Empty text="Aucun site enregistré." /></td></tr>}
@@ -137,6 +160,7 @@ export default function ContractDetail({ readOnly = false }) {
         </div>
       </div>
 
+      {!c.stockOnly && <>
       <div className="row g-3 mb-3">
         <div className="col-xl-7">
           <div className="cardx p-3 h-100">
@@ -197,12 +221,14 @@ export default function ContractDetail({ readOnly = false }) {
         )}
       </div>
 
+      </>}
+
       {d.renewals.length > 0 && (
         <div className="cardx p-3 mb-3">
           <div className="section-title mb-2">Renouvellements</div>
           <div className="table-wrap"><table className="table table-sm">
-            <thead><tr><th>Date</th><th>Numéro</th><th>Nouvelle période</th><th>Montant ajouté</th><th>Motif</th></tr></thead>
-            <tbody>{d.renewals.map((x) => <tr key={x.id}><td className="text-nowrap">{fr(x.date)}</td><td className="text-nowrap">{x.previous_reference} → <strong>{x.new_reference}</strong></td><td className="text-nowrap">{fr(x.period_start)} → {fr(x.new_end)}</td><td className="text-money text-nowrap">{money(x.added_amount)}</td><td>{x.reason}</td></tr>)}</tbody>
+            <thead><tr><th>Date</th><th>Numéro</th><th>Nouvelle période</th>{!c.stockOnly && <th>Montant ajouté</th>}<th>Motif</th></tr></thead>
+            <tbody>{d.renewals.map((x) => <tr key={x.id}><td className="text-nowrap">{fr(x.date)}</td><td className="text-nowrap">{x.previous_reference} → <strong>{x.new_reference}</strong></td><td className="text-nowrap">{fr(x.period_start)} → {fr(x.new_end)}</td>{!c.stockOnly && <td className="text-money text-nowrap">{money(x.added_amount)}</td>}<td>{x.reason}</td></tr>)}</tbody>
           </table></div>
         </div>
       )}
@@ -247,7 +273,7 @@ export default function ContractDetail({ readOnly = false }) {
         </div>
       </div>
 
-      <div className="row g-3 mb-4">
+      {!c.stockOnly && <div className="row g-3 mb-4">
         <div className="col-xl-6">
           <div className="cardx p-3 h-100">
             <div className="section-title mb-2">Derniers paiements</div>
@@ -270,7 +296,7 @@ export default function ContractDetail({ readOnly = false }) {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {dialog === 'amend' && (
         <Modal title="Ajouter un avenant" subtitle={`Contrat ${c.number} — fin actuelle : ${fr(c.endDate)}`} size="md" onClose={() => setDialog(null)}
@@ -285,18 +311,18 @@ export default function ContractDetail({ readOnly = false }) {
       {dialog === 'renew' && renew && (
         <Modal title="Renouveler le contrat" subtitle={`Contrat ${c.number} — fin actuelle : ${fr(c.endDate)}`} size="md" onClose={() => setDialog(null)}
           footer={<><button className="btn btn-light" onClick={() => setDialog(null)}>Annuler</button><button className="btn btn-success" disabled={busy} onClick={saveRenew}>Enregistrer le renouvellement</button></>}>
-          <p className="small text-secondary">Le contrat garde sa fiche et son historique. Aucune nouvelle avance ni garantie n’est demandée ; les décomptes suivants continuent de retenir le taux de garantie en cours.</p>
+          <p className="small text-secondary">Le contrat garde sa fiche et son historique. Aucune nouvelle avance ni garantie n’est demandée{g ? ' ; les décomptes suivants continuent de retenir le taux de garantie en cours' : ''}.</p>
           <div className="row g-3">
             <Field className="col-md-6" label="Nouveau numéro" error={renewErrors.reference}><input className="form-control" value={renew.reference} onChange={(e) => setRenew({ ...renew, reference: e.target.value })} /></Field>
             <Field className="col-md-6" label="Date du renouvellement" error={renewErrors.date}><input type="date" className="form-control" value={renew.date} onChange={(e) => setRenew({ ...renew, date: e.target.value })} /></Field>
             <Field className="col-md-6" label="Début de la nouvelle période" error={renewErrors.period_start}><input type="date" className="form-control" value={renew.period_start} onChange={(e) => setRenew({ ...renew, period_start: e.target.value })} /></Field>
             <Field className="col-md-6" label="Durée (mois)" error={renewErrors.months}><input type="number" min="1" className="form-control" value={renew.months} onChange={(e) => setRenew({ ...renew, months: e.target.value })} /></Field>
-            <Field className="col-12" label="Montant ajouté (USD)" error={renewErrors.added_amount}><DecimalInput value={renew.added_amount} onChange={(v) => setRenew({ ...renew, added_amount: v })} placeholder="Ex. : 25000" /></Field>
+            {!c.stockOnly && <Field className="col-12" label="Montant ajouté (USD)" error={renewErrors.added_amount}><DecimalInput value={renew.added_amount} onChange={(v) => setRenew({ ...renew, added_amount: v })} placeholder="Ex. : 25000" /></Field>}
             <Field className="col-12" label="Motif" error={renewErrors.reason}><textarea className="form-control" rows="2" value={renew.reason} onChange={(e) => setRenew({ ...renew, reason: e.target.value })} /></Field>
           </div>
           <p className="small mt-3 mb-0">
             {renew.period_start && Number(renew.months) > 0 ? <>Nouvelle fin : <strong>{fr(addMonths(renew.period_start, Number(renew.months)))}</strong>. </> : ''}
-            Nouveau montant du contrat : <strong>{money(Number(c.amount) + (parseDecimal(renew.added_amount) || 0))} USD</strong>.
+            {!c.stockOnly && <>Nouveau montant du contrat : <strong>{money(Number(c.amount) + (parseDecimal(renew.added_amount) || 0))} USD</strong>.</>}
           </p>
         </Modal>
       )}

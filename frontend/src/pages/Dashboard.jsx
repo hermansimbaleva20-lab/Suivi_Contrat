@@ -54,8 +54,8 @@ export default function Dashboard() {
                   <td>{c.company}</td>
                   <td>{c.category || '—'}</td>
                   <td>{(c.provinces || []).join(', ') || c.province || '—'}</td>
-                  <td>{c.durationMonths} mois</td>
-                  <td>{fr(c.startDate)}</td>
+                  <td>{c.periodMonths} mois</td>
+                  <td>{fr(c.periodStart)}</td>
                   <td>{num(c.elapsed)}%</td>
                   <td style={{ minWidth: 130 }}><strong>{num(c.progress)}%</strong><Progress value={c.progress} /></td>
                   <td className="text-money">{money(c.amount)}</td>

@@ -33,11 +33,12 @@ class AlertEngine
             ->selectRaw("m.organizational_unit_id AS unit_id, u.name AS unit_name, a.id, a.designation, a.unit, a.alert_threshold, SUM(CASE WHEN m.type = 'ENTREE' THEN m.quantity ELSE -m.quantity END) AS stock")->get();
         foreach ($stocks as $s) {
             $qty = round((float) $s->stock, 2);
-            $low = $s->alert_threshold !== null && $qty <= (float) $s->alert_threshold;
+            $threshold = StockLedger::threshold((string) $s->unit, $s->alert_threshold === null ? null : (float) $s->alert_threshold);
+            $low = $threshold !== null && $qty <= $threshold;
             if ($qty <= 0 || $low) {
                 $out[] = ['category' => 'STOCK', 'key' => "STOCK:{$s->unit_id}:{$s->id}", 'unitId' => (int) $s->unit_id, 'title' => "{$s->designation} ({$s->unit_name})",
                     'level' => $qty <= 0 ? 'danger' : 'warning', 'code' => $qty <= 0 ? 'OUT' : 'LOW', 'itemId' => (int) $s->id, 'name' => $s->designation, 'unitName' => $s->unit_name,
-                    'text' => $qty <= 0 ? 'en rupture de stock.' : "plus que {$qty} {$s->unit} (niveau minimum " . (float) $s->alert_threshold . ').'];
+                    'text' => $qty <= 0 ? 'en rupture de stock.' : "plus que {$qty} {$s->unit} (niveau minimum {$threshold})."];
             }
         }
         // Charroi et groupes : mêmes alertes que l'écran « Véhicules & alertes ».

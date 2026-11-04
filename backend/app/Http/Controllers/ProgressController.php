@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Support\Ctx;
 use App\Support\Dates;
+use App\Support\GoodsProcedure;
 use App\Support\Loader;
 use App\Support\Metrics;
 use App\Support\Views;
@@ -69,6 +70,7 @@ class ProgressController extends Controller
     {
         Ctx::need('can_manage_progress');
         $c = $this->contractOr404((int) $r->input('contract_id'));
+        abort_if(GoodsProcedure::stockOnly($c['goods_procedure']), 422, GoodsProcedure::STOCK_ONLY_MESSAGE);
         abort_if($c['terminated'], 422, 'Un contrat résilié ne peut plus recevoir de nouvelle situation.');
         $p = $this->parseProgress($r);
         $date = Dates::valid($r->input('date')) ? Dates::part($r->input('date')) : null;

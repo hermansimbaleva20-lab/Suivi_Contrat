@@ -173,6 +173,12 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 .pdoc-table tr.pdoc-rejected td { color: #8a5a5a; background: #fdf1f1; }
 .pdoc-table tr.pdoc-rejected .pdoc-amount { text-decoration: line-through; }
 .pdoc-table .pdoc-strong { font-weight: 700; }
+/* Fiche de stock : modèle papier, lignes hautes et visas en bas de page. */
+.pdoc-table.pdoc-card { font-size: 9pt; }
+.pdoc-table.pdoc-card thead th { font-size: 8pt; }
+.pdoc-table.pdoc-card th, .pdoc-table.pdoc-card td { height: 7.6mm; padding: .8mm 1.5mm; }
+.pdoc-visas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8mm; margin-top: 7mm; text-align: center; font-size: 9pt; font-weight: 700; break-inside: avoid; }
+.pdoc-visas > div { min-height: 24mm; }
 .pdoc-note { display: block; font-size: 6.6pt; color: #4f6159; white-space: normal; }
 /* Total validé : une seule fois, en fin de tableau (pas répété en bas de chaque page) */
 .pdoc-table tfoot { display: table-row-group; }

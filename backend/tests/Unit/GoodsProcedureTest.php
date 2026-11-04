@@ -41,6 +41,9 @@ class GoodsProcedureTest extends TestCase
         $this->assertFalse(GoodsProcedure::renewable('BIENS', 'NATIONALE'));
         $this->assertFalse(GoodsProcedure::renewable('TRAVAUX', null));
         $this->assertNull(GoodsProcedure::describe('FOURNITURES_BUREAU', null));
+        $this->assertTrue(GoodsProcedure::stockOnly('FOURNITURES_BUREAU'));
+        $this->assertFalse(GoodsProcedure::stockOnly('NATIONALE'));
+        $this->assertFalse(GoodsProcedure::stockOnly(null));
     }
 
     public function test_echeancier_modifiable_mais_toujours_a_100(): void
@@ -89,7 +92,6 @@ class GoodsProcedureTest extends TestCase
     {
         $base = ['amount' => 1000.0, 'renewed_amount' => 0.0, 'initial_rate' => 10.0];
         $this->assertSame(100.0, Metrics::initialFinancing($base)); // règle habituelle
-        $this->assertSame(100.0, Metrics::initialFinancing($base + ['goods_procedure' => 'FOURNITURES_BUREAU']));
 
         $bad = $base + ['goods_procedure' => 'BAD'];
         $this->assertSame(0.0, Metrics::initialFinancing($bad + ['advance' => null]));
@@ -98,5 +100,22 @@ class GoodsProcedureTest extends TestCase
         $this->assertSame(100.0, Metrics::initialFinancing($paid));
         $this->assertSame(100.0, Metrics::initialFinancing($paid, '2026-03-10'));
         $this->assertSame(0.0, Metrics::initialFinancing($paid, '2026-03-09')); // état arrêté avant le paiement
+    }
+
+    public function test_le_temps_consomme_repart_de_la_nouvelle_periode(): void
+    {
+        $c = ['start_date' => '2024-01-01', 'end_date' => '2027-01-01', 'renewals' => [['period_start' => '2026-01-01']]];
+        $this->assertSame(50.0, round(Metrics::elapsed($c, '2026-07-02'), 0));
+        // Une date antérieure au renouvellement reste calculée sur la période d'origine.
+        $this->assertSame(33.0, round(Metrics::elapsed($c, '2025-01-01'), 0));
+    }
+
+    public function test_un_contrat_de_fournitures_de_bureau_n_est_jamais_en_retard(): void
+    {
+        $c = ['goods_procedure' => 'FOURNITURES_BUREAU', 'terminated' => false, 'termination_date' => null, 'completed' => false, 'start_date' => '2024-01-01', 'end_date' => '2026-01-01', 'sites' => [], 'entries' => []];
+        $this->assertSame('Normal', Metrics::status($c, '2025-12-01'));
+        $this->assertSame('Terminé', Metrics::status($c, '2026-02-01'));
+        $this->assertSame('Résilié', Metrics::status(['terminated' => true] + $c, '2025-12-01'));
+        $this->assertSame('Retard', Metrics::status(['goods_procedure' => null] + $c, '2026-02-01'));
     }
 }

@@ -11,7 +11,7 @@ import { ModuleHeader } from '../shared/ModuleHeader.jsx';
 import { ReadOnlyNote } from '../shared/ReadOnlyNote.jsx';
 import { PrintLetterhead } from '../shared/PrintLetterhead.jsx';
 import { STOCK } from '../shared/logisticsNav.js';
-import { LevelPill, td, tdNum, th } from './stockUi.jsx';
+import { td, tdNum, th } from './stockUi.jsx';
 import { cardNo, packLabel, qty } from './stockFormat.js';
 
 /*
@@ -43,7 +43,7 @@ function ArticleForm({ initial, onSubmit, onCancel, busy, errors }) {
       {field('pack_size', 'Contenu d’une unité', { num: true, placeholder: 'ex. 12', hint: 'Facultatif : 1 carton = 12 pièces' })}
       {field('pack_unit', 'Exprimé en', { placeholder: 'ex. pièces', max: 40 })}
       {field('unit_price', 'PU évalué (USD)', { num: true, required: true, placeholder: '0,00' })}
-      {field('alert_threshold', 'Niveau minimum (alerte)', { num: true, placeholder: 'ex. 5', hint: 'Alerte quand le stock l’atteint' })}
+      {field('alert_threshold', 'Niveau minimum (alerte)', { num: true, placeholder: 'selon l’unité', hint: 'Vide : 1 pour un paquet (Pqt), 2 pour une pièce (Pce)' })}
       <div className="tw:flex tw:justify-end tw:gap-2 tw:sm:col-span-12">
         <button type="button" className={btnGhost} onClick={onCancel}>Annuler</button>
         <button type="submit" className={btnPrimary} disabled={busy}>{initial.id ? 'Enregistrer' : 'Ajouter l’article'}</button>
@@ -72,27 +72,135 @@ function CatalogActions({ a, busy, onEdit, onToggle, onDelete }) {
   );
 }
 
-/** Réception d'une livraison de l'entreprise titulaire : plusieurs articles, une entrée par fiche. */
-function DeliveryForm({ data, unitName, onDone, onCancel }) {
-  const articles = data.articles.filter((a) => a.isActive);
-  const [f, setF] = useState({ company_id: data.companies.length === 1 ? String(data.companies[0].id) : '', movement_date: todayISO(), reference: '', observation: '' });
+/** Sortie de stock (consommation) : un ou plusieurs articles remis à un poste de l'unité du compte. */
+function ExitForm({ data, unitName, contract, onDone, onCancel }) {
+  const articles = data.articles.filter((a) => a.isActive && a.ownerUnitId === data.ownUnitId && a.ownStock > 0 && inContract(a, contract));
+  const [f, setF] = useState({ position_id: '', movement_date: todayISO(), observation: '' });
   const [lines, setLines] = useState([{ key: 1, stock_article_id: '', quantity: '' }]);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const setLine = (i, k, v) => setLines(lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
   const used = new Set(lines.map((l) => l.stock_article_id));
-  const total = lines.reduce((s, l) => {
-    const a = articles.find((x) => String(x.id) === l.stock_article_id);
-    const n = Number(String(l.quantity).replace(',', '.'));
-    return a && n > 0 ? s + a.unitPrice * n : s;
-  }, 0);
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true); setErrors({}); setError('');
     try {
-      const r = await api.post('/stock/deliveries', { ...f, lines: lines.map(({ stock_article_id, quantity }) => ({ stock_article_id, quantity })) });
+      const r = await api.post('/stock/exits', { ...f, lines: lines.map(({ stock_article_id, quantity }) => ({ stock_article_id, quantity })) });
+      onDone(r.data.message);
+    } catch (err) {
+      const fe = fieldErrors(err);
+      setErrors(fe);
+      if (!Object.keys(fe).length) setError(apiError(err));
+    } finally { setBusy(false); }
+  };
+
+  const positions = data.positions || [];
+  if (!articles.length || !positions.length) {
+    return (
+      <div className="tw:border-b tw:border-prise-border tw:bg-amber-50/70 tw:px-5 tw:py-4 tw:text-sm tw:text-amber-900">
+        {articles.length ? `Aucun poste n’est enregistré pour ${unitName} : ajoutez-les dans Administration › Organisation.` : `Aucun article de cette sélection n’est en stock à ${unitName}.`}
+        <button type="button" className={`${btnGhost} tw:ml-2`} onClick={onCancel}>Fermer</button>
+      </div>
+    );
+  }
+  return (
+    <form onSubmit={submit} className="tw:grid tw:gap-4 tw:border-b tw:border-prise-border tw:bg-prise-bg/60 tw:px-5 tw:py-4" aria-label="Sortie de stock">
+      <div className="tw:flex tw:flex-wrap tw:items-baseline tw:justify-between tw:gap-2">
+        <h3 className="tw:m-0 tw:font-display tw:text-[15px] tw:font-bold tw:text-prise-blue">Sortie de stock</h3>
+        <span className="tw:text-xs tw:text-prise-muted">Unité : <strong className="tw:text-prise-text">{unitName}</strong></span>
+      </div>
+      {error && <p className="tw:m-0 tw:text-sm tw:text-prise-danger" role="alert">{error}</p>}
+      <div className="tw:grid tw:gap-3 tw:sm:grid-cols-12">
+        <div className="tw:sm:col-span-8">
+          <label className={label} htmlFor="ex-who">Destination (poste de l’unité)</label>
+          <select id="ex-who" className={input} value={f.position_id} onChange={(e) => setF({ ...f, position_id: e.target.value })} required autoFocus>
+            <option value="">Choisir le poste…</option>
+            {positions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <FieldError text={errors.position_id} />
+        </div>
+        <div className="tw:sm:col-span-4">
+          <label className={label} htmlFor="ex-date">Date de sortie</label>
+          <input id="ex-date" type="date" className={`${input} tw:font-tech`} value={f.movement_date} max={todayISO()} onChange={(e) => setF({ ...f, movement_date: e.target.value })} required />
+          <FieldError text={errors.movement_date} />
+        </div>
+      </div>
+
+      <div className="tw:overflow-x-auto tw:rounded-lg tw:border tw:border-prise-border tw:bg-white">
+        <table className="tw:w-full tw:border-collapse">
+          <thead><tr><th className={th} scope="col">Article</th><th className={`${th} tw:w-32 tw:text-right`} scope="col">Disponible</th><th className={`${th} tw:w-36 tw:text-right`} scope="col">Quantité sortie</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
+          <tbody>
+            {lines.map((l, i) => {
+              const a = articles.find((x) => String(x.id) === l.stock_article_id);
+              return (
+                <tr key={l.key}>
+                  <td className={td}>
+                    <select aria-label={`Article de la ligne ${i + 1}`} className={input} value={l.stock_article_id} onChange={(e) => setLine(i, 'stock_article_id', e.target.value)} required>
+                      <option value="">Choisir l’article…</option>
+                      {articles.map((x) => <option key={x.id} value={x.id} disabled={used.has(String(x.id)) && String(x.id) !== l.stock_article_id}>{cardNo(x.number)} — {x.designation} ({x.unit})</option>)}
+                    </select>
+                    <FieldError text={errors[`lines.${i}.stock_article_id`]} />
+                  </td>
+                  <td className={tdNum}>{a ? `${qty(a.ownStock)} ${a.unit}` : '—'}</td>
+                  <td className={td}>
+                    <input aria-label={`Quantité de la ligne ${i + 1}`} className={`${input} tw:font-tech tw:text-right`} inputMode="decimal" value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} required />
+                    <FieldError text={errors[`lines.${i}.quantity`]} />
+                  </td>
+                  <td className={td}>
+                    {lines.length > 1 && <button type="button" className={btnDanger} onClick={() => setLines(lines.filter((_, j) => j !== i))} aria-label={`Retirer la ligne ${i + 1}`}><i className="bi bi-x-lg" aria-hidden="true" /></button>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot><tr><td className={td} colSpan={4}><button type="button" className={btnGhost} onClick={() => setLines([...lines, { key: Date.now(), stock_article_id: '', quantity: '' }])}><i className="bi bi-plus-lg" aria-hidden="true" />Ajouter un article</button></td></tr></tfoot>
+        </table>
+      </div>
+      <FieldError text={errors.lines} />
+      <div className="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
+        <div className="tw:min-w-60 tw:flex-1">
+          <label className={label} htmlFor="ex-obs">Observation (facultatif)</label>
+          <input id="ex-obs" className={input} value={f.observation} onChange={(e) => setF({ ...f, observation: e.target.value })} maxLength={500} />
+        </div>
+        <button type="button" className={btnGhost} onClick={onCancel}>Annuler</button>
+        <button type="submit" className={btnPrimary} disabled={busy}>Enregistrer la sortie</button>
+      </div>
+    </form>
+  );
+}
+
+/** Articles d'un contrat ('sans' : articles sans contrat ; vide : tous). */
+const inContract = (a, contract) => !contract || (contract === 'sans' ? !a.contractId : String(a.contractId) === contract);
+
+/** Réception d'une livraison de l'entreprise titulaire : plusieurs articles, une entrée par fiche. */
+function DeliveryForm({ data, unitName, initialContract, onDone, onCancel }) {
+  // Une unité ne réceptionne que ses propres articles, et les contrats de fournitures qui sont les siens.
+  const contracts = (data.articleContracts || []).filter((c) => !c.unitId || c.unitId === data.ownUnitId);
+  const [contract, setContract] = useState(initialContract || (contracts.length ? '' : 'sans'));
+  const articles = data.articles.filter((a) => a.isActive && a.ownerUnitId === data.ownUnitId && inContract(a, contract));
+  const initialCompany = contracts.find((c) => String(c.id) === initialContract)?.companyId;
+  const [f, setF] = useState({ company_id: initialCompany ? String(initialCompany) : data.companies.length === 1 ? String(data.companies[0].id) : '', movement_date: todayISO(), reference: '', observation: '' });
+  const [lines, setLines] = useState([{ key: 1, stock_article_id: '', quantity: '' }]);
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const setLine = (i, k, v) => setLines(lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
+  const chosen = contracts.find((c) => String(c.id) === contract);
+  const chooseContract = (v) => {
+    const c = contracts.find((x) => String(x.id) === v);
+    setContract(v);
+    setLines([{ key: Date.now(), stock_article_id: '', quantity: '' }]);
+    if (c?.companyId) setF((s) => ({ ...s, company_id: String(c.companyId) }));
+  };
+  const used = new Set(lines.map((l) => l.stock_article_id));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErrors({}); setError('');
+    try {
+      const r = await api.post('/stock/deliveries', { ...f, contract_id: contract && contract !== 'sans' ? contract : null, lines: lines.map(({ stock_article_id, quantity }) => ({ stock_article_id, quantity })) });
       onDone(r.data.message);
     } catch (err) {
       const fe = fieldErrors(err);
@@ -117,9 +225,19 @@ function DeliveryForm({ data, unitName, onDone, onCancel }) {
       </div>
       {error && <p className="tw:m-0 tw:text-sm tw:text-prise-danger" role="alert">{error}</p>}
       <div className="tw:grid tw:gap-3 tw:sm:grid-cols-12">
+        {contracts.length > 0 && (
+          <div className="tw:sm:col-span-12">
+            <label className={label} htmlFor="dl-contract">Contrat</label>
+            <select id="dl-contract" className={`${input} tw:sm:max-w-md`} value={contract} onChange={(e) => chooseContract(e.target.value)} required>
+              <option value="">Choisir…</option>
+              {contracts.map((c) => <option key={c.id} value={c.id}>{c.number}{c.company ? ` — ${c.company}` : ''}</option>)}
+              <option value="sans">Articles sans contrat</option>
+            </select>
+          </div>
+        )}
         <div className="tw:sm:col-span-5">
           <label className={label} htmlFor="dl-company">Entreprise qui a livré</label>
-          <select id="dl-company" className={input} value={f.company_id} onChange={(e) => setF({ ...f, company_id: e.target.value })} required>
+          <select id="dl-company" className={input} value={f.company_id} onChange={(e) => setF({ ...f, company_id: e.target.value })} disabled={!!chosen?.companyId} required>
             <option value="">Choisir…</option>
             {data.companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -138,11 +256,10 @@ function DeliveryForm({ data, unitName, onDone, onCancel }) {
 
       <div className="tw:overflow-x-auto tw:rounded-lg tw:border tw:border-prise-border tw:bg-white">
         <table className="tw:w-full tw:border-collapse">
-          <thead><tr><th className={th} scope="col">Article livré</th><th className={`${th} tw:w-36 tw:text-right`} scope="col">Quantité</th><th className={`${th} tw:w-32 tw:text-right`} scope="col">PT (USD)</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
+          <thead><tr><th className={th} scope="col">Article livré</th><th className={`${th} tw:w-36 tw:text-right`} scope="col">Quantité</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
           <tbody>
             {lines.map((l, i) => {
               const a = articles.find((x) => String(x.id) === l.stock_article_id);
-              const n = Number(String(l.quantity).replace(',', '.'));
               return (
                 <tr key={l.key}>
                   <td className={td}>
@@ -156,7 +273,6 @@ function DeliveryForm({ data, unitName, onDone, onCancel }) {
                     <input aria-label={`Quantité de la ligne ${i + 1}`} className={`${input} tw:font-tech tw:text-right`} inputMode="decimal" value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value)} required placeholder={a ? a.unit : ''} />
                     <FieldError text={errors[`lines.${i}.quantity`]} />
                   </td>
-                  <td className={tdNum}>{a && n > 0 ? money(a.unitPrice * n) : '—'}</td>
                   <td className={td}>
                     {lines.length > 1 && <button type="button" className={btnDanger} onClick={() => setLines(lines.filter((_, j) => j !== i))} aria-label={`Retirer la ligne ${i + 1}`}><i className="bi bi-x-lg" aria-hidden="true" /></button>}
                   </td>
@@ -166,10 +282,7 @@ function DeliveryForm({ data, unitName, onDone, onCancel }) {
           </tbody>
           <tfoot>
             <tr>
-              <td className={td}><button type="button" className={btnGhost} onClick={() => setLines([...lines, { key: Date.now(), stock_article_id: '', quantity: '' }])}><i className="bi bi-plus-lg" aria-hidden="true" />Ajouter un article</button></td>
-              <td className={`${td} tw:text-right tw:text-xs tw:font-semibold tw:text-prise-muted`}>Total livré</td>
-              <td className={`${tdNum} tw:font-bold`}>{money(total)}</td>
-              <td className={td} />
+              <td className={td} colSpan={3}><button type="button" className={btnGhost} onClick={() => setLines([...lines, { key: Date.now(), stock_article_id: '', quantity: '' }])}><i className="bi bi-plus-lg" aria-hidden="true" />Ajouter un article</button></td>
             </tr>
           </tfoot>
         </table>
@@ -189,8 +302,7 @@ function DeliveryForm({ data, unitName, onDone, onCancel }) {
 
 /**
  * Stock par contrat : import du fichier des articles d'un contrat de fournitures (ou de la liste des prix unitaires
- * évalués), avec aperçu avant validation. Les nouveaux articles vont à l'unité du compte (catalogue commun pour la
- * coordination) ; un article du catalogue commun déjà connu est utilisé tel quel.
+ * évalués), avec aperçu avant validation. Les nouveaux articles vont à l'unité du compte.
  */
 function ImportPanel({ ownUnitName, canStock, contracts, owner, onDone, onCancel }) {
   const [contractId, setContractId] = useState('');
@@ -224,7 +336,7 @@ function ImportPanel({ ownUnitName, canStock, contracts, owner, onDone, onCancel
   };
   const STATUS = {
     NEW: ['Nouveau', 'tw:bg-prise-green-soft tw:text-prise-green-2'], UPDATE: ['Mise à jour', 'tw:bg-sky-50 tw:text-sky-800'],
-    KEEP: ['Catalogue commun', 'tw:bg-prise-bg tw:text-prise-muted'], ERROR: ['Erreur', 'tw:bg-red-50 tw:text-prise-danger'],
+    ERROR: ['Erreur', 'tw:bg-red-50 tw:text-prise-danger'],
   };
 
   return (
@@ -237,7 +349,7 @@ function ImportPanel({ ownUnitName, canStock, contracts, owner, onDone, onCancel
       </div>
       <p className="tw:m-0 tw:text-sm tw:text-prise-muted">
         Fichier Excel (.xlsx) ou CSV avec les colonnes N°, Article, Unité, Quantité, PU $. Les nouveaux articles vont à <strong className="tw:text-prise-text">{owner}</strong>.
-        Un article que vous tenez déjà (même désignation) voit son unité et son prix mis à jour ; un article du catalogue commun est utilisé tel quel.
+        Un article que vous tenez déjà (même désignation) voit son unité et son prix mis à jour.
       </p>
       <div className="tw:sm:w-96">
         <label className={label} htmlFor="imp-contract">Contrat de fournitures</label>
@@ -256,7 +368,7 @@ function ImportPanel({ ownUnitName, canStock, contracts, owner, onDone, onCancel
       {preview && (
         <>
           <p className="tw:m-0 tw:text-sm" role="status">
-            <strong>{preview.counts.new}</strong> nouveau(x), <strong>{preview.counts.update}</strong> mise(s) à jour{preview.counts.keep > 0 && <>, <strong>{preview.counts.keep}</strong> déjà au catalogue commun</>}
+            <strong>{preview.counts.new}</strong> nouveau(x), <strong>{preview.counts.update}</strong> mise(s) à jour
 
             {preview.counts.error > 0 && <>, <strong className="tw:text-prise-danger">{preview.counts.error} en erreur</strong> : corrigez le fichier puis rechargez-le</>}.
           </p>
@@ -301,6 +413,7 @@ function ImportPanel({ ownUnitName, canStock, contracts, owner, onDone, onCancel
 export default function StockPage({ view }) {
   const [params, setParams] = useSearchParams();
   const unitParam = params.get('unit') || '';
+  const contractParam = params.get('contrat') || '';
   const { data, loading, error, reload } = useLoad('/stock', unitParam ? { unit_id: unitParam } : {});
   const [search, setSearch] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
@@ -318,9 +431,16 @@ export default function StockPage({ view }) {
   if (!data) return <Notice>{error}</Notice>;
 
   const setUnit = (v) => { const next = new URLSearchParams(params); if (v) next.set('unit', v); else next.delete('unit'); setParams(next, { replace: true }); };
+  const setContractFilter = (v) => { const next = new URLSearchParams(params); if (v) next.set('contrat', v); else next.delete('contrat'); setParams(next, { replace: true }); };
   const unit = data.units.find((u) => u.id === data.unitId);
   const own = data.units.find((u) => u.id === data.ownUnitId);
-  const cardLink = (a) => `/stock/articles/${a.id}${data.unitId ? `?unit=${data.unitId}` : ''}`;
+  const cardLink = (a) => {
+    const q = new URLSearchParams();
+    if (data.unitId) q.set('unit', data.unitId);
+    if (contractParam) q.set('contrat', contractParam);
+    const text = q.toString();
+    return `/stock/articles/${a.id}${text ? `?${text}` : ''}`;
+  };
   const done = async (text) => { setFlash({ type: 'success', text }); setEditing(null); await reload(); };
 
   const call = async (fn) => {
@@ -334,7 +454,7 @@ export default function StockPage({ view }) {
   const openForm = (id) => { setErrors({}); setEditing(id); };
   const toInput = (v) => (v === null || v === undefined ? '' : String(v).replace('.', ','));
 
-  const stockRows = articles.filter((a) => (a.isActive || a.stock !== 0) && (!onlyLow || a.level === 'LOW' || a.level === 'OUT'));
+  const stockRows = articles.filter((a) => inContract(a, contractParam) && (!onlyLow || a.level === 'LOW' || a.level === 'OUT'));
   const lowCount = data.totals.low;
   const tabs = STOCK.tabs.map((t) => (t.to === '/stock' ? { ...t, badge: lowCount } : t));
   const unitPicker = data.canChooseUnit && (
@@ -353,7 +473,7 @@ export default function StockPage({ view }) {
   return (
     <>
       <ModuleHeader icon={STOCK.icon} title={STOCK.title} tabs={tabs} unit={unit ? unit.name : 'Toutes les unités'}
-        desc={view === 'catalogue' ? 'Prix unitaires évalués : le catalogue commun tenu par la coordination nationale et les articles propres à chaque antenne. Deux façons d’ajouter des articles : par contrat (import du fichier des articles du contrat) ou sans contrat, un par un. Montants en USD.' : 'Fournitures livrées par l’entreprise titulaire et sorties sur demande. Montants en USD.'}
+        desc={view === 'catalogue' ? 'Prix unitaires évalués : chaque unité tient ses propres articles. Deux façons d’ajouter des articles : par contrat (import du fichier des articles du contrat) ou sans contrat, un par un. Montants en USD.' : 'Situation de tous les articles : entrées, sorties et stock restant. Cliquez sur un article pour afficher sa fiche de stock, avec toutes ses opérations.'}
         actions={unitPicker} />
       <Notice type={flash.type} onClose={() => setFlash({ ...flash, text: '' })}>{flash.text}</Notice>
       {view !== 'catalogue' && own && unit && unit.id !== own.id && <ReadOnlyNote unitName={unit.name} />}
@@ -362,9 +482,15 @@ export default function StockPage({ view }) {
         <section className={panel}>
           <header className="tw:flex tw:flex-wrap tw:items-center tw:gap-x-6 tw:gap-y-3 tw:border-b tw:border-prise-border tw:px-5 tw:py-4">
             {searchBox}
+            {(data.articleContracts || []).length > 0 && (
+              <select aria-label="Contrat" className={`${input} tw:w-full tw:sm:w-72`} value={contractParam} onChange={(e) => setContractFilter(e.target.value)}>
+                <option value="">Tous les articles</option>
+                {data.articleContracts.map((c) => <option key={c.id} value={c.id}>Contrat {c.number}{c.company ? ` — ${c.company}` : ''}</option>)}
+                <option value="sans">Articles sans contrat</option>
+              </select>
+            )}
             <dl className="tw:m-0 tw:flex tw:flex-wrap tw:gap-x-6 tw:gap-y-1 tw:text-sm">
-              <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Valeur</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{money(data.totals.value)} USD</dd></div>
-              <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Articles</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{data.totals.articles}</dd></div>
+              <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Articles</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{stockRows.length}</dd></div>
               <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Sous le minimum</dt><dd className={`tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums ${lowCount ? 'tw:text-prise-danger' : ''}`}>{lowCount}</dd></div>
             </dl>
             <div className="tw:ml-auto tw:flex tw:flex-wrap tw:items-center tw:gap-3">
@@ -372,12 +498,16 @@ export default function StockPage({ view }) {
                 <input type="checkbox" className="tw:size-4 tw:accent-prise-green-2" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} />
                 À réapprovisionner
               </label>
+              {own && (!unit || unit.id === own.id) && editing !== 'exit' && (
+                <button type="button" className={btnPrimary} onClick={() => setEditing('exit')}><i className="bi bi-box-arrow-up" aria-hidden="true" />Enregistrer une sortie</button>
+              )}
               {own && (!unit || unit.id === own.id) && editing !== 'delivery' && (
                 <button type="button" className={btnPrimary} onClick={() => setEditing('delivery')}><i className="bi bi-truck" aria-hidden="true" />Réceptionner une livraison</button>
               )}
             </div>
           </header>
-          {editing === 'delivery' && <DeliveryForm data={data} unitName={own?.name} onDone={done} onCancel={() => setEditing(null)} />}
+          {editing === 'exit' && <ExitForm data={data} unitName={own?.name} contract={contractParam} onDone={done} onCancel={() => setEditing(null)} />}
+          {editing === 'delivery' && <DeliveryForm data={data} unitName={own?.name} initialContract={contractParam} onDone={done} onCancel={() => setEditing(null)} />}
           <div className="tw:overflow-x-auto">
             <table className="tw:w-full tw:border-collapse">
               <thead>
@@ -385,33 +515,28 @@ export default function StockPage({ view }) {
                   <th className={th} scope="col">N°</th>
                   <th className={th} scope="col">Article</th>
                   <th className={th} scope="col">Unité</th>
-                  <th className={`${th} tw:text-right`} scope="col">Quantité</th>
-                  <th className={`${th} tw:text-right`} scope="col">PU ($)</th>
-                  <th className={`${th} tw:text-right`} scope="col">PT ($)</th>
+                  <th className={`${th} tw:text-right`} scope="col">Entrées</th>
+                  <th className={`${th} tw:text-right`} scope="col">Sorties</th>
+                  <th className={`${th} tw:text-right`} scope="col">Stock</th>
                   <th className={th} scope="col">Dernier mouvement</th>
-                  <th className={th} scope="col"><span className="tw:sr-only">État</span></th>
                 </tr>
               </thead>
               <tbody>
                 {stockRows.map((a) => (
                   <tr key={a.id} className="tw:hover:bg-prise-green-soft/50">
                     <td className={`${td} tw:font-tech tw:text-prise-muted tw:tabular-nums`}>{cardNo(a.number)}</td>
-                    <td className={td}><AlertBlink level={stockAlertLevel(a.level)}><Link to={cardLink(a)} className="tw:font-semibold tw:text-prise-green-2 tw:no-underline tw:hover:underline">{a.designation}</Link></AlertBlink></td>
+                    <td className={td}><AlertBlink level={stockAlertLevel(a.level)}><Link to={cardLink(a)} className="tw:font-semibold tw:text-prise-green-2 tw:no-underline tw:hover:underline">{a.designation}</Link></AlertBlink>{!a.isActive && <span className="tw:ml-2 tw:text-xs tw:text-prise-muted">désactivé</span>}{!unit && a.ownerUnit && <span className="tw:block tw:text-[11px] tw:text-prise-muted">{a.ownerUnit}</span>}</td>
                     <td className={`${td} tw:whitespace-nowrap`}>{a.unit}</td>
-                    <td className={`${tdNum} tw:font-semibold`}>
+                    <td className={tdNum}>{qty(a.entries)}</td>
+                    <td className={tdNum}>{qty(a.exits)}</td>
+                    <td className={`${tdNum} tw:font-semibold ${a.level === 'LOW' || a.level === 'OUT' ? 'tw:text-prise-danger' : ''}`}>
                       {qty(a.stock)}
                       {a.packSize && a.stock > 0 && <span className="tw:block tw:text-[11px] tw:font-normal tw:text-prise-muted">{packLabel(a.stock, a)}</span>}
                     </td>
-                    <td className={tdNum}>{money(a.unitPrice)}</td>
-                    <td className={tdNum}>{money(a.value)}</td>
                     <td className={`${td} tw:whitespace-nowrap tw:text-prise-muted`}>{a.lastMovementDate ? fr(a.lastMovementDate) : '—'}</td>
-                    <td className={td}><LevelPill level={a.level} /></td>
                   </tr>
                 ))}
               </tbody>
-              {stockRows.length > 0 && (
-                <tfoot><tr className="tw:bg-prise-bg/60"><th scope="row" colSpan={5} className={`${td} tw:text-right tw:text-xs tw:font-semibold tw:text-prise-muted`}>Total</th><td className={`${tdNum} tw:font-bold`}>{money(stockRows.reduce((s, a) => s + a.value, 0))}</td><td colSpan={2} className={td} /></tr></tfoot>
-              )}
             </table>
           </div>
           {!stockRows.length && (
@@ -451,7 +576,7 @@ export default function StockPage({ view }) {
               <tbody>
                 {articles.map((a) => (editing === a.id ? (
                   <tr key={a.id}><td colSpan={8} className="tw:p-0">
-                    <ArticleForm initial={{ id: a.id, number: String(a.number), designation: a.designation, unit: a.unit, pack_size: toInput(a.packSize), pack_unit: a.packUnit || '', unit_price: toInput(a.unitPrice), alert_threshold: toInput(a.alertThreshold) }}
+                    <ArticleForm initial={{ id: a.id, number: String(a.number), designation: a.designation, unit: a.unit, pack_size: toInput(a.packSize), pack_unit: a.packUnit || '', unit_price: toInput(a.unitPrice), alert_threshold: toInput(a.ownAlertThreshold) }}
                       onSubmit={saveArticle} onCancel={() => setEditing(null)} busy={busy} errors={errors} />
                   </td></tr>
                 ) : (

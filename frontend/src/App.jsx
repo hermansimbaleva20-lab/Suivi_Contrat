@@ -103,8 +103,8 @@ export default function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/contracts" element={<Contracts />} />
-        <Route path="/contracts/new" element={<Guard any={['canManageContracts']}><ContractForm /></Guard>} />
-        <Route path="/contracts/:id/edit" element={<Guard any={['canManageContracts']}><ContractForm /></Guard>} />
+        <Route path="/contracts/new" element={<Guard any={['canManageContracts', 'canManageStock']}><ContractForm /></Guard>} />
+        <Route path="/contracts/:id/edit" element={<Guard any={['canManageContracts', 'canManageStock']}><ContractForm /></Guard>} />
         <Route path="/contracts/:id" element={<ContractDetail />} />
         <Route path="/overview/:id" element={<ContractDetail readOnly />} />
         <Route path="/progress" element={<Guard any={['canManageProgress', 'canViewSituation']}><Progress /></Guard>} />

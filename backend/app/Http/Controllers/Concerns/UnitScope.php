@@ -54,10 +54,4 @@ trait UnitScope
     {
         return Ctx::readableUnitIds() === null;
     }
-
-    /** Référentiels communs au projet (catalogue des articles) : tenus par la coordination nationale. */
-    protected function holdsCommonReferentials(): bool
-    {
-        return Ctx::isNationalCoordination();
-    }
 }

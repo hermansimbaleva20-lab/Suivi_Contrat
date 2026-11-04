@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Support\Ctx;
 use App\Support\Dates;
 use App\Support\DecompteLedger;
+use App\Support\GoodsProcedure;
 use App\Support\Loader;
 use App\Support\Metrics;
 use App\Support\Notifier;
@@ -77,6 +78,7 @@ class PaymentController extends Controller
     {
         Ctx::need('can_manage_payments');
         $c = $this->contractOr404((int) $r->input('contract_id'));
+        abort_if(GoodsProcedure::stockOnly($c['goods_procedure']), 422, GoodsProcedure::STOCK_ONLY_MESSAGE);
         abort_if($c['terminated'], 422, 'Un contrat résilié ne peut plus recevoir de nouveau paiement.');
         if ($r->filled('decompte_id')) return $this->storeForDecompte($r, $c, (int) $r->input('decompte_id'));
         [$date, $amount, $ref, $obs] = $this->fields($r);

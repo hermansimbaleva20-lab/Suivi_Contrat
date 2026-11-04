@@ -5,6 +5,7 @@ import { useLoad } from '../lib/hooks.js';
 import { fr, money, num, todayISO } from '../lib/format.js';
 import { DecimalInput, Empty, Field, Kpi, Loading, Modal, Notice, PageHead, Pager, ReasonDialog } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import AdvancePanel from '../modules/payments/AdvancePanel.jsx';
 import DecomptesToPay from '../modules/payments/DecomptesToPay.jsx';
 
 const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw new Error(apiError(e)); } };
@@ -71,16 +72,18 @@ export default function Payments() {
           {/* Cinq indicateurs ; le montant restant suit le taux de paiement. */}
           <div className="row g-3 mb-3 row-cols-1 row-cols-md-2 row-cols-xl-5 kpi-row-5">
             <div className="col"><Kpi tone="green" label="MONTANT DU CONTRAT" value={money(c.amount)} /></div>
-            <div className="col"><Kpi label="AVANCE DE DÉMARRAGE" value={money(c.initialFinancing)} sub={`${num(c.initialFinancingRate, 2)} %`} /></div>
+            <div className="col"><Kpi label="AVANCE DE DÉMARRAGE" value={money(c.initialFinancing)} sub={c.advanceOnRequest && c.advanceRequest?.status !== 'PAYEE' ? `${num(c.initialFinancingRate, 2)} % — ${c.advanceRequest ? 'demandée, à payer' : 'sur demande'}` : `${num(c.initialFinancingRate, 2)} %`} /></div>
             <div className="col"><Kpi tone="orange" label="PAIEMENTS ENREGISTRÉS" value={money(d.totalPaid)} /></div>
             <div className="col"><Kpi label="TAUX DE PAIEMENT" value={`${num(c.paymentRate, 1)} %`} sub={`Avancement physique : ${num(c.progress, 1)} %`} /></div>
             <div className="col"><Kpi tone={remaining < 0 ? 'red' : 'green'} label="MONTANT RESTANT" value={money(remaining)} sub={remaining < 0 ? 'Paiements supérieurs au montant du contrat' : `${num(Math.max(0, 100 - c.paymentRate), 1)} % du contrat`} /></div>
           </div>
 
+          <AdvancePanel c={c} canManage={can('canManagePayments')} onDone={(message) => { say(message); reload(); }} />
+
           {editable && (
             <form ref={formRef} className="cardx form-card p-3 mb-3" onSubmit={save}>
               <div className="section-title mb-1">{paying ? `Paiement de ${paying.number}` : 'Nouveau paiement'}</div>
-              <div className="section-subtitle mb-3">{paying ? `Contrat ${paying.contractNumber}. Vérifiez le montant, repris de la colonne MONTANT PAYÉ du décompte, puis renseignez la date et les références.` : 'Paiement sans décompte, par exemple l’avance de démarrage.'}</div>
+              <div className="section-subtitle mb-3">{paying ? `Contrat ${paying.contractNumber}. Vérifiez le montant, repris de la colonne MONTANT PAYÉ du décompte, puis renseignez la date et les références.` : (c.advanceOnRequest ? 'Paiement sans décompte. L’avance de démarrage de ce marché se renseigne dans le panneau ci-dessus.' : 'Paiement sans décompte, par exemple l’avance de démarrage.')}</div>
               <div className="row g-3">
                 <Field className="col-md-3" label="Date du paiement"><input type="date" className="form-control" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></Field>
                 <Field className="col-md-3" label="Montant payé">
@@ -89,7 +92,7 @@ export default function Payments() {
                     : <DecimalInput value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} placeholder="Ex. : 1500,75" required />}
                   {paying && <div id="pay-amount-note" className="form-text">Montant du décompte, non modifiable.</div>}
                 </Field>
-                <Field className="col-md-3" label="Référence"><input className="form-control" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Ex. : Avance de démarrage" /></Field>
+                <Field className="col-md-3" label="Référence"><input className="form-control" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder={c.advanceOnRequest ? 'Ex. : facture n° 12' : 'Ex. : Avance de démarrage'} /></Field>
                 <Field className="col-md-3" label="Observation"><input className="form-control" value={form.observation} onChange={(e) => setForm({ ...form, observation: e.target.value })} /></Field>
                 <div className="col-12 text-end">
                   {paying && <button type="button" className="btn btn-light me-2" onClick={cancelPay}>Annuler</button>}

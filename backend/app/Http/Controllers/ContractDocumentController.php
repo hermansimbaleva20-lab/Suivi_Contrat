@@ -11,9 +11,9 @@ class ContractDocumentController extends Controller
 {
     public function store(Request $r, int $id)
     {
-        Ctx::need('can_manage_contracts');
         $c = DB::table('contracts')->where('id', $id)->where('project_id', Ctx::projectId())->first();
-        abort_unless($c, 404, 'Contrat introuvable.');
+        abort_unless($c && Ctx::canReadContract($c->goods_procedure, $c->organizational_unit_id), 404, 'Contrat introuvable.');
+        abort_unless(Ctx::canManageContract($c->goods_procedure, $c->organizational_unit_id), 403, 'Vous n’êtes pas habilité à gérer les documents de ce contrat.');
         $r->validate(['file' => 'required|file|max:20480|mimes:pdf,doc,docx']);
         $file = $r->file('file');
         $stored = Str::uuid()->toString() . '.' . strtolower($file->getClientOriginalExtension());
@@ -30,6 +30,10 @@ class ContractDocumentController extends Controller
     {
         $d = DB::table('contract_documents as d')->join('contracts as c', 'c.id', '=', 'd.contract_id')->where('d.id', $id)->where('c.project_id', Ctx::projectId())->select('d.*', 'c.reference')->first();
         abort_unless($d, 404, 'Document introuvable.');
+        $c = DB::table('contracts')->where('id', $d->contract_id)->first(['goods_procedure', 'organizational_unit_id']);
+        abort_unless(Ctx::canReadContract($c->goods_procedure, $c->organizational_unit_id), 404, 'Document introuvable.');
+        $d->contract_procedure = $c->goods_procedure;
+        $d->contract_unit = $c->organizational_unit_id;
         return $d;
     }
 
@@ -43,8 +47,8 @@ class ContractDocumentController extends Controller
 
     public function destroy(int $id)
     {
-        Ctx::need('can_manage_contracts');
         $d = $this->find($id);
+        abort_unless(Ctx::canManageContract($d->contract_procedure, $d->contract_unit), 403, 'Vous n’êtes pas habilité à gérer les documents de ce contrat.');
         Storage::disk('local')->delete($d->storage_path);
         DB::table('contract_documents')->where('id', $id)->delete();
         Ctx::audit('SUPPRESSION_DOCUMENT', 'ContractDocument', $id, "Document {$d->original_name} supprimé du contrat {$d->reference}.");

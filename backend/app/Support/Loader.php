@@ -8,14 +8,17 @@ use Illuminate\Support\Facades\DB;
 class Loader
 {
     /** @return array<int,array> */
-    public static function contracts(int $projectId, int $phaseId = 0, ?array $ids = null, bool $allPhases = false): array
+    public static function contracts(int $projectId, int $phaseId = 0, ?array $ids = null, bool $allPhases = false, bool $withStockOnly = false): array
     {
         $q = DB::table('contracts as c')
             ->leftJoin('companies as co', 'co.id', '=', 'c.company_id')
             ->leftJoin('project_phases as ph', 'ph.id', '=', 'c.phase_id')
+            ->leftJoin('organizational_units as ou', 'ou.id', '=', 'c.organizational_unit_id')
             ->where('c.project_id', $projectId)
-            ->select('c.*', 'co.name as company_name', 'ph.name as phase_name', 'ph.number as phase_number')
+            ->select('c.*', 'co.name as company_name', 'ph.name as phase_name', 'ph.number as phase_number', 'ou.name as unit_name')
             ->orderBy('c.reference');
+        // Les fournitures de bureau ne se suivent que par le stock : hors indicateurs, paiements, alertes et rapports.
+        if ($ids === null && !$withStockOnly) $q->where(fn ($w) => $w->whereNull('c.goods_procedure')->orWhere('c.goods_procedure', '!=', GoodsProcedure::OFFICE));
         if (!$allPhases && $phaseId > 0) $q->where('c.phase_id', $phaseId);
         if ($ids !== null) {
             if (!$ids) return [];
@@ -61,8 +64,8 @@ class Loader
             $advanceBy[$a->contract_id] = [
                 'id' => (int) $a->id, 'status' => (string) $a->status, 'rate' => (float) $a->rate, 'amount' => (float) $a->amount,
                 'request_date' => Dates::part($a->request_date), 'request_reference' => (string) $a->request_reference,
-                'guarantee_bank' => (string) $a->guarantee_bank, 'guarantee_number' => (string) $a->guarantee_number, 'guarantee_amount' => (float) $a->guarantee_amount,
-                'guarantee_end_date' => Dates::part($a->guarantee_end_date), 'paid_date' => $a->paid_date ? Dates::part($a->paid_date) : null, 'payment_reference' => (string) $a->payment_reference,
+                'guarantee_bank' => $a->guarantee_bank, 'guarantee_number' => $a->guarantee_number, 'guarantee_amount' => $a->guarantee_amount === null ? null : (float) $a->guarantee_amount,
+                'guarantee_end_date' => $a->guarantee_end_date ? Dates::part($a->guarantee_end_date) : null, 'paid_date' => $a->paid_date ? Dates::part($a->paid_date) : null, 'payment_reference' => (string) $a->payment_reference,
             ];
         }
         $penaltyBy = DB::table('contract_decomptes')->whereIn('contract_id', $ids)->where('status', 'VALIDE')->groupBy('contract_id')->selectRaw('contract_id, SUM(penalty_amount) AS total')->pluck('total', 'contract_id');
@@ -105,6 +108,8 @@ class Loader
                 'renewal_no' => (int) ($c->renewal_no ?? 0), 'renewed_amount' => (float) ($c->renewed_amount ?? 0), 'renewals' => $renewBy[$cid] ?? [],
                 'goods_procedure' => $c->goods_procedure ?? null, 'goods_origin' => $c->goods_origin ?? null, 'payment_schedule' => json_decode((string) ($c->payment_schedule ?? ''), true) ?: [],
                 'delay_penalty_rate' => isset($c->delay_penalty_rate) ? (float) $c->delay_penalty_rate : null, 'delay_penalty_cap' => isset($c->delay_penalty_cap) ? (float) $c->delay_penalty_cap : null,
+                'unit_id' => isset($c->organizational_unit_id) ? (int) $c->organizational_unit_id : null, 'unit_name' => $c->unit_name ?? null,
+                'goods_min_amount' => isset($c->goods_min_amount) ? (float) $c->goods_min_amount : null, 'goods_max_amount' => isset($c->goods_max_amount) ? (float) $c->goods_max_amount : null,
                 'advance' => $advanceBy[$cid] ?? null, 'penalties' => (float) ($penaltyBy[$cid] ?? 0),
             ];
         }

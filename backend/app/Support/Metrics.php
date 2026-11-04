@@ -48,6 +48,8 @@ class Metrics
     public static function elapsed(array $c, string $asOf): float
     {
         $start = $c['start_date'];
+        // Après un renouvellement, seule compte la nouvelle période.
+        foreach ($c['renewals'] ?? [] as $r) if ($r['period_start'] <= $asOf) $start = $r['period_start'];
         $end = $c['end_date'];
         if (!$start || !$end) return 0.0;
         $total = Dates::daysBetween($start, $end);
@@ -60,6 +62,8 @@ class Metrics
     {
         $day = $asOf ?? Dates::today();
         if (!empty($c['terminated']) && (empty($c['termination_date']) || $c['termination_date'] <= $day)) return 'Résilié';
+        // Fournitures de bureau : pas d'avancement, donc jamais de vigilance ni de retard.
+        if (GoodsProcedure::stockOnly($c['goods_procedure'] ?? null)) return !empty($c['completed']) || ($c['end_date'] && $day > $c['end_date']) ? 'Terminé' : 'Normal';
         $progress = self::progress($c, $asOf);
         if (!empty($c['completed']) || $progress >= 100) return 'Terminé';
         if ($c['end_date'] && $day > $c['end_date']) return 'Retard';

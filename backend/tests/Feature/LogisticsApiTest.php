@@ -51,10 +51,10 @@ class LogisticsApiTest extends TestCase
         return $this->withHeaders(['X-Project' => 'PRISE', 'Accept' => 'application/json']);
     }
 
-    private function article(string $name, float $price = 10): StockArticle
+    private function article(string $name, float $price = 10, ?OrganizationalUnit $unit = null): StockArticle
     {
         $n = (int) StockArticle::where('project_id', $this->prise->id)->max('number') + 1;
-        return StockArticle::create(['project_id' => $this->prise->id, 'number' => $n, 'designation' => $name, 'unit' => 'Pce', 'unit_price' => $price, 'is_active' => true]);
+        return StockArticle::create(['project_id' => $this->prise->id, 'organizational_unit_id' => ($unit ?? $this->kananga)->id, 'number' => $n, 'designation' => $name, 'unit' => 'Pce', 'unit_price' => $price, 'is_active' => true]);
     }
 
     private function company(string $name, ?Project $p = null): int
@@ -82,7 +82,7 @@ class LogisticsApiTest extends TestCase
         $this->assertSame(1, $card['lines'][0]['operationNo']);
 
         // Sortie sans désigner l'unité : celle de l'agent ; N° d'opération suivant.
-        $this->as($agent)->postJson('/api/stock/movements', ['stock_article_id' => $rame->id, 'movement_date' => '2026-10-02', 'type' => 'SORTIE', 'quantity' => 5, 'origin_destination' => 'HNSE'])->assertOk();
+        $this->as($agent)->postJson('/api/stock/movements', ['stock_article_id' => $rame->id, 'movement_date' => '2026-10-02', 'type' => 'SORTIE', 'quantity' => 5, 'position_id' => Position::create(['project_id' => $agent->project_id, 'organizational_unit_id' => $agent->organizational_unit_id, 'name' => 'HNSE', 'is_active' => true])->id])->assertOk();
         $this->assertSame(2, $this->as($agent)->getJson("/api/stock/articles/{$rame->id}/card")->json('lines.1.operationNo'));
 
         // Tout ou rien : un article en double ou un fournisseur d'un autre projet bloquent toute la livraison.
@@ -101,17 +101,17 @@ class LogisticsApiTest extends TestCase
 
     public function test_import_du_catalogue_apercu_puis_import_avec_stock_initial(): void
     {
-        $this->article('Rame papier A4', 6);
+        $this->article('Rame papier A4', 6, $this->cn);
         $csv = "N°;ARTICLE;UNITE;QUANTITE;PU \$;PT \$\n;Rame papier A4;Rame;10;6,50;65\n2;Cartouche HP 85A;Pce;5;45;225\n3;Stylo bleu;Boîte/50;;12;\n";
         $file = fn () => UploadedFile::fake()->createWithContent('prix.csv', $csv);
 
-        // Une antenne importe aussi : l'article commun déjà connu est utilisé tel quel, les nouveaux deviennent les siens.
+        // Une antenne importe aussi : les articles de la coordination ne la concernent pas, tout est nouveau pour elle.
         $kga = $this->user(['can_manage_stock' => true, 'organizational_unit_id' => $this->kananga->id]);
-        $this->assertSame(['new' => 2, 'update' => 0, 'keep' => 1, 'error' => 0], $this->as($kga)->post('/api/stock/import', ['file' => $file(), 'dry_run' => 1])->assertOk()->json('counts'));
+        $this->assertSame(['new' => 3, 'update' => 0, 'error' => 0], $this->as($kga)->post('/api/stock/import', ['file' => $file(), 'dry_run' => 1])->assertOk()->json('counts'));
 
         $cn = $this->user(['can_manage_stock' => true, 'organizational_unit_id' => $this->cn->id]);
         $preview = $this->as($cn)->post('/api/stock/import', ['file' => $file(), 'dry_run' => 1])->assertOk()->json();
-        $this->assertSame(['new' => 2, 'update' => 1, 'keep' => 0, 'error' => 0], $preview['counts']);
+        $this->assertSame(['new' => 2, 'update' => 1, 'error' => 0], $preview['counts']);
 
         $this->assertSame('UPDATE', $preview['rows'][0]['status']);
         $this->assertEquals(225, $preview['rows'][1]['total']);
@@ -208,11 +208,13 @@ class LogisticsApiTest extends TestCase
         // Toutes les opérations dans sa propre unité : parc, catalogue, stock.
         $this->as($national)->postJson('/api/fleet/assets', $asset)->assertOk();
         $this->as($national)->postJson('/api/stock/articles', ['designation' => 'Stylos', 'unit' => 'Boîte', 'unit_price' => '3'])->assertOk();
-        $this->as($national)->postJson('/api/stock/movements', ['stock_article_id' => $a->id, 'movement_date' => '2026-10-02', 'type' => 'ENTREE', 'quantity' => 4, 'origin_destination' => 'Livraison'])->assertOk();
+        $own = $this->article('Rame A4', 6.5, $this->cn);
+        $this->as($national)->postJson('/api/stock/movements', ['stock_article_id' => $own->id, 'movement_date' => '2026-10-02', 'type' => 'ENTREE', 'quantity' => 4, 'origin_destination' => 'Livraison'])->assertOk();
 
         // La situation des antennes en lecture seule.
         $stock = $this->as($national)->getJson('/api/stock')->assertOk()->json();
-        $this->assertEquals(14, $stock['articles'][0]['stock']);
+        $rows = collect($stock['articles'])->keyBy('id');
+        $this->assertEquals([10, 4], [$rows[$a->id]['stock'], $rows[$own->id]['stock']]);
         $this->assertSame($this->cn->id, $stock['ownUnitId']);
         $card = $this->as($national)->getJson("/api/stock/articles/{$a->id}/card?unit_id={$this->kananga->id}")->assertOk()->json();
         $this->assertFalse($card['canWrite']);

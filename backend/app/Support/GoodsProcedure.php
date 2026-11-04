@@ -4,8 +4,9 @@ namespace App\Support;
 
 /**
  * Marchés de biens : règles du document « Procédure pour marché de biens » (une seule procédure par marché, BAD ou nationale).
- * Les taux sont repris sur le contrat à sa création et restent modifiables ; les fournitures de bureau gardent les règles
- * habituelles, sans ces procédures. L'échéancier est indicatif : les paiements suivent les décomptes et leurs retenues.
+ * Les taux sont repris sur le contrat à sa création et restent modifiables. L'échéancier est indicatif : les paiements suivent
+ * les décomptes et leurs retenues. Les fournitures de bureau échappent à ces procédures : elles ne se suivent que par le stock
+ * de leurs articles (entrées et sorties), sans garantie, avance, décompte, paiement ni avancement ; elles peuvent être renouvelées.
  * Fonctions pures, testées sans démarrer Laravel.
  */
 class GoodsProcedure
@@ -15,6 +16,9 @@ class GoodsProcedure
     public const OFFICE = 'FOURNITURES_BUREAU';
     public const FOREIGN = 'ETRANGER';
     public const LOCAL = 'LOCAL';
+    public const OFFICE_MIN_AMOUNT = 500.0;
+    public const OFFICE_MAX_AMOUNT = 5500.0;
+    public const STOCK_ONLY_MESSAGE = 'Ce contrat de fournitures de bureau se suit uniquement par le stock de ses articles : ni avance, ni décompte, ni paiement, ni avancement.';
 
     private const LABELS = [
         self::BAD => 'Procédure BAD',
@@ -92,10 +96,16 @@ class GoodsProcedure
         ],
     ];
 
-    /** BAD ou nationale : l'avance est versée sur demande, contre une garantie de restitution. */
+    /** BAD ou nationale : conditions du document, avance contre une garantie de restitution. */
     public static function governs(?string $procedure): bool
     {
         return $procedure === self::BAD || $procedure === self::NATIONAL;
+    }
+
+    /** Fournitures de bureau : suivi par le stock uniquement. */
+    public static function stockOnly(?string $procedure): bool
+    {
+        return $procedure === self::OFFICE;
     }
 
     /** Seuls les contrats de biens hors procédure (fournitures de bureau, anciens contrats) se renouvellent. */
@@ -126,6 +136,7 @@ class GoodsProcedure
             'procedures' => array_map(fn ($code) => ['code' => $code, 'label' => self::LABELS[$code]], array_keys(self::LABELS)),
             'origins' => array_map(fn ($code) => ['code' => $code, 'label' => self::ORIGINS[$code]], array_keys(self::ORIGINS)),
             'rules' => $rules,
+            'officeAmounts' => ['min' => self::OFFICE_MIN_AMOUNT, 'max' => self::OFFICE_MAX_AMOUNT],
         ];
     }
 

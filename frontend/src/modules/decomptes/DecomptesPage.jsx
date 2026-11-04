@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, apiError, fieldErrors } from '../../api.js';
 import { useLoad } from '../../lib/hooks.js';
-import { fr, frDateTime, money, todayISO } from '../../lib/format.js';
+import { fr, frDateTime, money, num, todayISO } from '../../lib/format.js';
 import { Loading, Modal, Notice } from '../../components/ui.jsx';
 import { btn, btnGhost, btnPrimary, FieldError, input, label, panel } from '../shared/tw.jsx';
 import { ModuleHeader } from '../shared/ModuleHeader.jsx';
@@ -84,13 +85,13 @@ function DecomptePrint({ c, rows, totals }) {
         <thead>
           <tr>
             <th>N°</th><th>N° décompte</th><th>Date</th><th>Montant décompte USD</th><th>Avance de démarrage USD</th>
-            <th>Retenue garantie B.E. USD</th><th>Montant payé</th><th>Montant contrat</th><th>Solde contrat</th><th>Avance perçue</th>
+            <th>Retenue garantie B.E. USD</th>{c.usesPenalty && <th>Pénalité de retard USD</th>}<th>Montant payé</th><th>Montant contrat</th><th>Solde contrat</th><th>Avance perçue</th>
             <th>Solde avance</th>
           </tr>
         </thead>
         <tbody>
           <tr className="pdoc-advance">
-            <td /><td className="pdoc-left pdoc-nowrap">Avance perçue</td><td /><td /><td /><td />
+            <td /><td className="pdoc-left pdoc-nowrap">Avance perçue</td><td /><td /><td /><td />{c.usesPenalty && <td />}
             <td>{money(c.advanceReceived)}</td><td>{money(c.amount)}</td><td>{money(c.amount - c.advanceReceived)}</td>
             <td>{money(c.advanceReceived)}</td><td>{money(c.advanceReceived)}</td>
           </tr>
@@ -104,7 +105,7 @@ function DecomptePrint({ c, rows, totals }) {
                 <td className="pdoc-left pdoc-strong"><span className="pdoc-amount pdoc-nowrap">{r.number}</span>{r.observation && <span className="pdoc-note">{r.observation}</span>}</td>
                 <td className="pdoc-left">{fr(r.date)}</td>
                 <td className="pdoc-amount">{money(r.gross)}</td>
-                <td>{v(r.advance)}</td><td>{v(r.guarantee)}</td><td className="pdoc-strong">{v(r.net)}</td>
+                <td>{v(r.advance)}</td><td>{v(r.guarantee)}</td>{c.usesPenalty && <td>{v(r.penalty)}</td>}<td className="pdoc-strong">{v(r.net)}</td>
                 <td>{v(c.amount)}</td><td>{v(r.contractBalance)}</td><td>{v(c.advanceReceived)}</td><td>{v(r.advanceBalance)}</td>
               </tr>
             );
@@ -114,7 +115,7 @@ function DecomptePrint({ c, rows, totals }) {
         <tfoot>
           <tr className="pdoc-total">
             <th scope="row" colSpan={3}>Total validé</th>
-            <td>{money(totals.gross)}</td><td>{money(totals.advance)}</td><td>{money(totals.guarantee)}</td><td>{money(totals.net + c.advanceReceived)}</td>
+            <td>{money(totals.gross)}</td><td>{money(totals.advance)}</td><td>{money(totals.guarantee)}</td>{c.usesPenalty && <td>{money(totals.penalty)}</td>}<td>{money(totals.net + c.advanceReceived)}</td>
             <td /><td /><td /><td />
           </tr>
         </tfoot>
@@ -124,15 +125,20 @@ function DecomptePrint({ c, rows, totals }) {
 }
 
 function DecompteForm({ c, rows, nextNumber, onSubmit, onCancel, busy, errors }) {
-  const [f, setF] = useState({ number: nextNumber, operation_date: todayISO(), gross_amount: '', observation: '' });
+  const [f, setF] = useState({ number: nextNumber, operation_date: todayISO(), gross_amount: '', observation: '', is_final: false, reception_date: '' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const live = rows.filter((r) => r.status !== 'REJETE');
   const advanceBalance = live.length ? live[live.length - 1].advanceBalance : c.advanceReceived;
   const gross = dec(f.gross_amount);
   const advance = Number.isFinite(gross) ? Math.min(gross * c.advanceRate, Math.max(0, advanceBalance)) : NaN;
   const guarantee = Number.isFinite(gross) ? gross * c.guaranteeRate : NaN;
+  // Procédure nationale : le décompte qui atteint le montant du marché, ou marqué comme dernier, porte la pénalité de retard.
+  const reachesAmount = c.usesPenalty && Number.isFinite(gross) && c.grossSoFar + gross >= c.amount - 0.005;
+  const isFinal = c.usesPenalty && (f.is_final || reachesAmount);
+  const weeks = isFinal && f.reception_date > c.endDate ? Math.floor((Date.parse(f.reception_date) - Date.parse(c.endDate)) / 86400000 / 7) : 0;
+  const penalty = isFinal && Number.isFinite(gross) ? Math.min(c.amount * c.penaltyRate / 100 * weeks, c.amount * c.penaltyCap / 100, Math.max(0, gross - advance - guarantee)) : 0;
   return (
-    <form className="tw:grid tw:gap-3 tw:border-b tw:border-prise-border tw:bg-prise-bg/60 tw:px-5 tw:py-4 tw:sm:grid-cols-12 tw:print:hidden" onSubmit={(e) => { e.preventDefault(); onSubmit(f); }}>
+    <form className="tw:grid tw:gap-3 tw:border-b tw:border-prise-border tw:bg-prise-bg/60 tw:px-5 tw:py-4 tw:sm:grid-cols-12 tw:print:hidden" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...f, is_final: isFinal }); }}>
       <div className="tw:sm:col-span-3">
         <label className={label} htmlFor="dc-number">N° du décompte</label>
         <input id="dc-number" className={input} value={f.number} onChange={set('number')} maxLength={60} required />
@@ -152,11 +158,27 @@ function DecompteForm({ c, rows, nextNumber, onSubmit, onCancel, busy, errors })
         <label className={label} htmlFor="dc-obs">Observation (facultatif)</label>
         <input id="dc-obs" className={input} value={f.observation} onChange={set('observation')} maxLength={500} />
       </div>
-      <dl className="tw:m-0 tw:grid tw:grid-cols-2 tw:gap-x-6 tw:gap-y-1 tw:rounded-lg tw:bg-white tw:px-4 tw:py-3 tw:text-sm tw:ring-1 tw:ring-prise-border tw:sm:col-span-9 tw:md:grid-cols-4" aria-live="polite">
+      {c.usesPenalty && (
+        <>
+          <label className="tw:flex tw:items-center tw:gap-2 tw:self-end tw:pb-2 tw:text-sm tw:sm:col-span-5">
+            <input type="checkbox" checked={isFinal} disabled={reachesAmount} onChange={(e) => setF({ ...f, is_final: e.target.checked })} />
+            Dernier décompte (réception des biens){reachesAmount ? ' : le montant du marché est atteint' : ''}
+          </label>
+          {isFinal && (
+            <div className="tw:sm:col-span-3">
+              <label className={label} htmlFor="dc-reception">Date de réception des biens</label>
+              <input id="dc-reception" type="date" className={`${input} tw:font-tech`} value={f.reception_date} max={todayISO()} onChange={set('reception_date')} required />
+              <FieldError text={errors.reception_date} />
+            </div>
+          )}
+        </>
+      )}
+      <dl className={`tw:m-0 tw:grid tw:grid-cols-2 tw:gap-x-6 tw:gap-y-1 tw:rounded-lg tw:bg-white tw:px-4 tw:py-3 tw:text-sm tw:ring-1 tw:ring-prise-border tw:sm:col-span-9 ${c.usesPenalty ? 'tw:md:grid-cols-5' : 'tw:md:grid-cols-4'}`} aria-live="polite">
         {[
           [`Avance de démarrage (${pct(c.advanceRate)})`, advance],
           [`Retenue garantie B.E. (${pct(c.guaranteeRate)})`, guarantee],
-          ['Montant payé', gross - advance - guarantee],
+          ...(c.usesPenalty ? [[`Pénalité de retard (${weeks} sem.)`, penalty]] : []),
+          ['Montant payé', gross - advance - guarantee - penalty],
           ['Solde avance après', advanceBalance - advance],
         ].map(([k, v]) => (
           <div key={k}><dt className="tw:text-[11px] tw:text-prise-muted">{k}</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{Number.isFinite(v) ? money(v) : '—'}</dd></div>
@@ -214,9 +236,9 @@ export default function DecomptesPage() {
           <h2 className="tw:m-0 tw:font-display tw:text-[17px] tw:font-bold tw:text-prise-blue">{c.company}</h2>
           <dl className="tw:m-0 tw:flex tw:flex-wrap tw:gap-x-6 tw:gap-y-1 tw:text-sm">
             {[
-              ['Catégorie', c.category],
+              ['Catégorie', c.goodsProcedureLabel ? `${c.category} — ${c.goodsProcedureLabel}` : c.category],
               ['Montant du contrat', `${money(c.amount)} USD`],
-              ['Avance perçue', c.isService ? 'aucune (contrat de service)' : `${money(c.advanceReceived)} USD (${pct(c.advanceRate)})`],
+              ['Avance perçue', c.isService ? 'aucune (contrat de service)' : c.advanceOnRequest && c.advanceStatus !== 'PAYEE' ? `non versée (${pct(c.advanceRate)}, sur demande)` : `${money(c.advanceReceived)} USD (${pct(c.advanceRate)})`],
               ['Retenue de garantie', c.guaranteeRate ? pct(c.guaranteeRate) : 'aucune garantie enregistrée'],
             ].map(([k, v]) => <div key={k} className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">{k}</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{v}</dd></div>)}
           </dl>
@@ -238,6 +260,10 @@ export default function DecomptesPage() {
           </p>
         )}
         {!c.guaranteeRate && !c.isService && <p className="tw:m-0 tw:border-b tw:border-prise-border tw:bg-amber-50/70 tw:px-5 tw:py-2 tw:text-sm tw:text-amber-900">Aucune garantie de bonne exécution n’est enregistrée pour ce contrat : la retenue de garantie sera nulle. Enregistrez la garantie avant de saisir les décomptes.</p>}
+        {data.submitBlocker && <p className="tw:m-0 tw:border-b tw:border-prise-border tw:bg-amber-50/70 tw:px-5 tw:py-2 tw:text-sm tw:text-amber-900 tw:print:hidden">{data.submitBlocker}</p>}
+        {data.canSubmit && c.advanceOnRequest && !c.advanceStatus && !data.rows.some((r) => r.status !== 'REJETE') && c.advanceRate > 0 && (
+          <p className="tw:m-0 tw:border-b tw:border-prise-border tw:bg-amber-50/70 tw:px-5 tw:py-2 tw:text-sm tw:text-amber-900 tw:print:hidden">L’avance n’a pas été demandée. Une fois un décompte saisi, elle ne pourra plus l’être : enregistrez d’abord la demande de l’entreprise dans <Link to={`/payments?contrat=${c.id}`}>Paiements</Link>, s’il y a lieu.</p>
+        )}
         {adding && <DecompteForm c={c} rows={data.rows} nextNumber={data.nextNumber} onSubmit={save} onCancel={() => setAdding(false)} busy={busy} errors={errors} />}
 
         <div className="tw:overflow-x-auto">
@@ -250,6 +276,7 @@ export default function DecomptesPage() {
                 <th className={th} scope="col">Montant décompte USD</th>
                 <th className={th} scope="col">Avance de démarrage USD</th>
                 <th className={th} scope="col">Retenue garantie B.E. USD</th>
+                {c.usesPenalty && <th className={th} scope="col">Pénalité de retard USD</th>}
                 <th className={th} scope="col">Montant payé</th>
                 <th className={th} scope="col">Montant contrat</th>
                 <th className={th} scope="col">Solde contrat</th>
@@ -263,6 +290,7 @@ export default function DecomptesPage() {
                 <td className={`${td} tw:text-left`} />
                 <td className={`${td} tw:text-left tw:font-body tw:font-bold`}>Avance perçue</td>
                 <td className={td} /><td className={td} /><td className={td} /><td className={td} />
+                {c.usesPenalty && <td className={td} />}
                 <td className={`${td} tw:font-semibold`}>{money(c.advanceReceived)}</td>
                 <td className={td}>{money(c.amount)}</td>
                 <td className={td}>{money(c.amount - c.advanceReceived)}</td>
@@ -281,6 +309,12 @@ export default function DecomptesPage() {
                     <td className={`${td} ${s}`}>{money(r.gross)}</td>
                     <td className={td}>{rejected ? '' : money(r.advance)}</td>
                     <td className={td}>{rejected ? '' : money(r.guarantee)}</td>
+                    {c.usesPenalty && (
+                      <td className={td}>
+                        {rejected ? '' : money(r.penalty)}
+                        {r.isFinal && !rejected && <span className="tw:ml-auto tw:block tw:max-w-24 tw:whitespace-normal tw:font-body tw:text-[11px] tw:leading-tight tw:text-prise-muted">réception {fr(r.receptionDate)}, {r.penaltyWeeks} sem.</span>}
+                      </td>
+                    )}
                     <td className={`${td} tw:font-semibold`}>{rejected ? '' : money(r.net)}</td>
                     <td className={td}>{rejected ? '' : money(c.amount)}</td>
                     <td className={`${td} ${r.contractBalance < 0 ? 'tw:text-prise-danger' : ''}`}>{rejected ? '' : money(r.contractBalance)}</td>
@@ -306,6 +340,7 @@ export default function DecomptesPage() {
                 <td className={`${td} tw:font-bold`}>{money(t.gross)}</td>
                 <td className={`${td} tw:font-bold`}>{money(t.advance)}</td>
                 <td className={`${td} tw:font-bold`}>{money(t.guarantee)}</td>
+                {c.usesPenalty && <td className={`${td} tw:font-bold`}>{money(t.penalty)}</td>}
                 <td className={`${td} tw:font-bold`}>{money(t.net + c.advanceReceived)}</td>
                 <td className={td} colSpan={5}>{t.pending > 0 && <span className="tw:font-body tw:text-xs tw:text-amber-800">{t.pending} décompte(s) en attente : {money(t.pendingGross)} USD</span>}</td>
               </tr>
@@ -313,6 +348,7 @@ export default function DecomptesPage() {
           </table>
         </div>
         {!data.rows.length && <p className="tw:m-0 tw:px-5 tw:py-6 tw:text-center tw:text-sm tw:text-prise-muted">Aucun décompte pour ce contrat.{data.canSubmit ? ' Saisissez le premier décompte apporté par l’entreprise.' : ''}</p>}
+        {c.usesPenalty && <p className="tw:m-0 tw:px-5 tw:pt-3 tw:text-[11px] tw:text-prise-muted">Pénalité de retard = {num(c.penaltyRate, 3)} % du montant du marché par semaine complète entre la fin du contrat ({fr(c.endDate)}) et la réception des biens, plafonnée à {num(c.penaltyCap, 2)} %, déduite du montant payé du dernier décompte.</p>}
         <p className="tw:m-0 tw:px-5 tw:py-3 tw:text-[11px] tw:text-prise-muted">
           Avance de démarrage = montant du décompte × taux d’avance, jusqu’à épuisement de l’avance perçue · Retenue de garantie = montant du décompte × taux de la garantie · Montant payé = décompte − les deux retenues. « Total validé » du montant payé inclut l’avance perçue.
         </p>

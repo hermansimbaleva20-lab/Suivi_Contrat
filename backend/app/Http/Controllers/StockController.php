@@ -8,6 +8,7 @@ use App\Models\StockArticle;
 use App\Models\StockMovement;
 use App\Support\Ctx;
 use App\Support\Dates;
+use App\Support\GoodsProcedure;
 use App\Support\StockImport;
 use App\Support\StockLedger;
 use App\Support\Xlsx;
@@ -18,9 +19,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Logistique — stocks (TDR §6), sur le modèle des documents du projet : articles (« prix unitaires évalués ») et fiche
- * de stock par article et par unité. Chaque unité gère son stock de manière autonome : la coordination nationale tient
- * le catalogue commun (articles sans unité), chaque antenne ajoute ses propres articles. Deux façons d'alimenter le
- * catalogue : par contrat (import du fichier des articles du contrat) ou sans contrat, article par article.
+ * de stock par article. Chaque unité gère de manière autonome ses articles et son stock, la coordination nationale comme
+ * chaque antenne ; un article appartient à une seule unité, et ses mouvements y sont enregistrés. Deux façons d'alimenter
+ * le catalogue : par contrat (import du fichier des articles du contrat) ou sans contrat, article par article.
  * Isolation : lecture limitée par Ctx::readableUnitIds(), écriture par Ctx::needUnit(). Le stock n'est pas filtré par
  * phase : il se poursuit d'une phase à l'autre.
  */
@@ -30,24 +31,22 @@ class StockController extends Controller
 
     // ------------------------------------------------------------------ Périmètre
 
-    /** Unité propriétaire des articles que crée le compte : NULL (catalogue commun) pour la coordination, sinon son antenne. */
+    /** Unité propriétaire des articles que crée le compte : la sienne. */
     private function ownerUnitId(): ?int
     {
-        return $this->holdsCommonReferentials() ? null : ((int) Ctx::user()->organizational_unit_id ?: null);
+        return (int) Ctx::user()->organizational_unit_id ?: null;
     }
 
-    /** Ajouter des articles : tout gestionnaire de stock d'une unité (catalogue commun à la coordination, articles propres en antenne). */
+    /** Ajouter des articles : tout gestionnaire de stock, pour son unité. */
     private function canManageCatalog(): bool
     {
-        if (!Ctx::can('can_manage_stock')) return false;
-        return $this->holdsCommonReferentials() || Ctx::canWriteUnit((int) Ctx::user()->organizational_unit_id);
+        return Ctx::can('can_manage_stock') && $this->ownerUnitId() && Ctx::canWriteUnit($this->ownerUnitId());
     }
 
-    /** Modifier un article : celui de son antenne, ou le catalogue commun pour la coordination. */
+    /** Modifier un article : seulement ceux de son unité. */
     private function canEditArticle(StockArticle $a): bool
     {
-        if (!Ctx::can('can_manage_stock')) return false;
-        return $a->organizational_unit_id === null ? $this->holdsCommonReferentials() : Ctx::canWriteUnit((int) $a->organizational_unit_id);
+        return Ctx::can('can_manage_stock') && Ctx::canWriteUnit((int) $a->organizational_unit_id);
     }
 
     private function needCatalog(): void
@@ -57,16 +56,15 @@ class StockController extends Controller
 
     private function needEdit(StockArticle $a): void
     {
-        abort_unless($this->canEditArticle($a), 403, $a->organizational_unit_id === null
-            ? 'Le catalogue commun est tenu par la coordination nationale.' : 'Cet article appartient à une autre unité que la vôtre.');
+        abort_unless($this->canEditArticle($a), 403, 'Cet article appartient à une autre unité que la vôtre.');
     }
 
-    /** Articles visibles : le catalogue commun et ceux des unités consultables. */
+    /** Articles visibles : ceux des unités consultables. */
     private function articlesQuery()
     {
         $q = StockArticle::where('project_id', Ctx::projectId());
         $ids = Ctx::readableUnitIds();
-        if ($ids !== null) $q->where(fn ($w) => $w->whereNull('organizational_unit_id')->orWhereIn('organizational_unit_id', $ids ?: [0]));
+        if ($ids !== null) $q->whereIn('organizational_unit_id', $ids ?: [0]);
         return $q;
     }
 
@@ -77,11 +75,11 @@ class StockController extends Controller
         return $a;
     }
 
-    /** Une même désignation n'existe qu'une fois pour une unité, catalogue commun compris. */
+    /** Une même désignation n'existe qu'une fois par unité. */
     private function designationTaken(string $designation, ?int $owner, ?int $ignoreId = null): bool
     {
         $q = StockArticle::where('project_id', Ctx::projectId())->whereRaw('LOWER(designation) = ?', [mb_strtolower(trim($designation))]);
-        if ($owner !== null) $q->where(fn ($w) => $w->whereNull('organizational_unit_id')->orWhere('organizational_unit_id', $owner));
+        $q->where('organizational_unit_id', $owner);
         if ($ignoreId) $q->where('id', '!=', $ignoreId);
         return $q->exists();
     }
@@ -93,7 +91,7 @@ class StockController extends Controller
         return [
             'id' => $a->id, 'number' => $a->number, 'designation' => $a->designation, 'unit' => $a->unit,
             'packSize' => $a->pack_size, 'packUnit' => $a->pack_unit,
-            'unitPrice' => (float) $a->unit_price, 'alertThreshold' => $a->alert_threshold, 'isActive' => (bool) $a->is_active,
+            'unitPrice' => (float) $a->unit_price, 'alertThreshold' => StockLedger::threshold((string) $a->unit, $a->alert_threshold), 'ownAlertThreshold' => $a->alert_threshold, 'isActive' => (bool) $a->is_active,
         ];
     }
 
@@ -102,7 +100,8 @@ class StockController extends Controller
     {
         if ($moves === 0) return 'EMPTY';
         if ($stock <= 0) return 'OUT';
-        if ($a->alert_threshold !== null && $stock <= (float) $a->alert_threshold) return 'LOW';
+        $threshold = StockLedger::threshold((string) $a->unit, $a->alert_threshold);
+        if ($threshold !== null && $stock <= $threshold) return 'LOW';
         return 'OK';
     }
 
@@ -157,20 +156,27 @@ class StockController extends Controller
 
         $stocks = DB::table('stock_movements')->where('project_id', $pid)->whereNull('cancelled_at')->whereIn('organizational_unit_id', $unitIds ?: [0])
             ->groupBy('stock_article_id')
-            ->selectRaw("stock_article_id, SUM(CASE WHEN type = 'ENTREE' THEN quantity ELSE -quantity END) AS stock, MAX(movement_date) AS last_date, COUNT(*) AS moves")
+            ->selectRaw("stock_article_id, SUM(CASE WHEN type = 'ENTREE' THEN quantity ELSE -quantity END) AS stock, SUM(CASE WHEN type = 'ENTREE' THEN quantity ELSE 0 END) AS entries, SUM(CASE WHEN type = 'ENTREE' THEN 0 ELSE quantity END) AS exits, MAX(movement_date) AS last_date, COUNT(*) AS moves")
             ->get()->keyBy('stock_article_id');
         $used = DB::table('stock_movements')->where('project_id', $pid)->distinct()->pluck('stock_article_id')->flip();
 
+        // Stock de l'unité du compte : c'est lui qui limite les sorties, quelle que soit l'unité consultée.
+        $ownId = in_array((int) Ctx::user()->organizational_unit_id, $this->writableUnitIds($units, 'can_manage_stock'), true) ? (int) Ctx::user()->organizational_unit_id : null;
+        $ownStocks = $ownId ? DB::table('stock_movements')->where('project_id', $pid)->whereNull('cancelled_at')->where('organizational_unit_id', $ownId)->groupBy('stock_article_id')
+            ->selectRaw("stock_article_id, SUM(CASE WHEN type = 'ENTREE' THEN quantity ELSE -quantity END) AS stock")->pluck('stock', 'stock_article_id') : collect();
+
         $unitNames = OrganizationalUnit::where('project_id', $pid)->pluck('name', 'id');
         $contracts = DB::table('contracts as c')->leftJoin('companies as co', 'co.id', '=', 'c.company_id')->where('c.project_id', $pid)
-            ->orderBy('c.reference')->get(['c.id', 'c.reference', 'co.name as company']);
+            ->orderBy('c.reference')->get(['c.id', 'c.reference', 'c.company_id', 'c.goods_procedure', 'c.organizational_unit_id as unit_id', 'co.name as company']);
         $contractNumbers = $contracts->pluck('reference', 'id');
-        $articles = $this->articlesQuery()->orderBy('number')->get()->map(function ($a) use ($stocks, $used, $unitNames, $contractNumbers) {
+        $articles = $this->articlesQuery()->when($unit, fn ($q) => $q->where('organizational_unit_id', $unit->id))->orderBy('number')->get()->map(function ($a) use ($stocks, $ownStocks, $used, $unitNames, $contractNumbers) {
             $s = $stocks[$a->id] ?? null;
             $qty = $s ? round((float) $s->stock, 2) : 0.0;
             return self::articleView($a) + [
-                'stock' => $qty, 'value' => round($qty * (float) $a->unit_price, 2), 'lastMovementDate' => $s ? Dates::part($s->last_date) : null,
+                'stock' => $qty, 'ownStock' => round((float) ($ownStocks[$a->id] ?? 0), 2), 'entries' => $s ? round((float) $s->entries, 2) : 0.0, 'exits' => $s ? round((float) $s->exits, 2) : 0.0, 'contractId' => $a->contract_id ? (int) $a->contract_id : null,
+                'value' => round($qty * (float) $a->unit_price, 2), 'lastMovementDate' => $s ? Dates::part($s->last_date) : null,
                 'level' => self::level($a, $qty, $s ? (int) $s->moves : 0), 'hasMovements' => isset($used[$a->id]),
+                'ownerUnitId' => $a->organizational_unit_id ? (int) $a->organizational_unit_id : null,
                 'ownerUnit' => $a->organizational_unit_id ? ($unitNames[$a->organizational_unit_id] ?? null) : null,
                 'contractNumber' => $a->contract_id ? ($contractNumbers[$a->contract_id] ?? null) : null,
                 'canEdit' => $this->canEditArticle($a),
@@ -178,17 +184,26 @@ class StockController extends Controller
         })->values();
 
         $active = $articles->where('isActive', true);
+        // Contrats proposés au filtre et à la réception : fournitures de bureau des unités consultées, et tout contrat qui a des articles.
+        $withArticles = $articles->pluck('contractId')->filter()->flip();
+        $articleContracts = $contracts->filter(fn ($c) => isset($withArticles[(int) $c->id]) || (GoodsProcedure::stockOnly($c->goods_procedure) && in_array((int) $c->unit_id, $unitIds, true)))
+            ->map(fn ($c) => ['id' => (int) $c->id, 'number' => $c->reference, 'company' => (string) $c->company, 'companyId' => $c->company_id ? (int) $c->company_id : null, 'unitId' => $c->unit_id ? (int) $c->unit_id : null])->values();
+        // Import d'articles par contrat : les fournitures de bureau de l'unité du compte et, à la coordination, les marchés du projet.
+        $importContracts = $contracts->filter(fn ($c) => GoodsProcedure::stockOnly($c->goods_procedure) ? (int) $c->unit_id === $this->ownerUnitId() : Ctx::isNationalCoordination());
         return [
             'units' => $units->map(fn ($u) => self::unitView($u))->values(),
             'unitId' => $unit ? $unit->id : null,
             'canChooseUnit' => $this->hasNationalView(),
             'writableUnitIds' => $this->writableUnitIds($units, 'can_manage_stock'),
             'canManageCatalog' => $this->canManageCatalog(),
-            // Où vont les articles ajoutés par le compte : catalogue commun (coordination) ou son antenne.
-            'catalogOwner' => $this->canManageCatalog() ? ($this->ownerUnitId() ? ($unitNames[$this->ownerUnitId()] ?? null) : 'Catalogue commun du projet') : null,
-            'contracts' => $this->canManageCatalog() ? $contracts->map(fn ($c) => ['id' => (int) $c->id, 'number' => $c->reference, 'company' => (string) $c->company])->values() : [],
+            // Où vont les articles ajoutés par le compte : son unité.
+            'catalogOwner' => $this->canManageCatalog() ? ($unitNames[$this->ownerUnitId()] ?? null) : null,
+            'articleContracts' => $articleContracts,
+            'contracts' => $this->canManageCatalog() ? $importContracts->map(fn ($c) => ['id' => (int) $c->id, 'number' => $c->reference, 'company' => (string) $c->company])->values() : [],
             // Unité où l'utilisateur saisit, sans avoir à la choisir ; null si son compte n'en a pas (vue nationale non affectée).
-            'ownUnitId' => in_array((int) Ctx::user()->organizational_unit_id, $this->writableUnitIds($units, 'can_manage_stock'), true) ? (int) Ctx::user()->organizational_unit_id : null,
+            'ownUnitId' => $ownId,
+            // Destinations d'une sortie : les postes de l'unité du compte.
+            'positions' => $ownId ? self::unitPositions($ownId) : [],
             'companies' => DB::table('companies')->where('project_id', $pid)->orderBy('name')->get(['id', 'name'])->values(),
             'articles' => $articles,
             'totals' => [
@@ -204,7 +219,9 @@ class StockController extends Controller
     {
         $article = $this->articleOr404($id);
         $units = $this->units();
-        $unit = $this->requestedUnit($r, $units, true);
+        // La fiche d'un article est tenue par son unité : pas de choix d'unité.
+        $unit = $units->firstWhere('id', (int) $article->organizational_unit_id);
+        abort_unless($unit, 404, 'Article introuvable.');
         $from = Dates::valid($r->query('from')) ? Dates::part($r->query('from')) : null;
         $to = Dates::valid($r->query('to')) ? Dates::part($r->query('to')) : null;
 
@@ -221,8 +238,6 @@ class StockController extends Controller
         return [
             'article' => self::articleView($article),
             'unit' => self::unitView($unit),
-            'units' => $units->map(fn ($u) => self::unitView($u))->values(),
-            'canChooseUnit' => $this->hasNationalView(),
             'canWrite' => in_array((int) $unit->id, $this->writableUnitIds($units, 'can_manage_stock'), true) && $article->is_active,
             // Fiche d'une autre unité, consultée par un gestionnaire de stock à vue nationale : lecture seule.
             'otherUnit' => Ctx::can('can_manage_stock') && (int) $unit->id !== (int) Ctx::user()->organizational_unit_id && !Ctx::user()->is_super_admin,
@@ -232,7 +247,8 @@ class StockController extends Controller
             'value' => round($stock * (float) $article->unit_price, 2),
             'lines' => $lines,
             'companies' => DB::table('companies')->where('project_id', Ctx::projectId())->orderBy('name')->get(['id', 'name'])->values(),
-            // Suggestions de saisie : origines et destinations déjà utilisées dans l'unité (Approvisionnement, services…)
+            'positions' => self::unitPositions((int) $unit->id),
+            // Suggestions de saisie : origines déjà utilisées dans l'unité (Approvisionnement…)
             'origins' => DB::table('stock_movements')->where('project_id', Ctx::projectId())->where('organizational_unit_id', $unit->id)
                 ->select('origin_destination')->groupBy('origin_destination')->orderByRaw('COUNT(*) DESC')->limit(50)->pluck('origin_destination'),
         ];
@@ -256,6 +272,24 @@ class StockController extends Controller
         return $unit;
     }
 
+    /** Destinations possibles d'une sortie : les postes actifs de l'unité, et ceux qui sont communs à toutes les unités. */
+    private static function unitPositions(int $unitId)
+    {
+        return DB::table('positions')->where('project_id', Ctx::projectId())->where('is_active', true)
+            ->where(fn ($q) => $q->where('organizational_unit_id', $unitId)->orWhereNull('organizational_unit_id'))->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($p) => ['id' => (int) $p->id, 'name' => $p->name])->values();
+    }
+
+    /** Destination d'une sortie : un poste de l'unité où elle est enregistrée ; son libellé est conservé tel quel sur la fiche. */
+    private static function exitDestination(Request $r, OrganizationalUnit $unit): string
+    {
+        $id = (int) $r->input('position_id');
+        if (!$id) throw ValidationException::withMessages(['position_id' => 'Choisissez le poste de destination.']);
+        $position = self::unitPositions((int) $unit->id)->firstWhere('id', $id);
+        if (!$position) throw ValidationException::withMessages(['position_id' => "Ce poste n’appartient pas à l’unité {$unit->name}."]);
+        return $position['name'];
+    }
+
     private static function quantity($raw, string $field = 'quantity'): float
     {
         $q = Dates::decimal($raw);
@@ -270,6 +304,7 @@ class StockController extends Controller
     private function record(StockArticle $article, OrganizationalUnit $unit, array $d, string $field = 'quantity'): StockMovement
     {
         abort_unless($article->is_active, 422, "L’article « {$article->designation} » est désactivé : réactivez-le dans le catalogue avant de saisir un mouvement.");
+        abort_unless((int) $article->organizational_unit_id === (int) $unit->id, 422, "L’article « {$article->designation} » appartient à une autre unité que {$unit->name}.");
         $moves = $this->ledger($article->id, $unit->id);
         if ($d['type'] === StockLedger::SORTIE) {
             $available = StockLedger::balance(array_filter($moves, fn ($m) => $m['date'] <= $d['movement_date']));
@@ -322,7 +357,7 @@ class StockController extends Controller
         $d['quantity'] = self::quantity($r->input('quantity'));
         self::checkDate($d['movement_date'], 'movement_date');
         $company = $d['type'] === StockLedger::ENTREE && !empty($d['company_id']) ? DB::table('companies')->where('id', $d['company_id'])->value('name') : null;
-        if ($d['type'] === StockLedger::SORTIE) { $d['company_id'] = null; $d['reference'] = null; }
+        if ($d['type'] === StockLedger::SORTIE) { $d['company_id'] = null; $d['reference'] = null; $d['origin_destination'] = self::exitDestination($r, $unit); }
         $d['origin_destination'] = trim((string) ($d['origin_destination'] ?? '')) ?: ($company ? "Livraison {$company}" : '');
         if ($d['origin_destination'] === '') throw ValidationException::withMessages(['origin_destination' => $d['type'] === StockLedger::SORTIE ? 'Indiquez la destination (service ou bénéficiaire).' : 'Indiquez l’origine ou le fournisseur.']);
         foreach (['reference', 'observation'] as $k) $d[$k] = isset($d[$k]) && trim($d[$k]) !== '' ? trim($d[$k]) : null;
@@ -345,6 +380,7 @@ class StockController extends Controller
         $pid = Ctx::projectId();
         $d = $r->validate([
             'company_id' => ['required', ...array_slice(self::companyRule(), 1)],
+            'contract_id' => ['nullable', 'integer', Rule::exists('contracts', 'id')->where('project_id', $pid)],
             'movement_date' => 'required|date_format:Y-m-d',
             'reference' => 'nullable|string|max:100',
             'observation' => 'nullable|string|max:500',
@@ -363,8 +399,11 @@ class StockController extends Controller
         foreach ($r->input('lines') as $i => $l) $lines[] = ['article' => (int) $l['stock_article_id'], 'quantity' => self::quantity($l['quantity'] ?? null, "lines.$i.quantity")];
 
         return DB::transaction(function () use ($d, $lines, $unit, $company) {
-            foreach ($lines as $l) {
+            foreach ($lines as $i => $l) {
                 $article = StockArticle::where('id', $this->articleOr404((int) $l['article'])->id)->lockForUpdate()->first();
+                if (!empty($d['contract_id']) && (int) $article->contract_id !== (int) $d['contract_id']) {
+                    throw ValidationException::withMessages(["lines.$i.stock_article_id" => "L’article « {$article->designation} » n’appartient pas à ce contrat."]);
+                }
                 $this->record($article, $unit, [
                     'type' => StockLedger::ENTREE, 'movement_date' => $d['movement_date'], 'quantity' => $l['quantity'],
                     'origin_destination' => "Livraison {$company}", 'company_id' => $d['company_id'],
@@ -374,6 +413,42 @@ class StockController extends Controller
             }
             $n = count($lines);
             return ['message' => "Livraison de {$company} enregistrée : {$n} article(s) entré(s) en stock à {$unit->name}."];
+        });
+    }
+
+    /**
+     * Sortie de stock (consommation) : un ou plusieurs articles remis à un poste de l'unité, en tout ou rien.
+     * Chaque ligne passe par les contrôles de la fiche : stock disponible à la date, même pour une sortie antidatée.
+     */
+    public function storeExits(Request $r)
+    {
+        $unit = $this->writeUnit($r);
+        $destination = self::exitDestination($r, $unit);
+        $d = $r->validate([
+            'movement_date' => 'required|date_format:Y-m-d',
+            'observation' => 'nullable|string|max:500',
+            'lines' => 'required|array|min:1|max:200',
+            'lines.*.stock_article_id' => ['required', 'integer', 'distinct', Rule::exists('stock_articles', 'id')->where('project_id', Ctx::projectId())],
+        ], [
+            'lines.required' => 'Ajoutez au moins un article.',
+            'lines.*.stock_article_id.distinct' => 'Cet article figure deux fois dans la sortie.',
+            'lines.*.stock_article_id.required' => 'Choisissez l’article.',
+        ], ['movement_date' => 'date de sortie']);
+        self::checkDate($d['movement_date'], 'movement_date');
+        $lines = [];
+        foreach ($r->input('lines') as $i => $l) $lines[] = ['article' => (int) $l['stock_article_id'], 'quantity' => self::quantity($l['quantity'] ?? null, "lines.$i.quantity")];
+
+        return DB::transaction(function () use ($d, $lines, $unit, $destination) {
+            foreach ($lines as $i => $l) {
+                // Verrou sur l'article : deux sorties simultanées ne peuvent pas consommer le même stock.
+                $article = StockArticle::where('id', $this->articleOr404((int) $l['article'])->id)->lockForUpdate()->first();
+                $this->record($article, $unit, [
+                    'type' => StockLedger::SORTIE, 'movement_date' => $d['movement_date'], 'quantity' => $l['quantity'], 'origin_destination' => $destination,
+                    'observation' => isset($d['observation']) && trim($d['observation']) !== '' ? trim($d['observation']) : null,
+                ], "lines.$i.quantity");
+            }
+            $n = count($lines);
+            return ['message' => "Sortie enregistrée : {$n} article(s) remis à {$destination}."];
         });
     }
 
@@ -408,7 +483,7 @@ class StockController extends Controller
     {
         $pid = Ctx::projectId();
         $d = $r->validate([
-            'number' => ['nullable', 'integer', 'min:1', 'max:99999', Rule::unique('stock_articles', 'number')->where('project_id', $pid)->ignore($ignoreId)],
+            'number' => ['nullable', 'integer', 'min:1', 'max:99999', Rule::unique('stock_articles', 'number')->where('project_id', $pid)->where('organizational_unit_id', $owner)->ignore($ignoreId)],
             'designation' => ['required', 'string', 'max:255'],
             'unit' => 'required|string|max:40',
             'pack_unit' => 'nullable|string|max:40',
@@ -416,8 +491,7 @@ class StockController extends Controller
             'number.unique' => 'Ce numéro de fiche est déjà attribué à un autre article.',
         ], ['number' => 'N° de fiche', 'designation' => 'désignation', 'unit' => 'unité']);
         if ($this->designationTaken($d['designation'], $owner, $ignoreId)) {
-            throw ValidationException::withMessages(['designation' => $owner === null
-                ? 'Un article porte déjà cette désignation dans le projet.' : 'Un article porte déjà cette désignation dans votre antenne ou dans le catalogue commun.']);
+            throw ValidationException::withMessages(['designation' => 'Un article porte déjà cette désignation dans votre unité.']);
         }
 
         $price = Dates::decimal($r->input('unit_price'));
@@ -475,6 +549,12 @@ class StockController extends Controller
         ], ['file.mimes' => 'Choisissez un fichier Excel (.xlsx) ou CSV.', 'file.max' => 'Le fichier dépasse 2 Mo.', 'contract_id.exists' => 'Ce contrat n’appartient pas au projet.'], ['file' => 'fichier', 'contract_id' => 'contrat']);
         $owner = $this->ownerUnitId();
         $contractId = $r->filled('contract_id') ? (int) $r->input('contract_id') : null;
+        if ($contractId) {
+            $target = DB::table('contracts')->where('id', $contractId)->first(['goods_procedure', 'organizational_unit_id']);
+            if (GoodsProcedure::stockOnly($target->goods_procedure) ? (int) $target->organizational_unit_id !== (int) $owner : !Ctx::isNationalCoordination()) {
+                throw ValidationException::withMessages(['contract_id' => 'Ce contrat appartient à une autre unité que la vôtre.']);
+            }
+        }
         $file = $r->file('file');
         try {
             $raw = strtolower($file->getClientOriginalExtension()) === 'xlsx' ? Xlsx::read($file->getRealPath()) : StockImport::readCsv((string) file_get_contents($file->getRealPath()));
@@ -485,20 +565,20 @@ class StockController extends Controller
         if (!$rows) throw ValidationException::withMessages(['file' => 'Aucun article trouvé sous la ligne d’en-tête.']);
 
         $pid = Ctx::projectId();
-        // Articles déjà connus de l'unité (catalogue commun compris) : mis à jour si l'unité les tient, utilisés tels quels sinon.
-        $existing = StockArticle::where('project_id', $pid)->when($owner !== null, fn ($q) => $q->where(fn ($w) => $w->whereNull('organizational_unit_id')->orWhere('organizational_unit_id', $owner)))
+        // Articles déjà connus de l'unité : mis à jour.
+        $existing = StockArticle::where('project_id', $pid)->where('organizational_unit_id', $owner)
             ->get()->keyBy(fn ($a) => mb_strtolower($a->designation));
-        $usedNumbers = StockArticle::where('project_id', $pid)->pluck('designation', 'number');
+        $usedNumbers = StockArticle::where('project_id', $pid)->where('organizational_unit_id', $owner)->pluck('designation', 'number');
         $seen = [];
         foreach ($rows as &$row) {
             $key = mb_strtolower($row['designation']);
             if (isset($seen[$key])) $row['errors'][] = 'Article en double dans le fichier (ligne ' . $seen[$key] . ')';
             $seen[$key] = $row['line'];
-            $row['status'] = $row['errors'] ? 'ERROR' : (isset($existing[$key]) ? ($this->canEditArticle($existing[$key]) ? 'UPDATE' : 'KEEP') : 'NEW');
+            $row['status'] = $row['errors'] ? 'ERROR' : (isset($existing[$key]) ? 'UPDATE' : 'NEW');
             if ($row['number'] && isset($usedNumbers[$row['number']]) && mb_strtolower($usedNumbers[$row['number']]) !== $key) $row['number'] = null; // numéro pris : attribué automatiquement
         }
         unset($row);
-        $counts = ['new' => 0, 'update' => 0, 'keep' => 0, 'error' => 0];
+        $counts = ['new' => 0, 'update' => 0, 'error' => 0];
         foreach ($rows as $row) $counts[strtolower($row['status'])]++;
         $preview = array_map(fn ($x) => [
             'line' => $x['line'], 'number' => $x['number'], 'designation' => $x['designation'], 'unit' => $x['unit'], 'quantity' => $x['quantity'],
@@ -514,18 +594,16 @@ class StockController extends Controller
         self::checkDate($date, 'movement_date');
 
         return DB::transaction(function () use ($rows, $existing, $pid, $initial, $unit, $date, $counts, $owner, $contractId) {
-            $next = (int) StockArticle::where('project_id', $pid)->lockForUpdate()->max('number');
+            $next = (int) StockArticle::where('project_id', $pid)->where('organizational_unit_id', $owner)->lockForUpdate()->max('number');
             $stocked = 0;
             foreach ($rows as $row) {
                 $a = $existing[mb_strtolower($row['designation'])] ?? null;
-                if ($a && $row['status'] === 'KEEP') {
-                    // Article du catalogue commun : utilisé tel quel (son PU est tenu par la coordination).
-                } elseif ($a) {
+                if ($a) {
                     $before = self::snapshot($a);
                     $a->fill(['unit' => $row['unit'], 'unit_price' => $row['price']] + ($contractId ? ['contract_id' => $contractId] : []))->save();
                     if ($a->wasChanged()) Ctx::auditChange('MODIFICATION', 'StockArticle', $a->id, "Article « {$a->designation} » mis à jour par import.", $before, self::snapshot($a));
                 } else {
-                    $number = $row['number'] && !StockArticle::where('project_id', $pid)->where('number', $row['number'])->exists() ? $row['number'] : ++$next;
+                    $number = $row['number'] && !StockArticle::where('project_id', $pid)->where('organizational_unit_id', $owner)->where('number', $row['number'])->exists() ? $row['number'] : ++$next;
                     $next = max($next, $number);
                     $a = StockArticle::create(['project_id' => $pid, 'organizational_unit_id' => $owner, 'contract_id' => $contractId, 'number' => $number,
                         'designation' => $row['designation'], 'unit' => $row['unit'], 'unit_price' => $row['price'], 'is_active' => true]);
@@ -536,7 +614,7 @@ class StockController extends Controller
                     $stocked++;
                 }
             }
-            $msg = "Import terminé : {$counts['new']} article(s) créé(s), {$counts['update']} mis à jour" . ($counts['keep'] ? ", {$counts['keep']} déjà au catalogue commun" : '');
+            $msg = "Import terminé : {$counts['new']} article(s) créé(s), {$counts['update']} mis à jour";
             return ['message' => $msg . ($initial ? ", {$stocked} quantité(s) enregistrée(s) en stock initial à {$unit->name}." : '.'), 'counts' => $counts];
         });
     }
@@ -553,8 +631,8 @@ class StockController extends Controller
         $data = $this->articleData($r, $owner);
         return DB::transaction(function () use ($data, $owner) {
             $pid = Ctx::projectId();
-            if (!$data['number']) $data['number'] = (int) StockArticle::where('project_id', $pid)->lockForUpdate()->max('number') + 1;
-            // Sans contrat : article ajouté un par un, à l'unité du compte (catalogue commun pour la coordination).
+            if (!$data['number']) $data['number'] = (int) StockArticle::where('project_id', $pid)->where('organizational_unit_id', $owner)->lockForUpdate()->max('number') + 1;
+            // Sans contrat : article ajouté un par un, à l'unité du compte.
             $a = StockArticle::create($data + ['project_id' => $pid, 'organizational_unit_id' => $owner, 'is_active' => true]);
             Ctx::auditChange('CREATION', 'StockArticle', $a->id, "Article « {$a->designation} » ajouté au catalogue (fiche N° " . sprintf('%03d', $a->number) . ').', null, self::snapshot($a));
             return ['message' => 'Article ajouté au catalogue.', 'id' => $a->id];

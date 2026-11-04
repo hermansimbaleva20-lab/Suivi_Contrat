@@ -175,6 +175,7 @@ class DecompteController extends Controller
     {
         Ctx::need('can_manage_payments');
         $c = $this->contractOr404($id);
+        abort_if(GoodsProcedure::stockOnly($c['goods_procedure']), 422, GoodsProcedure::STOCK_ONLY_MESSAGE);
         $d = $r->validate(['operation_date' => 'required|date_format:Y-m-d', 'observation' => 'nullable|string|max:500'], [], ['operation_date' => 'date']);
         if ($d['operation_date'] > Dates::today()) throw ValidationException::withMessages(['operation_date' => 'La date ne peut pas être postérieure à aujourd’hui.']);
         return DB::transaction(function () use ($c, $d) {
@@ -200,6 +201,7 @@ class DecompteController extends Controller
     {
         Ctx::need('can_manage_payments');
         $c = $this->contractOr404($id);
+        abort_if(GoodsProcedure::stockOnly($c['goods_procedure']), 422, GoodsProcedure::STOCK_ONLY_MESSAGE);
         abort_if($c['terminated'], 422, 'Ce contrat est résilié : aucun décompte ne peut être ajouté.');
         abort_if(DB::table('contract_decomptes')->where('contract_id', $c['id'])->where('kind', DecompteLedger::RELEASE)->where('status', '!=', DecompteLedger::REJECTED)->where('line_no', '>', self::renewalLine($c))->exists(),
             422, 'La retenue de garantie a déjà été reversée : le contrat est soldé.');

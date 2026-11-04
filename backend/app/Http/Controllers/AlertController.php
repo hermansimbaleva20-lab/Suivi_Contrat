@@ -6,6 +6,7 @@ use App\Support\AlertTemplates;
 use App\Support\Ctx;
 use App\Support\Dates;
 use App\Support\GuaranteeAlerts;
+use App\Support\GoodsProcedure;
 use App\Support\Loader;
 use App\Support\MailService;
 use App\Support\Metrics;
@@ -82,6 +83,7 @@ class AlertController extends Controller
         if (in_array($type, ['vigilance', 'retard', 'contrat'], true)) {
             $c = Loader::contract($pid, Ctx::phaseId(), $id, true);
             abort_unless($c, 404, 'Contrat introuvable.');
+            abort_if(GoodsProcedure::stockOnly($c['goods_procedure']), 422, GoodsProcedure::STOCK_ONLY_MESSAGE);
             $kind = ['vigilance' => 'VIGILANCE', 'retard' => 'RETARD', 'contrat' => 'SATISFACTION'][$type];
             $msg = AlertTemplates::render($templates["CONTRAT_{$kind}"], AlertEngine::contractVars($c, $pid));
             $email = trim((string) DB::table('companies')->where('id', $c['company_id'])->value('email'));

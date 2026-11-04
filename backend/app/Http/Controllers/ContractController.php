@@ -23,7 +23,7 @@ class ContractController extends Controller
      */
     private function goodsFields(Request $r, string $category, float $initialRate, array &$e, ?array $c = null): array
     {
-        $blank = ['goods_procedure' => null, 'goods_origin' => null, 'payment_schedule' => null, 'delay_penalty_rate' => null, 'delay_penalty_cap' => null];
+        $blank = ['goods_procedure' => null, 'goods_origin' => null, 'payment_schedule' => null, 'delay_penalty_rate' => null, 'delay_penalty_cap' => null, 'goods_min_amount' => null, 'goods_max_amount' => null];
         if ($category !== 'BIENS') return $blank;
         $procedure = trim((string) $r->input('goods_procedure', $c['goods_procedure'] ?? ''));
         if ($procedure === '' && $c) return $blank;
@@ -31,7 +31,15 @@ class ContractController extends Controller
             $e['goods_procedure'] = 'Sélectionnez la procédure du marché : BAD, nationale ou fournitures de bureau.';
             return $blank;
         }
-        if (!GoodsProcedure::governs($procedure)) return ['goods_procedure' => $procedure] + $blank;
+        if (GoodsProcedure::stockOnly($procedure)) {
+            // Montants d'une commande : simple clause du contrat, sans effet sur le suivi.
+            $min = Dates::decimal($r->input('goods_min_amount', $c['goods_min_amount'] ?? GoodsProcedure::OFFICE_MIN_AMOUNT));
+            $max = Dates::decimal($r->input('goods_max_amount', $c['goods_max_amount'] ?? GoodsProcedure::OFFICE_MAX_AMOUNT));
+            if ($min === null || $min < 0) $e['goods_min_amount'] = 'Saisissez un montant minimum valide, par exemple 500,00.';
+            if ($max === null || $max <= 0) $e['goods_max_amount'] = 'Saisissez un montant maximum valide, par exemple 5500,00.';
+            elseif ($min !== null && $min > $max) $e['goods_max_amount'] = 'Le montant maximum doit être supérieur ou égal au montant minimum.';
+            return ['goods_procedure' => $procedure, 'goods_min_amount' => $min, 'goods_max_amount' => $max] + $blank;
+        }
         $origin = trim((string) $r->input('goods_origin', $c['goods_origin'] ?? ''));
         if (!GoodsProcedure::originLabel($origin)) {
             $e['goods_origin'] = 'Indiquez la provenance des biens : étranger ou locale.';
@@ -57,13 +65,25 @@ class ContractController extends Controller
     private function contractOr404(int $id): array
     {
         $c = Loader::contract(Ctx::projectId(), Ctx::phaseId(), $id, true);
-        abort_unless($c, 404, 'Contrat introuvable.');
+        abort_unless($c && Ctx::canReadContract($c['goods_procedure'], $c['unit_id']), 404, 'Contrat introuvable.');
         return $c;
+    }
+
+    private function needManage(array $c): void
+    {
+        abort_unless(Ctx::canManageContract($c['goods_procedure'], $c['unit_id']), 403, GoodsProcedure::stockOnly($c['goods_procedure'])
+            ? 'Ce contrat de fournitures de bureau est géré par la logistique de ' . ($c['unit_name'] ?: 'son unité') . '.' : 'Vous n’êtes pas habilité à gérer les contrats.');
+    }
+
+    private static function contractView(array $c, bool $withSites): array
+    {
+        return Views::contract($c, $withSites) + ['canManage' => (bool) Ctx::canManageContract($c['goods_procedure'] ?? null, $c['unit_id'] ?? null)];
     }
 
     public function index(Request $r)
     {
-        $all = Loader::contracts(Ctx::projectId(), Ctx::phaseId());
+        // Les contrats de fournitures de bureau ne sont visibles que de leur unité et de la vue nationale.
+        $all = array_values(array_filter(Loader::contracts(Ctx::projectId(), Ctx::phaseId(), null, false, true), fn ($c) => Ctx::canReadContract($c['goods_procedure'], $c['unit_id'])));
         $q = mb_strtolower(trim((string) $r->query('q', '')));
         if ($q !== '') {
             $all = array_values(array_filter($all, function ($c) use ($q) {
@@ -74,11 +94,11 @@ class ContractController extends Controller
         // 5 contrats par page ; les compteurs par statut portent sur tous les contrats retenus, pas seulement sur la page.
         $size = max(1, min(7, (int) $r->query('size', 5)));
         [$page, $pages, $offset] = Views::paginate(count($all), (int) $r->query('page', 1), $size);
-        $views = array_map(fn ($c) => Views::contract($c, true), $all);
+        $views = array_map(fn ($c) => self::contractView($c, true), $all);
         return [
             'data' => array_slice($views, $offset, $size),
             'meta' => ['page' => $page, 'pages' => $pages, 'total' => count($all), 'size' => $size],
-            'statusCounts' => array_count_values(array_column($views, 'status')),
+            'statusCounts' => array_count_values(array_column(array_filter($views, fn ($v) => !$v['stockOnly']), 'status')),
 
         ];
     }
@@ -98,7 +118,7 @@ class ContractController extends Controller
         $entries = array_reverse($c['entries']);
         $adv = Views::startupAdvance($c);
         return [
-            'contract' => Views::contract($c, true),
+            'contract' => self::contractView($c, true),
             'guarantee' => $c['guarantee'] ? Views::guarantee($c['guarantee']) : null,
             'amendments' => array_reverse($c['amendments']),
             'renewals' => array_reverse($c['renewals']),
@@ -141,7 +161,16 @@ class ContractController extends Controller
 
     public function store(Request $r)
     {
-        Ctx::need('can_manage_contracts');
+        // Fournitures de bureau : créées par la logistique, pour son unité. Les autres contrats : « Gérer les contrats ».
+        $officeUnit = null;
+        if (trim((string) $r->input('category', '')) === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure'))) {
+            Ctx::need('can_manage_stock');
+            $officeUnit = (int) Ctx::user()->organizational_unit_id;
+            abort_unless($officeUnit, 422, 'Votre compte n’est rattaché à aucune unité : demandez votre affectation au super-administrateur.');
+            Ctx::needUnit($officeUnit);
+        } else {
+            Ctx::need('can_manage_contracts');
+        }
         $pid = Ctx::projectId();
         $e = [];
         $number = trim((string) $r->input('reference', ''));
@@ -156,16 +185,18 @@ class ContractController extends Controller
         if (!$start) $e['start_date'] = 'La date de démarrage est obligatoire.';
         $signature = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($start ?: Dates::today());
         $duration = max(1, (int) $r->input('duration_months', 12));
-        $amount = Dates::decimal($r->input('amount'));
+        // Fournitures de bureau : pas de montant de contrat, seulement les montants minimum et maximum d'une commande.
+        $amount = $category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure')) ? 0.0 : Dates::decimal($r->input('amount'));
         if ($amount === null || $amount < 0) $e['amount'] = 'Saisissez un montant valide, par exemple 1500000,50.';
-        // Un contrat de SERVICE n'a ni avance de démarrage ni garantie de bonne exécution.
+        // Un contrat de SERVICE ou de fournitures de bureau n'a ni avance de démarrage ni garantie de bonne exécution.
         $isService = $category === 'SERVICE';
-        $initialRate = $isService ? 0.0 : (Dates::decimal($r->input('initial_financing_rate', 0)) ?? 0);
+        $noGuarantee = $isService || ($category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure')));
+        $initialRate = $noGuarantee ? 0.0 : (Dates::decimal($r->input('initial_financing_rate', 0)) ?? 0);
         if ($initialRate < 0 || $initialRate > 100) $e['initial_financing_rate'] = 'Le taux de l’avance de démarrage doit être compris entre 0 et 100 %.';
         $gRate = Dates::decimal($r->input('guarantee_rate', 5)) ?? 5;
-        if (!$isService && ($gRate <= 0 || $gRate > 100)) $e['guarantee_rate'] = 'Le taux de garantie doit être supérieur à 0 et inférieur ou égal à 100 %.';
+        if (!$noGuarantee && ($gRate <= 0 || $gRate > 100)) $e['guarantee_rate'] = 'Le taux de garantie doit être supérieur à 0 et inférieur ou égal à 100 %.';
         $guaranteeBank = trim((string) $r->input('guarantee_bank_name', ''));
-        if (!$isService && $guaranteeBank === '') $e['guarantee_bank_name'] = 'La banque émettrice de la garantie est obligatoire.';
+        if (!$noGuarantee && $guaranteeBank === '') $e['guarantee_bank_name'] = 'La banque émettrice de la garantie est obligatoire.';
         $end = $start ? Dates::addMonths($start, $duration) : null;
         // La garantie est liée au contrat : sa période est celle du contrat (démarrage → démarrage + durée).
         $gStart = $start;
@@ -187,14 +218,14 @@ class ContractController extends Controller
         } else {
             $workNames = array_values(array_unique(array_filter(array_column($sites, 'work_type'))));
         }
-        $goods = $this->goodsFields($r, $category, (float) $initialRate, $e);
+        $goods = $this->goodsFields($r, $category, (float) $initialRate, $e) + ['organizational_unit_id' => $officeUnit];
         if ($isMulti && $provinces && $sites) {
             $entered = array_unique(array_filter(array_column($sites, 'province')));
             if (array_diff($provinces, $entered)) $e['sites'] = 'Ajoutez au moins un site pour chaque province sélectionnée.';
         }
         if ($e) $this->invalid($e);
 
-        $id = DB::transaction(function () use ($goods, $r, $pid, $number, $companyId, $category, $isWorks, $isMulti, $isService, $start, $end, $signature, $duration, $amount, $initialRate, $gRate, $gStart, $gEnd, $mainProvince, $sites, $workNames, $guaranteeBank) {
+        $id = DB::transaction(function () use ($noGuarantee, $goods, $r, $pid, $number, $companyId, $category, $isWorks, $isMulti, $isService, $start, $end, $signature, $duration, $amount, $initialRate, $gRate, $gStart, $gEnd, $mainProvince, $sites, $workNames, $guaranteeBank) {
             $cid = DB::table('contracts')->insertGetId([
                 'project_id' => $pid, 'phase_id' => Ctx::phaseId(), 'company_id' => $companyId, 'reference' => $number, 'title' => trim((string) $r->input('title', '')) ?: null,
                 'province' => $mainProvince, 'category' => $category, 'amount' => $amount, 'start_date' => $start, 'end_date' => $end, 'signature_date' => $signature,
@@ -202,7 +233,7 @@ class ContractController extends Controller
                 'work_type_text' => implode('; ', $workNames), 'completed' => false, 'created_at' => now(), 'updated_at' => now(),
             ] + $goods);
             $rate = $gRate;
-            if (!$isService) DB::table('performance_guarantees')->insert([
+            if (!$noGuarantee) DB::table('performance_guarantees')->insert([
                 'project_id' => $pid, 'contract_id' => $cid, 'company_id' => $companyId,
                 'bank_name' => $guaranteeBank,
                 'account_number' => trim((string) $r->input('guarantee_account_number', '')) ?: null,
@@ -225,9 +256,9 @@ class ContractController extends Controller
 
     public function update(Request $r, int $id)
     {
-        Ctx::need('can_manage_contracts');
         $pid = Ctx::projectId();
         $c = $this->contractOr404($id);
+        $this->needManage($c);
         abort_if($c['terminated'], 422, 'Un contrat résilié ne peut plus être modifié.');
         $e = [];
         $number = trim((string) $r->input('reference', ''));
@@ -241,19 +272,37 @@ class ContractController extends Controller
         $start = Dates::valid($r->input('start_date')) ? Dates::part($r->input('start_date')) : null;
         if (!$start) $e['start_date'] = 'La date de démarrage est obligatoire.';
         $duration = max(1, (int) $r->input('duration_months', $c['duration_months'] ?: 12));
-        $amount = Dates::decimal($r->input('amount'));
+        $amount = $category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure', $c['goods_procedure'])) ? (float) $c['amount'] : Dates::decimal($r->input('amount'));
         if ($amount === null || $amount < 0) $e['amount'] = 'Saisissez un montant valide, par exemple 1500000,50.';
         elseif ($amount < (float) $c['renewed_amount']) $e['amount'] = 'Le montant ne peut pas être inférieur aux montants ajoutés par les renouvellements (' . number_format((float) $c['renewed_amount'], 2, ',', ' ') . ' USD).';
-        $initialRate = $category === 'SERVICE' ? 0.0 : (Dates::decimal($r->input('initial_financing_rate', 0)) ?? 0);
+        $initialRate = $category === 'SERVICE' || ($category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure', $c['goods_procedure']))) ? 0.0 : (Dates::decimal($r->input('initial_financing_rate', 0)) ?? 0);
         if ($initialRate < 0 || $initialRate > 100) $e['initial_financing_rate'] = 'Le taux de l’avance de démarrage doit être compris entre 0 et 100 %.';
         $mainProvince = trim((string) $r->input('province', $c['province']));
         $goods = $this->goodsFields($r, $category, (float) $initialRate, $e, $c);
+        // Entrer dans les fournitures de bureau ou en sortir demande les deux habilitations ; l'unité est celle du compte.
+        $wasOffice = GoodsProcedure::stockOnly($c['goods_procedure']);
+        $isOffice = GoodsProcedure::stockOnly($goods['goods_procedure']);
+        if ($wasOffice !== $isOffice) {
+            Ctx::need('can_manage_contracts');
+            Ctx::need('can_manage_stock');
+        }
+        $goods['organizational_unit_id'] = $isOffice ? ($wasOffice ? $c['unit_id'] : ((int) Ctx::user()->organizational_unit_id ?: null)) : null;
         // Une fois une avance demandée ou un décompte saisi, les règles du marché ne changent plus : les lignes en dépendent.
         $goodsInUse = DB::table('contract_decomptes')->where('contract_id', $id)->where('status', '!=', DecompteLedger::REJECTED)->exists() || DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', 'REJETEE')->exists();
         $goodsTouched = GoodsProcedure::governs($c['goods_procedure']) || GoodsProcedure::governs($goods['goods_procedure']);
         if ($goodsInUse && $goodsTouched && ($goods['goods_procedure'] !== $c['goods_procedure'] || $goods['goods_origin'] !== $c['goods_origin'] || abs((float) $initialRate - (float) $c['initial_rate']) > 0.001
             || abs((float) $goods['delay_penalty_rate'] - (float) $c['delay_penalty_rate']) > 0.0001 || abs((float) $goods['delay_penalty_cap'] - (float) $c['delay_penalty_cap']) > 0.001)) {
             $e['goods_procedure'] = 'Une demande d’avance ou un décompte existe déjà : la procédure, la provenance, l’avance et la pénalité ne peuvent plus changer.';
+        }
+        if (GoodsProcedure::stockOnly($goods['goods_procedure']) && !GoodsProcedure::stockOnly($c['goods_procedure']) && ($goodsInUse || $c['payments'] || $c['entries'])) {
+            $e['goods_procedure'] = 'Ce contrat a déjà des paiements, des décomptes ou des avancements : il ne peut pas passer en fournitures de bureau.';
+        }
+        // Passer des fournitures de bureau à une procédure : la garantie, absente jusque-là, devient obligatoire.
+        $newGuarantee = null;
+        if (GoodsProcedure::stockOnly($c['goods_procedure']) && GoodsProcedure::governs($goods['goods_procedure']) && !DB::table('performance_guarantees')->where('contract_id', $id)->exists()) {
+            $newGuarantee = ['bank_name' => trim((string) $r->input('guarantee_bank_name', '')), 'account_number' => trim((string) $r->input('guarantee_account_number', '')) ?: null, 'rate' => Dates::decimal($r->input('guarantee_rate'))];
+            if ($newGuarantee['bank_name'] === '') $e['guarantee_bank_name'] = 'La banque émettrice de la garantie est obligatoire.';
+            if ($newGuarantee['rate'] === null || $newGuarantee['rate'] <= 0 || $newGuarantee['rate'] > 100) $e['guarantee_rate'] = 'Le taux de garantie doit être supérieur à 0 et inférieur ou égal à 100 %.';
         }
         // Le taux de la garantie se corrige avec la procédure, tant que le marché n'a pas commencé.
         $newGuaranteeRate = null;
@@ -271,7 +320,7 @@ class ContractController extends Controller
         }
         if ($e) $this->invalid($e);
 
-        DB::transaction(function () use ($goods, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $start, $duration, $amount, $initialRate, $mainProvince, $sites, $c) {
+        DB::transaction(function () use ($goods, $newGuarantee, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $start, $duration, $amount, $initialRate, $mainProvince, $sites, $c) {
             // Après un avenant ou un renouvellement, la fin ne se recalcule que si le démarrage ou la durée changent vraiment.
             $end = ($c['amendments'] || $c['renewals']) && $start === $c['start_date'] && $duration === (int) $c['duration_months'] ? $c['end_date'] : Dates::addMonths($start, $duration);
             $signature = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($c['signature_date'] ?: $start);
@@ -289,6 +338,13 @@ class ContractController extends Controller
                 'start_date' => $start, 'duration_months' => $duration, 'end_date' => $end, 'amount' => $amount, 'initial_financing_rate' => $initialRate,
                 'activities' => trim((string) $r->input('activities', '')), 'title' => trim((string) $r->input('title', '')) ?: null, 'work_type_text' => implode('; ', $types), 'updated_at' => now(),
             ] + $goods);
+            // Fournitures de bureau : plus de garantie de bonne exécution (le marché n'a pas commencé, sinon la procédure est figée).
+            if (GoodsProcedure::stockOnly($goods['goods_procedure']) && !GoodsProcedure::stockOnly($c['goods_procedure'])) {
+                DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->delete();
+            }
+            if ($newGuarantee) DB::table('performance_guarantees')->insert($newGuarantee + [
+                'project_id' => $pid, 'contract_id' => $id, 'company_id' => $companyId, 'amount' => round((float) $amount * $newGuarantee['rate'] / 100, 2), 'start_date' => $start, 'end_date' => $end, 'created_at' => now(), 'updated_at' => now(),
+            ]);
             // La garantie reste liée au contrat ; synchroniser son entreprise et son montant si le contrat change, et sa
             // période (celle du contrat) tant qu'elle n'a été ni prolongée ni renouvelée.
             $guarantees = DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->get(['id', 'rate']);
@@ -310,6 +366,7 @@ class ContractController extends Controller
         $reason = trim((string) $r->input('reason', ''));
         abort_if(mb_strlen($reason) < 5, 422, 'Une raison valable (minimum 5 caractères) est obligatoire avant suppression.');
         $c = $this->contractOr404($id);
+        if (GoodsProcedure::stockOnly($c['goods_procedure'])) Ctx::needUnit((int) $c['unit_id']);
         foreach (DB::table('contract_documents')->where('contract_id', $id)->get() as $d) Storage::disk('local')->delete($d->storage_path);
         DB::table('contract_documents')->where('contract_id', $id)->delete();
         DB::table('contracts')->where('id', $id)->delete();
@@ -319,8 +376,8 @@ class ContractController extends Controller
 
     public function terminate(Request $r, int $id)
     {
-        Ctx::need('can_manage_contracts');
         $c = $this->contractOr404($id);
+        $this->needManage($c);
         $reason = trim((string) $r->input('reason', ''));
         abort_if(mb_strlen($reason) < 5, 422, 'Le motif de résiliation est obligatoire.');
         abort_if($c['terminated'], 422, 'Ce contrat est déjà résilié.');
@@ -336,8 +393,8 @@ class ContractController extends Controller
      */
     public function renew(Request $r, int $id)
     {
-        Ctx::need('can_manage_contracts');
         $c = $this->contractOr404($id);
+        $this->needManage($c);
         abort_if($c['terminated'], 422, 'Un contrat résilié ne peut pas être renouvelé.');
         abort_unless(in_array(strtoupper((string) $c['category']), ['BIENS', 'BIEN'], true), 422, 'Seul un contrat de biens peut être renouvelé.');
         abort_unless(GoodsProcedure::renewable((string) $c['category'], $c['goods_procedure']), 422, 'Un marché en procédure BAD ou nationale ne se renouvelle pas : le renouvellement est réservé aux fournitures de bureau.');
@@ -353,7 +410,7 @@ class ContractController extends Controller
         if (!$start) $e['period_start'] = 'Le début de la nouvelle période est obligatoire.';
         $months = (int) $r->input('months');
         if ($months <= 0) $e['months'] = 'La durée doit être supérieure à zéro.';
-        $added = Dates::decimal($r->input('added_amount'));
+        $added = GoodsProcedure::stockOnly($c['goods_procedure']) ? 0.0 : Dates::decimal($r->input('added_amount'));
         if ($added === null || $added < 0) $e['added_amount'] = 'Saisissez un montant valide, par exemple 1500,75.';
         $reason = trim((string) $r->input('reason', ''));
         if (mb_strlen($reason) < 5) $e['reason'] = 'Le motif du renouvellement est obligatoire.';
@@ -381,8 +438,8 @@ class ContractController extends Controller
 
     public function amendment(Request $r, int $id)
     {
-        Ctx::need('can_manage_contracts');
         $c = $this->contractOr404($id);
+        $this->needManage($c);
         abort_if($c['terminated'], 422, 'Un contrat résilié ne peut plus recevoir d’avenant.');
         $months = (int) $r->input('added_months');
         abort_if($months <= 0, 422, 'La durée supplémentaire doit être supérieure à zéro.');

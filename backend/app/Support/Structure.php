@@ -73,6 +73,9 @@ class Structure
             $t->text('payment_schedule')->nullable(); // échéancier indicatif (JSON)
             $t->decimal('delay_penalty_rate', 6, 3)->nullable(); // % par semaine de retard (procédure nationale)
             $t->decimal('delay_penalty_cap', 5, 2)->nullable(); // plafond, en % du montant du marché
+            $t->decimal('goods_min_amount', 15, 2)->nullable(); // fournitures de bureau : clause du contrat, montants d'une commande
+            $t->decimal('goods_max_amount', 15, 2)->nullable();
+            $t->foreignId('organizational_unit_id')->nullable()->constrained('organizational_units')->nullOnDelete(); // unité d'un contrat de fournitures de bureau
             $t->timestamps();
             $t->unique(['project_id', 'reference'], 'contracts_project_reference_unique');
             $t->index(['project_id', 'phase_id']);
@@ -251,7 +254,7 @@ class Structure
         Schema::create('stock_articles', function (Blueprint $t) {
             $t->id();
             $t->foreignId('project_id')->constrained()->cascadeOnDelete();
-            // NULL : catalogue commun tenu par la coordination ; sinon article propre à une antenne
+            // Chaque unité tient ses propres articles
             $t->foreignId('organizational_unit_id')->nullable()->constrained('organizational_units')->restrictOnDelete();
             $t->foreignId('contract_id')->nullable()->constrained('contracts')->nullOnDelete(); // articles importés d'un contrat
             $t->unsignedInteger('number');
@@ -263,7 +266,7 @@ class Structure
             $t->decimal('alert_threshold', 14, 2)->nullable();
             $t->boolean('is_active')->default(true);
             $t->timestamps();
-            $t->unique(['project_id', 'number'], 'stock_articles_project_number_unique');
+            $t->unique(['project_id', 'organizational_unit_id', 'number'], 'stock_articles_unit_number_unique');
             $t->index(['project_id', 'designation'], 'stock_articles_project_designation_idx'); // unique par unité, contrôlé par l'API
         });
 
@@ -332,10 +335,10 @@ class Structure
             $t->string('request_reference', 120);
             $t->decimal('rate', 5, 2);
             $t->decimal('amount', 15, 2);
-            $t->string('guarantee_bank', 191);
-            $t->string('guarantee_number', 120);
-            $t->decimal('guarantee_amount', 15, 2);
-            $t->date('guarantee_end_date');
+            $t->string('guarantee_bank', 191)->nullable(); // garantie de restitution : BAD et nationale
+            $t->string('guarantee_number', 120)->nullable();
+            $t->decimal('guarantee_amount', 15, 2)->nullable();
+            $t->date('guarantee_end_date')->nullable();
             $t->string('status', 12)->default('DEMANDEE'); // DEMANDEE | PAYEE | REJETEE
             $t->date('paid_date')->nullable();
             $t->string('payment_reference', 120)->nullable();

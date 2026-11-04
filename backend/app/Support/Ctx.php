@@ -96,6 +96,21 @@ class Ctx
     }
 
     /** Coordination nationale (ou super-admin) : seule à tenir les référentiels communs au projet. */
+    /** Contrat de fournitures de bureau : lu par son unité et par la vue nationale. Les autres contrats sont ouverts à tous. */
+    public static function canReadContract(?string $procedure, ?int $unitId): bool
+    {
+        if (!GoodsProcedure::stockOnly($procedure)) return true;
+        $ids = self::readableUnitIds();
+        return $ids === null || in_array((int) $unitId, $ids, true);
+    }
+
+    /** Contrat de fournitures de bureau : géré par la logistique de son unité (« Gérer le stock »). Les autres : « Gérer les contrats ». */
+    public static function canManageContract(?string $procedure, ?int $unitId): bool
+    {
+        if (!GoodsProcedure::stockOnly($procedure)) return self::can('can_manage_contracts');
+        return self::can('can_manage_stock') && $unitId && self::canWriteUnit((int) $unitId);
+    }
+
     public static function isNationalCoordination($user = null): bool
     {
         $user = $user ?: self::user();

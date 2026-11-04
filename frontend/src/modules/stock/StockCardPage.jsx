@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, apiError, fieldErrors } from '../../api.js';
 import { useLoad } from '../../lib/hooks.js';
-import { fr, frDateTime, money, todayISO } from '../../lib/format.js';
+import { fr, frDateTime, todayISO } from '../../lib/format.js';
 import { Loading, Notice, ReasonDialog } from '../../components/ui.jsx';
 import { btn, btnGhost, btnPrimary, FieldError, input, label, panel } from '../shared/tw.jsx';
 import { td, tdNum, th } from './stockUi.jsx';
@@ -10,6 +10,7 @@ import { cardNo, packLabel, qty } from './stockFormat.js';
 import { ModuleHeader } from '../shared/ModuleHeader.jsx';
 import { ReadOnlyNote } from '../shared/ReadOnlyNote.jsx';
 import { STOCK } from '../shared/logisticsNav.js';
+import { PrintDocument } from '../shared/PrintDocument.jsx';
 import { PrintLetterhead } from '../shared/PrintLetterhead.jsx';
 
 /*
@@ -18,8 +19,8 @@ import { PrintLetterhead } from '../shared/PrintLetterhead.jsx';
  * Une ligne n'est jamais modifiée : elle est annulée avec un motif et reste visible, barrée.
  */
 
-function MovementForm({ type, setType, article, available, origins, companies, onSubmit, onCancel, busy, errors }) {
-  const [f, setF] = useState({ movement_date: todayISO(), quantity: '', origin_destination: type === 'ENTREE' ? 'Approvisionnement' : '', company_id: '', reference: '', observation: '' });
+function MovementForm({ type, setType, article, unitName, available, origins, positions, companies, onSubmit, onCancel, busy, errors }) {
+  const [f, setF] = useState({ movement_date: todayISO(), quantity: '', origin_destination: type === 'ENTREE' ? 'Approvisionnement' : '', position_id: '', company_id: '', reference: '', observation: '' });
   // Une entrée livrée par l'entreprise titulaire : l'origine devient « Livraison <entreprise> ».
   const chooseCompany = (id) => {
     const c = companies.find((x) => String(x.id) === id);
@@ -67,18 +68,23 @@ function MovementForm({ type, setType, article, available, origins, companies, o
         <FieldError text={errors.quantity} />
       </div>
       <div className="tw:sm:col-span-7">
-        <label className={label} htmlFor="mv-who">{isEntry ? 'Origine' : 'Destination'}</label>
-        <input
-          id="mv-who"
-          className={input}
-          value={f.origin_destination}
-          onChange={set('origin_destination')}
-          maxLength={190}
-          list="mv-origins"
-          placeholder={isEntry ? 'ex. Approvisionnement, transfert de la coordination' : 'ex. HNSE, Secrétariat, Antenne…'}
-          required
-        />
-        <datalist id="mv-origins">{origins.map((o) => <option key={o} value={o} />)}</datalist>
+        {isEntry ? (
+          <>
+            <label className={label} htmlFor="mv-who">Origine</label>
+            <input id="mv-who" className={input} value={f.origin_destination} onChange={set('origin_destination')} maxLength={190} list="mv-origins" placeholder="ex. Approvisionnement, transfert de la coordination" required />
+            <datalist id="mv-origins">{origins.map((o) => <option key={o} value={o} />)}</datalist>
+          </>
+        ) : (
+          <>
+            <label className={label} htmlFor="mv-who">Destination (poste de l’unité)</label>
+            <select id="mv-who" className={input} value={f.position_id} onChange={set('position_id')} required>
+              <option value="">Choisir le poste…</option>
+              {positions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            {!positions.length && <p className="tw:m-0 tw:mt-1 tw:text-xs tw:text-amber-800">Aucun poste n’est enregistré pour {unitName} : ajoutez-les dans Administration › Organisation.</p>}
+            <FieldError text={errors.position_id} />
+          </>
+        )}
         <FieldError text={errors.origin_destination} />
       </div>
       {isEntry && companies.length > 0 && (
@@ -109,6 +115,42 @@ function MovementForm({ type, setType, article, available, origins, companies, o
   );
 }
 
+/** N° du bon de livraison, sans répéter « BL » s'il figure déjà dans le numéro. */
+const blLabel = (reference) => (/^BL/i.test(reference) ? reference : `BL ${reference}`);
+
+/*
+ * Impression de la fiche de stock, sur le modèle papier du projet (annexes) : entête, titre « FICHE DE STOCK N° 001 RAME PAPIER… »,
+ * tableau N°, DATE, ORIGINE OU DESTINATION, ENTRÉE, SORTIE, STOCK, OBSERVATION, lignes vides jusqu'à 20, puis les visas.
+ */
+function StockCardPrint({ article, unit, period, lines }) {
+  const used = lines.length + (period.from ? 1 : 0);
+  const blanks = Array.from({ length: Math.max(0, 20 - used) }, (_, i) => used + i + 1);
+  return (
+    <PrintDocument>
+      <PrintLetterhead always title={`Fiche de stock N° ${cardNo(article.number)} ${article.designation}`} subtitle={unit.name} />
+      <table className="pdoc-table pdoc-card">
+        <thead><tr><th>N°</th><th>Date</th><th>Origine ou destination</th><th>Entrée</th><th>Sortie</th><th>Stock</th><th>Observation</th></tr></thead>
+        <tbody>
+          {period.from && <tr><td /><td className="pdoc-left">{fr(period.from)}</td><td className="pdoc-left">Report du stock antérieur</td><td /><td /><td className="pdoc-strong">{qty(period.opening)}</td><td /></tr>}
+          {lines.map((l, i) => (
+            <tr key={l.id} className={l.isCancelled ? 'pdoc-rejected' : ''}>
+              <td>{l.operationNo ?? i + 1}</td>
+              <td className="pdoc-left pdoc-nowrap"><span className="pdoc-amount">{fr(l.date)}</span></td>
+              <td className="pdoc-left"><span className="pdoc-amount">{l.originDestination}</span>{l.reference && <span className="pdoc-note">{blLabel(l.reference)}</span>}</td>
+              <td><span className="pdoc-amount">{l.entry === null ? '' : qty(l.entry)}</span></td>
+              <td><span className="pdoc-amount">{l.exit === null ? '' : qty(l.exit)}</span></td>
+              <td className="pdoc-strong">{qty(l.stock)}</td>
+              <td className="pdoc-left">{l.isCancelled ? `Annulé : ${l.cancelReason}` : l.observation}</td>
+            </tr>
+          ))}
+          {blanks.map((n) => <tr key={`vide-${n}`}><td>{n}</td><td /><td /><td /><td /><td /><td /></tr>)}
+        </tbody>
+      </table>
+      <div className="pdoc-visas"><div>Pour la logistique</div><div>Comptabilité</div><div>Coordonnateur national</div></div>
+    </PrintDocument>
+  );
+}
+
 export default function StockCardPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
@@ -130,7 +172,10 @@ export default function StockCardPage() {
     if (v) next.set(k, v); else next.delete(k);
     setParams(next, { replace: true });
   };
-  const back = `/stock${params.get('unit') ? `?unit=${params.get('unit')}` : ''}`;
+  const backQuery = new URLSearchParams();
+  if (params.get('unit')) backQuery.set('unit', params.get('unit'));
+  if (params.get('contrat')) backQuery.set('contrat', params.get('contrat'));
+  const back = `/stock${backQuery.toString() ? `?${backQuery}` : ''}`;
 
 
   const save = async (f) => {
@@ -171,8 +216,7 @@ export default function StockCardPage() {
           </Link>
         )} />
 
-      {/* En-tête imprimé du projet, puis le titre de la fiche (modèle papier : « FICHE DE STOCK N° 001 RAME PAPIER… ») */}
-      <PrintLetterhead title={`Fiche de stock N° ${cardNo(article.number)} — ${article.designation}`} subtitle={unit.name} />
+      <StockCardPrint article={article} unit={unit} period={period} lines={data.lines} />
 
       <Notice type={flash.type} onClose={() => setFlash({ ...flash, text: '' })}>{flash.text}</Notice>
       {data.otherUnit && <ReadOnlyNote unitName={unit.name} />}
@@ -186,8 +230,6 @@ export default function StockCardPage() {
               <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Unité de mesure</dt><dd className="tw:m-0 tw:font-semibold">{article.unit}</dd></div>
               <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Stock</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{qty(data.stock)}{article.packSize ? ` ${packLabel(data.stock, article)}` : ''}</dd></div>
               {article.alertThreshold !== null && <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Niveau minimum</dt><dd className={`tw:m-0 tw:font-tech tw:tabular-nums ${data.stock <= article.alertThreshold ? 'tw:font-semibold tw:text-prise-danger' : ''}`}>{qty(article.alertThreshold)}</dd></div>}
-              <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">PU évalué</dt><dd className="tw:m-0 tw:font-tech tw:tabular-nums">{money(article.unitPrice)} USD</dd></div>
-              <div className="tw:flex tw:gap-1.5"><dt className="tw:text-prise-muted">Valeur</dt><dd className="tw:m-0 tw:font-tech tw:font-semibold tw:tabular-nums">{money(data.value)} USD</dd></div>
             </dl>
             {!article.isActive && <p className="tw:m-0 tw:mt-2 tw:text-sm tw:text-amber-800">Article désactivé dans le catalogue : aucun nouveau mouvement n’est possible.</p>}
           </div>
@@ -203,14 +245,6 @@ export default function StockCardPage() {
         </header>
 
         <div className="tw:flex tw:flex-wrap tw:items-end tw:gap-3 tw:border-b tw:border-prise-border tw:px-5 tw:py-3 tw:print:hidden">
-          {data.canChooseUnit && (
-            <div className="tw:w-full tw:sm:w-64">
-              <label className={label} htmlFor="card-unit">Unité</label>
-              <select id="card-unit" className={input} value={unit.id} onChange={(e) => setParam('unit', e.target.value)}>
-                {data.units.map((u) => <option key={u.id} value={u.id}>{u.name}{u.isActive ? '' : ' (désactivée)'}</option>)}
-              </select>
-            </div>
-          )}
           <div>
             <label className={label} htmlFor="card-from">Du</label>
             <input id="card-from" type="date" className={`${input} tw:font-tech`} value={params.get('du') || ''} onChange={(e) => setParam('du', e.target.value)} />
@@ -231,8 +265,10 @@ export default function StockCardPage() {
             type={formType}
             setType={setFormType}
             article={article}
+            unitName={unit.name}
             available={data.stock}
             origins={data.origins}
+            positions={data.positions}
             companies={data.companies}
             onSubmit={save}
             onCancel={() => setFormType(null)}
@@ -245,7 +281,7 @@ export default function StockCardPage() {
           <table className="tw:w-full tw:border-collapse">
             <thead>
               <tr>
-                <th className={`${th} tw:w-12`} scope="col" title="N° d’opération sur la fiche">N° op.</th>
+                <th className={`${th} tw:w-12`} scope="col" title="N° d’opération sur la fiche">N°</th>
                 <th className={th} scope="col">Date</th>
                 <th className={th} scope="col">Origine ou destination</th>
                 <th className={`${th} tw:text-right`} scope="col">Entrée</th>
@@ -274,7 +310,7 @@ export default function StockCardPage() {
                   <td className={`${td} tw:font-tech tw:whitespace-nowrap ${l.isCancelled ? 'tw:line-through' : ''}`}>{fr(l.date)}</td>
                   <td className={`${td} ${l.isCancelled ? 'tw:line-through' : ''}`}>
                     {l.originDestination}
-                    {l.reference && <span className="tw:block tw:font-tech tw:text-[11px] tw:text-prise-muted">BL {l.reference}</span>}
+                    {l.reference && <span className="tw:block tw:font-tech tw:text-[11px] tw:text-prise-muted">{blLabel(l.reference)}</span>}
                   </td>
                   <td className={`${tdNum} ${l.isCancelled ? 'tw:line-through' : 'tw:text-prise-success'}`}>{l.entry === null ? '' : qty(l.entry)}</td>
                   <td className={`${tdNum} ${l.isCancelled ? 'tw:line-through' : ''}`}>{l.exit === null ? '' : qty(l.exit)}</td>
@@ -303,13 +339,6 @@ export default function StockCardPage() {
           </p>
         )}
       </section>
-
-      {/* Visas imprimés, comme au bas de la fiche papier */}
-      <div className="tw:hidden tw:print:mt-10 tw:print:grid tw:print:grid-cols-3 tw:print:gap-6 tw:print:text-center tw:print:text-sm tw:print:font-semibold">
-        <div>Pour la logistique<div className="tw:mt-16 tw:border-t tw:border-prise-text" /></div>
-        <div>Comptabilité<div className="tw:mt-16 tw:border-t tw:border-prise-text" /></div>
-        <div>Coordonnateur national<div className="tw:mt-16 tw:border-t tw:border-prise-text" /></div>
-      </div>
 
       {cancelling && (
         <ReasonDialog

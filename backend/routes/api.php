@@ -150,6 +150,7 @@ Route::middleware(['auth:sanctum', 'project'])->group(function () {
         Route::get('/articles/{id}/card', [StockController::class, 'card'])->whereNumber('id');
         Route::post('/movements', [StockController::class, 'storeMovement']);
         Route::post('/deliveries', [StockController::class, 'storeDelivery']);
+        Route::post('/exits', [StockController::class, 'storeExits']);
         Route::post('/import', [StockController::class, 'import'])->middleware('throttle:20,1');
         Route::get('/import/template', [StockController::class, 'importTemplate']);
         Route::post('/movements/{id}/cancel', [StockController::class, 'cancelMovement'])->whereNumber('id');

@@ -21,7 +21,7 @@ export default function Contracts() {
   return (
     <>
       <PageHead kicker="GESTION CONTRACTUELLE" title="Contrats" desc="Registre contractuel de la phase active. Les archives restent accessibles en sélectionnant une autre phase.">
-        {can('canManageContracts') && <Link to="/contracts/new" className="btn btn-primary"><i className="bi bi-plus-lg me-1" /> Nouveau contrat</Link>}
+        {(can('canManageContracts') || can('canManageStock')) && <Link to="/contracts/new" className="btn btn-primary"><i className="bi bi-plus-lg me-1" /> Nouveau contrat</Link>}
       </PageHead>
       <Notice>{error}</Notice>
 
@@ -50,18 +50,18 @@ export default function Contracts() {
                   <tr key={c.id}>
                     <td><Link className="contract-link" to={`/contracts/${c.id}`}>{c.number}</Link></td>
                     <td>{c.company}</td>
-                    <td>{c.category || '—'}</td>
+                    <td>{c.category || '—'}{c.goodsProcedureLabel && <div className="small text-secondary">{c.goodsProcedureLabel}{c.unitName ? ` · ${c.unitName}` : ''}</div>}</td>
                     <td>{(c.provinces || []).join(', ') || c.province || '—'}</td>
                     <td className="small">{(c.siteNames || []).join(', ') || '—'}</td>
-                    <td className="small">{fr(c.startDate)} → {fr(c.endDate)}<div className="text-secondary">{c.durationMonths} mois</div></td>
-                    <td className="text-money">{money(c.amount)}</td>
-                    <td style={{ minWidth: 120 }}><strong>{num(c.progress)}%</strong><Progress value={c.progress} /></td>
-                    <td>{num(c.elapsed)}%</td>
-                    <td><strong className={c.paymentRate > c.progress ? 'text-danger' : ''}>{num(c.paymentRate)}%</strong></td>
-                    <td><StatusPill status={c.status} /></td>
+                    <td className="small">{fr(c.periodStart)} → {fr(c.endDate)}<div className="text-secondary">{c.periodMonths} mois</div></td>
+                    <td className="text-money">{c.stockOnly ? <span className="small">Min. {money(c.goodsMinAmount)}<br />Max. {money(c.goodsMaxAmount)}</span> : money(c.amount)}</td>
+                    <td style={{ minWidth: 120 }}>{c.stockOnly ? '—' : <><strong>{num(c.progress)}%</strong><Progress value={c.progress} /></>}</td>
+                    <td>{c.stockOnly ? '—' : `${num(c.elapsed)}%`}</td>
+                    <td>{c.stockOnly ? '—' : <strong className={c.paymentRate > c.progress ? 'text-danger' : ''}>{num(c.paymentRate)}%</strong>}</td>
+                    <td>{c.stockOnly ? <span className="status status-termine">Stock</span> : <StatusPill status={c.status} />}</td>
                     <td className="text-nowrap">
                       <Link to={`/contracts/${c.id}`} className="btn btn-sm btn-outline-primary" title="Gérer le contrat"><i className="bi bi-folder2-open" /></Link>
-                      {can('canManageContracts') && !c.isTerminated && <Link to={`/contracts/${c.id}/edit`} className="btn btn-sm btn-outline-secondary ms-1" title="Modifier"><i className="bi bi-pencil" /></Link>}
+                      {c.canManage && !c.isTerminated && <Link to={`/contracts/${c.id}/edit`} className="btn btn-sm btn-outline-secondary ms-1" title="Modifier"><i className="bi bi-pencil" /></Link>}
                     </td>
                   </tr>
                 ))}

@@ -12,6 +12,19 @@ class StockLedger
     public const ENTREE = 'ENTREE';
     public const SORTIE = 'SORTIE';
 
+    /**
+     * Niveau d'alerte d'un article (décision du 04/11/2026) : celui saisi sur l'article s'il existe, sinon selon son unité,
+     * 1 pour un paquet (Pqt, Pqt/100pces…) et 2 pour une pièce (Pce, Pièce). Les autres unités n'ont pas de niveau par défaut.
+     */
+    public static function threshold(string $unit, ?float $articleThreshold): ?float
+    {
+        if ($articleThreshold !== null) return $articleThreshold;
+        $u = mb_strtolower(trim($unit));
+        if (str_starts_with($u, 'pqt') || str_starts_with($u, 'paquet')) return 1.0;
+        if (str_starts_with($u, 'pce') || str_starts_with($u, 'pcs') || str_starts_with($u, 'pièce') || str_starts_with($u, 'piece')) return 2.0;
+        return null;
+    }
+
     public static function sort(array $moves): array
     {
         usort($moves, fn ($a, $b) => strcmp($a['date'], $b['date']) ?: ($a['id'] <=> $b['id']));
