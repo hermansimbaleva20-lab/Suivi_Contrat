@@ -1,0 +1,191 @@
+/* Compléments propres à la version React : modales, formulaires, tableaux de saisie. */
+.modal.show.d-block{background:rgba(8,28,20,.35);overflow-y:auto}
+.modal-backdrop.show{opacity:.45}
+.prise-modal .modal-body{max-height:calc(100vh - 220px)}
+.table-wrap{overflow-x:auto}
+.cardx .table{margin-bottom:0}
+.btn-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0}
+.text-money{font-variant-numeric:tabular-nums;white-space:nowrap}
+.site-row{padding:10px 12px;border:1px solid var(--prise-border);border-radius:12px;background:#fbfdfc}
+.form-section{font-weight:800;color:#064d25;margin:18px 0 8px;font-size:15px}
+.check-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--prise-border);border-radius:999px;background:#fff;cursor:pointer;font-weight:600}
+.check-pill input{margin:0}
+.contract-link{font-weight:800;color:#087a3f}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.info-grid>div{padding:10px 12px;border:1px solid var(--prise-border);border-radius:12px;background:#fbfdfc}
+.info-grid span{display:block;font-size:12px;color:#64796d;font-weight:600}
+.info-grid strong{display:block;margin-top:2px}
+.login-page .login-card form button[disabled]{opacity:.7}
+@media (max-width:700px){.prise-modal .modal-body{max-height:calc(100vh - 160px)}}
+.info-grid .grid-span{grid-column:1/-1}
+
+
+/* Polices recommandées : tailles existantes conservées. */
+html, body, #root, button, input, select, textarea {
+  font-family: 'Roboto', Arial, sans-serif;
+}
+h1, h2, h3, h4, h5, h6,
+.page-head h1, .section-title, .page-kicker, .form-section {
+  font-family: 'Montserrat', Arial, sans-serif;
+  font-weight: 700;
+}
+pre, code, kbd, samp, .technical-box, .tech-box, .info-grid,
+.badge-soft, .status, .kpi .label, .dashboard-pager {
+  font-family: 'Inter', Arial, sans-serif;
+  font-weight: 500;
+}
+
+
+/* Page d’erreur et de diagnostic utilisateur. */
+.app-error-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at top left, #e5f2e9, transparent 44%), #f5f8f6;
+}
+.app-error-card {
+  width: min(100%, 650px);
+  padding: clamp(24px, 5vw, 46px);
+  border: 1px solid #dce8df;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(19, 58, 37, .11);
+  text-align: center;
+}
+.app-error-mark {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 20px;
+  border-radius: 20px;
+  color: #a34a12;
+  background: #fff2df;
+  font-size: 28px;
+}
+.app-error-card h1 { margin: 8px 0 12px; color: #123d29; }
+.app-error-card p { color: #5d7065; line-height: 1.7; }
+.app-error-details { margin-top: 18px; padding: 12px 14px; text-align: left; border-radius: 10px; background: #f4f7f5; color: #40564a; }
+.app-error-details pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 10px 0 0; font-size: 12px; }
+.app-error-foot { margin-top: 24px; color: #77877d; font-size: 12px; }
+
+/* Pagination visible pour les aperçus de cinq lignes. */
+.dashboard-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  margin-top: 10px;
+  border-top: 1px solid var(--prise-border, #e0e9e3);
+  color: #64796d;
+  font-size: 12px;
+}
+.dashboard-pager .btn { font-family: 'Inter', Arial, sans-serif; font-weight: 500; }
+
+/* Synthèse sectorielle 3D du rapport. */
+.pie3d-layout { display: grid; grid-template-columns: minmax(240px, .9fr) minmax(240px, 1.1fr); gap: 22px; align-items: center; }
+.pie3d-visual { min-width: 0; max-width: 420px; margin: 0 auto; width: 100%; }
+.pie3d-visual svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pie3d-legend { display: grid; gap: 10px; }
+.pie3d-legend-item { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--prise-border, #e0e9e3); border-radius: 10px; background: #fbfdfc; }
+.pie3d-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.pie3d-label { color: #53685c; }
+.pie3d-legend-item strong { color: #183e2a; font-variant-numeric: tabular-nums; }
+.pie3d-legend-item small { min-width: 42px; text-align: right; color: #718278; }
+@media (max-width: 650px) {
+  .pie3d-layout { grid-template-columns: 1fr; gap: 10px; }
+  .pie3d-visual { max-width: 330px; }
+  .dashboard-pager { align-items: stretch; }
+  .dashboard-pager .btn { flex: 1; }
+}
+
+
+/* Loader infrastructure : chantier, grue et route animés sans dépendance externe. */
+
+/* Mouvement discret des indicateurs et arrivée progressive des graphiques. */
+.kpi{animation:kpiReveal .55s cubic-bezier(.2,.75,.25,1) both;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.kpi:nth-child(2){animation-delay:.06s}.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.18s}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(15,65,40,.12)!important;border-color:#b8d9c4!important}
+.kpi .value{font-variant-numeric:tabular-nums;transition:color .25s ease}
+.chart-wrap,.pie3d-visual{animation:chartReveal .65s ease-out both}
+.chart-wrap canvas{animation:chartCanvasIn .7s ease-out both}
+.pie3d-visual svg path{transform-box:fill-box;transform-origin:center;animation:pieSliceIn .75s cubic-bezier(.2,.8,.2,1) both}
+.pie3d-visual svg path:nth-of-type(2n){animation-delay:.07s}
+@keyframes kpiReveal{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes chartReveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes chartCanvasIn{from{opacity:.25}to{opacity:1}}
+@keyframes pieSliceIn{from{opacity:.35;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.kpi,.chart-wrap,.chart-wrap canvas,.pie3d-visual svg path{animation:none!important;transition:none!important}}
+
+/* Alignement des titres et cartes de la situation du tableau de bord */
+.dashboard-section-heading { min-height: 32px; }
+.dashboard-situation-row > [class*="col-"] { display: flex; flex-direction: column; }
+.dashboard-situation-row > [class*="col-"] > .cardx { flex: 1 1 auto; min-height: 260px; }
+@media (max-width: 1199.98px) {
+  .dashboard-situation-row > [class*="col-"] > .cardx { min-height: 0; }
+}
+
+/* Menu : option principale avec sous-options (Logistique > Stock, Charroi, Groupes électrogènes) */
+body .sidebar .side-nav .nav-link .nav-caret { width: auto !important; margin-left: auto !important; font-size: 11px; opacity: .75; }
+body .sidebar .side-nav .nav-link.open { background: rgba(255, 255, 255, .07); }
+body .sidebar .nav-subnav { position: relative; display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px 22px; padding-left: 10px; }
+body .sidebar .nav-subnav::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 1px; background: rgba(255, 255, 255, .22); }
+body .sidebar .side-nav .nav-link.nav-sub { min-height: 34px !important; padding: 5px 10px !important; font-size: 13.5px; font-weight: 600; color: #d5eedd !important; }
+body .sidebar .side-nav .nav-link.nav-sub i { font-size: 14px; width: 18px !important; }
+body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
+.mobile-nav-link.mobile-nav-sub { margin-left: 26px; padding: 9px 12px; font-size: 13.5px; border-left: 1px solid rgba(255, 255, 255, .22); border-radius: 0 10px 10px 0; }
+@media (max-width: 850px) {
+  body .sidebar .nav-subnav { margin-left: 0; padding-left: 0; }
+  body .sidebar .nav-subnav::before, body .sidebar .side-nav .nav-link .nav-caret { display: none; }
+  body .sidebar .side-nav .nav-link.nav-sub { justify-content: center !important; }
+}
+
+/* ------------------------------------------------------------------ Documents imprimés (PrintDocument)
+   Le document est rendu hors de l'application : à l'impression, seul lui est visible, en couleur. */
+.print-doc { display: none; }
+@page paysage { size: A4 landscape; margin: 10mm 9mm; }
+@page portrait { size: A4 portrait; margin: 12mm 10mm; }
+@media print {
+  body.has-print-doc > :not(.print-doc) { display: none !important; }
+  html:has(> body.has-print-doc), body.has-print-doc { background: #fff !important; margin: 0; }
+  body.has-print-doc .print-doc { display: block; color: #1d2c25; font-family: 'Roboto', Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-doc[data-orientation='paysage'] { page: paysage; }
+  .print-doc[data-orientation='portrait'] { page: portrait; }
+}
+.pdoc-letterhead { display: block; height: 22mm; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; }
+.pdoc-rule { height: 0; border: 0; border-top: 1.2pt solid #064d25; margin: 2.5mm 0 3mm; }
+.pdoc-project { margin: 0 auto; max-width: 190mm; text-align: center; color: #087a3f; font-size: 10.5pt; line-height: 1.35; }
+.pdoc-project strong { display: block; margin-top: 1mm; font-family: 'Montserrat', Arial, sans-serif; font-size: 11.5pt; text-decoration: underline; text-underline-offset: 2pt; }
+.pdoc-title { display: table; margin: 4mm auto 4mm; padding: 1.6mm 6mm; border: 1.2pt solid #064d25; color: #064d25; font-family: 'Montserrat', Arial, sans-serif; font-size: 12pt; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; text-align: center; }
+.pdoc-table { width: 100%; border-collapse: collapse; font-size: 7.6pt; font-variant-numeric: tabular-nums; }
+.pdoc-table th, .pdoc-table td { border: .6pt solid #9fb7aa; padding: 1.4mm 1.5mm; vertical-align: middle; }
+.pdoc-table thead th { background: #064d25; color: #fff; font-family: 'Montserrat', Arial, sans-serif; font-size: 6.8pt; font-weight: 700; text-transform: uppercase; text-align: center; line-height: 1.2; }
+.pdoc-table thead { display: table-header-group; }
+.pdoc-table tr { break-inside: avoid; }
+.pdoc-table td { text-align: right; white-space: nowrap; }
+.pdoc-table td.pdoc-left { text-align: left; white-space: normal; }
+.pdoc-table .pdoc-nowrap { white-space: nowrap; }
+.pdoc-table tr.pdoc-advance td { background: #eaf7ef; font-weight: 700; }
+.pdoc-table tr.pdoc-release td { background: #e8f0fb; }
+.pdoc-table tr.pdoc-rejected td { color: #8a5a5a; background: #fdf1f1; }
+.pdoc-table tr.pdoc-rejected .pdoc-amount { text-decoration: line-through; }
+.pdoc-table .pdoc-strong { font-weight: 700; }
+.pdoc-note { display: block; font-size: 6.6pt; color: #4f6159; white-space: normal; }
+/* Total validé : une seule fois, en fin de tableau (pas répété en bas de chaque page) */
+.pdoc-table tfoot { display: table-row-group; }
+.pdoc-table tr.pdoc-total th, .pdoc-table tr.pdoc-total td { background: #d4eedd; color: #064d25; font-weight: 800; border-top: 1.2pt solid #064d25; }
+.pdoc-table tr.pdoc-total th { text-align: left; font-family: 'Montserrat', Arial, sans-serif; font-size: 7.6pt; text-transform: uppercase; }
+
+/* Titres de catégories du menu (Suivi, Analyse, Opérations, Administration), toujours visibles sur ordinateur */
+@media (min-width: 851px) {
+  body .sidebar .side-nav .nav-section { display: flex !important; align-items: center; gap: 10px; height: auto; margin: 16px 12px 6px !important; padding: 0 !important; background: none; }
+  body .sidebar .side-nav .nav-section:first-child { margin-top: 4px !important; }
+  body .sidebar .side-nav .nav-section span { display: block !important; padding: 0 !important; font-family: 'Inter', Arial, sans-serif; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; color: rgba(214, 240, 223, .66) !important; }
+  body .sidebar .side-nav .nav-section::after { content: ''; flex: 1; height: 1px; background: rgba(255, 255, 255, .14); }
+}
+@media (min-width: 851px) and (max-height: 800px) {
+  body .sidebar .side-nav .nav-section { margin: 10px 12px 4px !important; }
+}

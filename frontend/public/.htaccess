@@ -1,0 +1,9 @@
+# Application React (SPA) : toutes les routes sont servies par index.html (hébergement Apache / cPanel / WAMP)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

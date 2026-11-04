@@ -1,0 +1,3 @@
+# Seul backend/public doit être exposé (racine web de l'API). Ce fichier protège le reste si le dossier est servi par erreur.
+Options -Indexes
+Require all denied

@@ -1,0 +1,31 @@
+/*
+ * Tailwind CSS en cohabitation avec Bootstrap (migration progressive décidée pour le TDR).
+ * - Classes préfixées « tw: » (ex. tw:flex) : aucune collision avec les classes Bootstrap (row, table, border…).
+ * - Pas de preflight : la remise à zéro de Tailwind casserait les écrans Bootstrap existants.
+ * - Utilitaires hors @layer : ils l'emportent sur les styles d'éléments de Bootstrap (h1, a, table…).
+ * Les nouveaux écrans s'écrivent en Tailwind ; les écrans existants seront migrés un par un.
+ */
+@import "tailwindcss/theme.css" prefix(tw);
+@import "tailwindcss/utilities.css" prefix(tw);
+
+@theme {
+  --color-prise-green: #064d25;
+  --color-prise-green-2: #087a3f;
+  --color-prise-green-3: #145c37;
+  --color-prise-green-soft: #eaf7ef;
+  --color-prise-blue: #0b2f4f;
+  --color-prise-bg: #f2f6f3;
+  --color-prise-border: #dce7e0;
+  --color-prise-text: #243746;
+  --color-prise-muted: #5f7468;
+  --color-prise-danger: #c62828;
+  --color-prise-warning: #d98200;
+  --color-prise-success: #16844a;
+
+  --font-display: 'Montserrat', Arial, sans-serif;
+  --font-body: 'Roboto', Arial, sans-serif;
+  --font-tech: 'Inter', Arial, sans-serif;
+
+  --radius-card: 14px;
+  --shadow-card: 0 10px 28px rgba(8, 42, 28, 0.08);
+}

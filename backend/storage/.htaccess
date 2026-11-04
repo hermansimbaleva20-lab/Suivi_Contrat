@@ -1,0 +1,3 @@
+# Sauvegardes SQL, documents de contrats et journaux : jamais accessibles par le web.
+Options -Indexes
+Require all denied

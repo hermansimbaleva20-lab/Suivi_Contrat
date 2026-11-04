@@ -1,0 +1,92 @@
+===== 03/11/2026  9:07:28,55 --dry-run 
+PRISE : 18 message(s).
+  [SIMULATION] [PRISE] Décomptes à valider : 1 alerte(s) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE] Charroi (réservoir, entretien, assurance, carnet) : 3 alerte(s) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Garantie de bonne exécution n° RE16472 — contrat n° 069 — alerte de retard → ghostimbaleva@gmail.com
+  [SIMULATION] [PRISE II] Garantie de bonne exécution n° RB-245-12 — contrat n° 072 — alerte de retard → germainenkamba@gmail.com
+  [SIMULATION] [PRISE II] Garantie de bonne exécution n° RB-906-342 — contrat n° 073 — alerte de vigilance → hermaimbaleva@gmail.com
+  [SIMULATION] [PRISE II] Garantie de bonne exécution n° RE-675-400 — contrat n° 068 — alerte de vigilance → germainenkamba@gmail.com
+  [SIMULATION] [PRISE II] Garantie de bonne exécution n° NT-649-126 — contrat n° 071 — alerte de vigilance → germainenkamba@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — garantie n° RE16472 du contrat n° 069 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — garantie n° RB-245-12 du contrat n° 072 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — garantie n° RB-906-342 du contrat n° 073 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — garantie n° RE-675-400 du contrat n° 068 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — garantie n° NT-649-126 du contrat n° 071 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — contrat n° 068 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — contrat n° 069 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — contrat n° 070 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — contrat n° 071 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — contrat n° 072 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+  [SIMULATION] [PRISE II] Pour attention — contrat n° 073 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hemansimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com
+PREDIRE : 0 message(s).
+===== 03/11/2026 10:00:06,54  
+PRISE : 18 message(s).
+  [ENVOYE] [PRISE] Décomptes à valider : 1 alerte(s) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE] Charroi (réservoir, entretien, assurance, carnet) : 3 alerte(s) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° RE16472 — contrat n° 069 — alerte de retard → ghostimbaleva@gmail.com — Message envoyé à ghostimbaleva@gmail.com.
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° RB-245-12 — contrat n° 072 — alerte de retard → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° RB-906-342 — contrat n° 073 — alerte de vigilance → hermaimbaleva@gmail.com — Message envoyé à hermaimbaleva@gmail.com.
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° RE-675-400 — contrat n° 068 — alerte de vigilance → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° NT-649-126 — contrat n° 071 — alerte de vigilance → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — garantie n° RE16472 du contrat n° 069 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — garantie n° RB-245-12 du contrat n° 072 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — garantie n° RB-906-342 du contrat n° 073 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — garantie n° RE-675-400 du contrat n° 068 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ECHEC] [PRISE II] Pour attention — garantie n° NT-649-126 du contrat n° 071 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection to "smtp.gmail.com:587" timed out.
+  [ECHEC] [PRISE II] Pour attention — contrat n° 068 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Pour attention — contrat n° 069 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Pour attention — contrat n° 070 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Pour attention — contrat n° 071 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Pour attention — contrat n° 072 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Pour attention — contrat n° 073 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+PREDIRE : 0 message(s).
+===== 03/11/2026 11:00:01,19  
+PRISE : 7 message(s).
+  [ENVOYE] [PRISE II] Pour attention — garantie n° NT-649-126 du contrat n° 071 (vigilance) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — contrat n° 068 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — contrat n° 069 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — contrat n° 070 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — contrat n° 071 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — contrat n° 072 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+  [ENVOYE] [PRISE II] Pour attention — contrat n° 073 (retard) → ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com — Message envoyé à ghostimbaleva@gmail.com, hemaimbaleva@gmail.com, hermaimbaleva@gmail.com, hermansimbaleva20@gmail.com.
+PREDIRE : 0 message(s).
+===== 03/11/2026 12:00:01,33  
+PRISE : 0 message(s).
+PREDIRE : 0 message(s).
+===== 03/11/2026 13:00:01,31  
+PRISE : 0 message(s).
+PREDIRE : 0 message(s).
+===== 03/11/2026 14:00:01,79  
+PRISE : 0 message(s).
+PREDIRE : 0 message(s).
+===== 03/11/2026 15:00:01,91  
+PRISE : 0 message(s).
+PREDIRE : 0 message(s).
+===== 03/11/2026 16:00:01,31  
+PRISE : 0 message(s).
+PREDIRE : 0 message(s).
+===== 04/11/2026  8:41:40,52  
+PRISE : 8 message(s).
+  [ECHEC] [PRISE II] Garantie de bonne exécution n° RE16472 — contrat n° 069 — alerte de retard → ghostimbaleva@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Garantie de bonne exécution n° RB-245-12 — contrat n° 072 — alerte de retard → germainenkamba@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Contrat n° 068 — alerte de retard → germainenkamba@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Contrat n° 069 — alerte de retard → ghostimbaleva@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Contrat n° 070 — alerte de retard → ghostimbaleva@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Contrat n° 071 — alerte de retard → germainenkamba@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Contrat n° 072 — alerte de retard → germainenkamba@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+  [ECHEC] [PRISE II] Contrat n° 073 — alerte de retard → hermaimbaleva@gmail.com — Échec de l’envoi : Connection could not be established with host "smtp.gmail.com:587": stream_socket_client(): php_network_getaddresses: getaddrinfo for smtp.gmail.com failed: Hôte inconnu
+PREDIRE : 0 message(s).
+===== 04/11/2026  9:41:41,12  
+PRISE : 8 message(s).
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° RE16472 — contrat n° 069 — alerte de retard → ghostimbaleva@gmail.com — Message envoyé à ghostimbaleva@gmail.com.
+  [ENVOYE] [PRISE II] Garantie de bonne exécution n° RB-245-12 — contrat n° 072 — alerte de retard → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Contrat n° 068 — alerte de retard → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Contrat n° 069 — alerte de retard → ghostimbaleva@gmail.com — Message envoyé à ghostimbaleva@gmail.com.
+  [ENVOYE] [PRISE II] Contrat n° 070 — alerte de retard → ghostimbaleva@gmail.com — Message envoyé à ghostimbaleva@gmail.com.
+  [ENVOYE] [PRISE II] Contrat n° 071 — alerte de retard → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Contrat n° 072 — alerte de retard → germainenkamba@gmail.com — Message envoyé à germainenkamba@gmail.com.
+  [ENVOYE] [PRISE II] Contrat n° 073 — alerte de retard → hermaimbaleva@gmail.com — Message envoyé à hermaimbaleva@gmail.com.
+PREDIRE : 0 message(s).
+===== 04/11/2026 10:41:40,87  
+PRISE : 0 message(s).
+PREDIRE : 0 message(s).

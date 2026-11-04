@@ -1,0 +1,4 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+class PerformanceGuarantee extends Model { protected $fillable=['project_id','contract_id','company_id','bank_name','account_number','rate','amount','start_date','end_date','observation']; protected $casts=['rate'=>'decimal:2','amount'=>'decimal:2','start_date'=>'date','end_date'=>'date']; public function project(){return $this->belongsTo(Project::class);} public function extensions(){return $this->hasMany(GuaranteeExtension::class);} public function company(){return $this->belongsTo(Company::class);} public function contract(){return $this->belongsTo(Contract::class);} public function getDaysConsumedPercentAttribute(){ $total=max(1,$this->start_date->diffInDays($this->end_date)); return round(min(100,max(0,$this->start_date->diffInDays(now())/$total*100)),1); } }

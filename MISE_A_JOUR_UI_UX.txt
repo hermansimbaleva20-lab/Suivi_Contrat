@@ -1,0 +1,16 @@
+MISE À JOUR UI/UX — PRISE / PREDIRE
+
+Modifications intégrées :
+- Polices : Montserrat Bold pour les titres, Roboto Regular pour le texte courant, Inter Medium pour les éléments techniques ; tailles existantes du site conservées.
+- Loader de démarrage thématique PRISE/PREDIRE affiché pendant 4 secondes.
+- Page d’erreur dédiée pour les pertes de connexion et les erreurs serveur, avec bouton de nouvelle tentative et retour à la connexion.
+- Aperçus du tableau de bord : 5 contrats et 5 garanties par page, avec Précédent / Suivant.
+- Liste principale des garanties : pagination de 5 lignes avec Précédent / Suivant.
+- Carte des provinces : tracés polygonaux des provinces de la RDC et mise en évidence des zones d’intervention selon l’état des contrats. Le GeoJSON et les tuiles cartographiques nécessitent une connexion Internet.
+- Détail du contrat : histogramme des taux de jours consommés, de paiement et d’avancement physique.
+- Rapport de suivi : synthèse des contrats par statut sous forme de secteurs 3D.
+
+Important :
+- Les fichiers .env ne sont volontairement pas inclus dans cette archive. Conservez les fichiers .env déjà présents dans votre installation locale et ne les remplacez pas.
+- Aucune migration de base de données n’a été ajoutée et aucune donnée métier n’a été modifiée.
+- La syntaxe JavaScript/JSX a été vérifiée. La compilation Vite n’a pas pu être exécutée dans l’environnement de préparation car le paquet Rollup natif pour Linux est absent de l’archive ; sur Windows, depuis frontend, exécutez `npm install` puis `npm run build` si nécessaire.

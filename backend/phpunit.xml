@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <!-- Base MySQL DÉDIÉE aux tests (vidée à chaque lancement) : jamais la base de travail. Pas d'envoi d'e-mails.
+             Les migrations utilisent du SQL propre à MySQL : SQLite ne convient pas. Création :
+             CREATE DATABASE prise_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; -->
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_TIMEZONE" value="Africa/Kinshasa" force="true"/>
+        <env name="DB_CONNECTION" value="mysql" force="true"/>
+        <env name="DB_DATABASE" value="prise_test" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="CACHE_STORE" value="array" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+    </php>
+</phpunit>

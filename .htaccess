@@ -1,0 +1,4 @@
+# Le projet tourne via « php artisan serve » (API) et Vite (frontend) : Apache/WAMP ne doit rien servir de ce dossier
+# (backend/.env, sauvegardes SQL, documents des contrats, sources). En production, seuls backend/public et frontend/dist sont publiés.
+Options -Indexes
+Require all denied

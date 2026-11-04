@@ -1,0 +1,466 @@
+/* ==========================================================================
+   PRISE V1C — mise en page responsive autoritaire (sidebar, en-tête, bandeau mobile)
+   Chargé en dernier : remplace les anciennes règles empilées dans prise-ui.css.
+   Une seule source de vérité : --sb-w (sidebar), --tb-h (en-tête), --strip-h (bandeau).
+   Sidebar, en-tête, bandeau et contenu utilisent TOUS ces variables : aucun décalage possible.
+   ========================================================================== */
+:root{--sb-w:250px;--tb-h:78px;--strip-h:48px;--top-offset:var(--tb-h)}
+@media (max-width:1180px){:root{--sb-w:224px}}
+@media (max-width:850px){:root{--sb-w:96px;--tb-h:68px;--strip-h:56px;--top-offset:calc(var(--tb-h) + var(--strip-h))}}
+@media (max-width:440px){:root{--strip-h:50px}}
+@media (max-width:600px){:root{--sb-w:0px;--tb-h:64px}}
+
+/* ---------- Structure générale ---------- */
+body .app-shell{display:block!important;height:100vh!important;height:100dvh!important;overflow:hidden!important}
+body .main{margin-left:var(--sb-w)!important;height:100vh!important;height:100dvh!important;min-width:0!important;overflow:hidden!important}
+body .topbar{position:fixed!important;left:var(--sb-w)!important;right:0!important;top:0!important;height:var(--tb-h)!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:14px!important;padding:0 20px!important;box-sizing:border-box!important;z-index:50!important;background:#fff;border-bottom:1px solid var(--prise-border)}
+body .topbar .topbar-logo{flex:1 1 auto!important;min-width:0!important;width:auto!important;max-width:420px!important;height:44px!important;margin:0!important;object-fit:contain!important;object-position:left center!important}
+body .content{position:absolute!important;left:var(--sb-w)!important;right:0!important;top:var(--top-offset)!important;bottom:0!important;width:auto!important;max-width:none!important;margin:0!important;padding:22px 26px 44px!important;overflow:auto!important;box-sizing:border-box!important}
+body .mobile-menu{display:none!important}
+body .mobile-utility-strip{display:none!important}
+body .topbar .topbar-actions{display:flex!important;align-items:center;gap:16px;margin-left:auto;flex:0 0 auto}
+body .topbar .topbar-alerts{display:flex;align-items:center;gap:8px}
+
+/* ---------- Sidebar : colonne flex, options défilantes, session toujours en bas ---------- */
+body .sidebar{position:fixed!important;top:0!important;left:0!important;bottom:0!important;width:var(--sb-w)!important;height:100vh!important;height:100dvh!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:12px 10px 10px!important;box-sizing:border-box!important;z-index:60!important}
+body .sidebar .brand{flex:0 0 auto!important;padding:2px 8px 10px!important;margin:0 0 6px!important;border-bottom:1px solid rgba(255,255,255,.12)}
+body .sidebar .brand-title{display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden!important;white-space:normal!important;max-width:100%!important;font-family:"Plus Jakarta Sans",Inter,sans-serif!important;font-size:16px!important;font-weight:800!important;line-height:1.2!important;letter-spacing:.01em!important;color:#fff;text-align:left!important}
+body .sidebar .brand-sub{display:block!important;margin-top:3px;max-width:100%!important;font-size:10px!important;line-height:1.2!important;letter-spacing:.06em;color:#bfe6c9!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .sidebar .brand-code{display:none!important}
+body .sidebar .phase-switcher{display:none!important}
+
+body .sidebar .side-nav{display:flex!important;flex-direction:column;gap:2px;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;padding:0 2px 8px!important;margin:0!important;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.3) transparent}
+body .sidebar .nav-section{margin:10px 8px 3px!important;padding:0!important;font-size:11.5px;font-weight:700;color:#a8d5b8}
+body .sidebar .nav-section:first-child{margin-top:2px!important}
+body .sidebar .nav-section span{display:block!important;padding:0!important;font-size:11.5px!important;font-weight:700!important;color:#a8d5b8!important}
+body .sidebar .side-nav .nav-link{position:relative;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;min-height:40px!important;padding:7px 12px!important;font-size:14px;border-radius:10px;text-align:left}
+body .sidebar .side-nav .nav-link i{width:22px!important;margin:0!important;font-size:17px;text-align:center}
+body .sidebar .side-nav .nav-link .nav-full{display:inline!important}
+body .sidebar .side-nav .nav-link .nav-short{display:none!important}
+body .sidebar .side-nav .nav-link.active{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.18);box-shadow:inset 3px 0 0 #7ee2a8}
+body .sidebar .side-nav .nav-link:hover{transform:none}
+
+/* Session utilisateur : bloc compact, ancré tout en bas sous les options */
+body .sidebar .sidebar-user{display:block!important;position:static!important;flex:0 0 auto!important;margin:8px 0 0!important;padding:9px 10px!important;border-radius:12px!important;background:#145c37;border:1px solid #2e7d55;color:#fff}
+body .sidebar .sidebar-user .session-label{display:none!important}
+body .sidebar .sidebar-user .su-row{display:flex;align-items:center;gap:10px}
+body .sidebar .sidebar-user .avatar{flex:0 0 36px;width:36px!important;height:36px!important;margin:0!important;font-size:14px!important;display:flex!important;align-items:center;justify-content:center}
+body .sidebar .sidebar-user .su-text{flex:1 1 auto;min-width:0}
+body .sidebar .sidebar-user .name{display:block!important;font-size:13px!important;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .sidebar .sidebar-user .meta{display:block!important;margin:1px 0 0!important;font-size:11px!important;line-height:1.25;color:#d9f2e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .sidebar .sidebar-user .logout-btn{display:flex!important;flex:0 0 34px;width:34px!important;height:34px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border-radius:9px;font-size:0}
+body .sidebar .sidebar-user .logout-btn span{display:none!important}
+body .sidebar .sidebar-user .logout-btn i{margin:0!important;font-size:17px}
+
+/* Écrans hauts : un peu plus d'air et libellé de session */
+@media (min-width:851px) and (min-height:900px){
+  body .sidebar .side-nav .nav-link{min-height:44px!important}
+  body .sidebar .phase-switcher{display:block!important;margin:6px 0 4px!important;padding:8px!important}
+  body .sidebar .sidebar-user .session-label{display:block!important;margin-bottom:6px}
+}
+/* Écrans courts (1280×800, 1366×768…) : on compacte pour que TOUTES les options tiennent */
+@media (min-width:851px) and (max-height:800px){
+  body .sidebar{padding:8px 10px 8px!important}
+  body .sidebar .brand{padding:0 8px 8px!important;margin-bottom:4px!important}
+  body .sidebar .brand-sub{display:none!important}
+  body .sidebar .side-nav .nav-link{min-height:36px!important;padding:5px 12px!important;font-size:13.5px}
+  body .sidebar .nav-section{margin:7px 8px 2px!important}
+  body .sidebar .sidebar-user{margin-top:6px!important;padding:7px 9px!important}
+}
+@media (min-width:851px) and (max-height:680px){
+  body .sidebar .nav-section{display:none!important}
+  body .sidebar .side-nav .nav-link{min-height:33px!important;padding:4px 12px!important}
+}
+
+/* ---------- Tablette (601–850 px) : sidebar étroite, icônes + libellés courts ---------- */
+@media (min-width:601px) and (max-width:850px){
+  body .sidebar{padding:10px 6px 8px!important}
+  body .sidebar .brand{display:flex!important;flex-direction:column;align-items:center;padding:2px 0 8px!important;text-align:center}
+  body .sidebar .brand-title,body .sidebar .brand-sub{display:none!important}
+  body .sidebar .brand-code{display:block!important;font-family:"Plus Jakarta Sans",Inter,sans-serif;font-weight:800;font-size:15px;letter-spacing:.05em;color:#fff;line-height:1.15;overflow-wrap:anywhere}
+  body .sidebar .side-nav{gap:3px!important;padding:0 2px 6px!important}
+  body .sidebar .nav-section{height:1px;margin:6px 12px!important;background:rgba(255,255,255,.16)}
+  body .sidebar .nav-section span{display:none!important}
+  body .sidebar .side-nav .nav-link{flex-direction:column!important;justify-content:center!important;gap:3px!important;min-height:56px!important;padding:7px 3px!important;text-align:center}
+  body .sidebar .side-nav .nav-link i{width:auto!important;font-size:21px}
+  body .sidebar .side-nav .nav-link .nav-full{display:none!important}
+  body .sidebar .side-nav .nav-link .nav-short{display:block!important;max-width:100%;font-size:10.5px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body .sidebar .side-nav .nav-link.active{box-shadow:none;background:rgba(255,255,255,.2)}
+  body .sidebar .sidebar-user{padding:8px 0 0!important;margin-top:6px!important;background:transparent;border:0;border-top:1px solid rgba(255,255,255,.16);border-radius:0!important}
+  body .sidebar .sidebar-user .su-row{flex-direction:column;gap:6px}
+  body .sidebar .sidebar-user .su-text{display:none!important}
+  body .sidebar .sidebar-user .logout-btn{flex:0 0 auto;width:42px!important;height:34px}
+}
+@media (min-width:601px) and (max-width:850px) and (max-height:860px){
+  body .sidebar .side-nav .nav-link{min-height:46px!important;padding:5px 3px!important}
+  body .sidebar .nav-section{margin:4px 12px!important}
+}
+@media (min-width:601px) and (max-height:620px){
+  body .sidebar .side-nav .nav-link{min-height:46px!important}
+  body .sidebar .nav-section{display:none!important}
+}
+
+/* ---------- Tablette + mobile (≤850 px) : en-tête = logo, bandeau = phase + alertes ---------- */
+@media (max-width:850px){
+  body .topbar{padding:0 10px!important;gap:8px!important}
+  body .topbar .topbar-logo{max-width:none!important;height:46px!important}
+  body .topbar .topbar-actions{display:none!important}
+  body .content{padding:16px 14px 32px!important}
+
+  /* Le bandeau a exactement la même emprise que l'en-tête : mêmes left/right (--sb-w), aucun décalage */
+  body .mobile-utility-strip{display:flex!important;position:fixed!important;left:var(--sb-w)!important;right:0!important;top:var(--tb-h)!important;height:var(--strip-h)!important;box-sizing:border-box!important;align-items:center;justify-content:space-between;gap:10px;padding:0 12px!important;background:#fff;border-bottom:1px solid #dfe9e4;box-shadow:0 2px 8px rgba(15,50,40,.07);z-index:40!important;overflow:visible}
+  body .mobile-utility-strip *{box-sizing:border-box}
+  body .mobile-utility-strip .mobile-utility-left{flex:1 1 auto;min-width:0;display:flex;align-items:center}
+  body .mobile-utility-strip .mobile-utility-right{flex:0 0 auto;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+  body .mobile-utility-strip .mobile-phase-pill{position:relative;display:flex;align-items:center;width:100%;max-width:360px;min-width:0;margin:0}
+  body .mobile-utility-strip .phase-pill-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px!important;color:#087a3f!important;pointer-events:none}
+  body .mobile-utility-strip .mobile-phase-select{appearance:none;-webkit-appearance:none;width:100%;min-width:0;height:36px;padding:0 30px 0 32px!important;border:1px solid #bfe0cd!important;border-radius:999px;background:#e8f6ee url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%23087a3f'%3E%3Cpath d='M1.6 5.2a.9.9 0 0 1 1.3 0L8 10.3l5.1-5.1a.9.9 0 1 1 1.3 1.3l-5.8 5.8a.9.9 0 0 1-1.3 0L1.6 6.5a.9.9 0 0 1 0-1.3z'/%3E%3C/svg%3E") no-repeat right 11px center;color:#064d25!important;font-family:"Plus Jakarta Sans",Inter,sans-serif;font-size:13px!important;font-weight:800;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  body .mobile-utility-strip .alert-chip{display:inline-flex!important;width:38px;height:36px;font-size:17px;border-radius:10px}
+  body .mobile-utility-strip .alert-chip .bi{display:inline-block!important;color:inherit!important;font-size:18px!important}
+  body .mobile-utility-strip .chip-badge{top:-6px;right:-5px}
+}
+
+/* ---------- Mobile (≤600 px) : sidebar masquée, bouton menu, offcanvas propre ---------- */
+@media (max-width:600px){
+  body .sidebar{display:none!important}
+  body .mobile-menu{display:inline-flex!important;flex:0 0 40px;width:40px!important;height:38px!important;align-items:center;justify-content:center}
+  body .topbar .topbar-logo{object-position:center center!important}
+  body .content{padding:14px 10px 30px!important}
+  body .mobile-utility-strip{padding:0 10px!important;gap:8px}
+  body .mobile-utility-strip .mobile-utility-right{gap:6px}
+}
+@media (max-width:360px){
+  body .mobile-utility-strip .alert-chip{width:34px}
+  body .mobile-utility-strip .mobile-phase-select{font-size:12px!important;padding-left:30px!important}
+}
+
+/* Menu mobile (offcanvas) : session et options bien rangées */
+body .prise-mobile-nav{width:min(86vw,330px)!important;background:linear-gradient(180deg,#064d25 0%,#0b6337 100%)!important;color:#fff}
+body .prise-mobile-nav .offcanvas-header{flex:0 0 auto;padding:12px 14px;gap:10px;border-bottom:1px solid rgba(255,255,255,.12)}
+body .prise-mobile-nav .mobile-logo{max-width:calc(100% - 46px);height:48px;object-fit:contain;object-position:left center}
+body .prise-mobile-nav .offcanvas-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 14px calc(18px + env(safe-area-inset-bottom,0px))!important}
+body .prise-mobile-nav .mobile-session{display:flex;align-items:center;gap:12px;padding:11px 12px;margin:0 0 12px;border-radius:14px;background:#145c37;border:1px solid #2e7d55}
+body .prise-mobile-nav .mobile-avatar{flex:0 0 40px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#e8f7ee;color:#064d25;font-weight:900;font-size:15px}
+body .prise-mobile-nav .mobile-session>div{min-width:0;flex:1 1 auto}
+body .prise-mobile-nav .mobile-session strong{display:block;font-size:14px;line-height:1.2;overflow-wrap:anywhere}
+body .prise-mobile-nav .mobile-session small{display:block;margin-top:2px;font-size:11.5px;line-height:1.3;color:#cfeed9;overflow-wrap:anywhere}
+body .prise-mobile-nav .mobile-phase{margin:0 0 6px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
+body .prise-mobile-nav .mobile-phase .phase-label{margin-bottom:6px;font-size:11px;font-weight:700;color:#cfeed9;text-transform:none;letter-spacing:.02em}
+body .prise-mobile-nav .mobile-phase .phase-select{width:100%;height:38px;padding:0 10px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:#102f28;color:#fff;font-size:13px;font-weight:700}
+body .prise-mobile-nav .mobile-nav-copy{margin:14px 4px 6px;font-size:11.5px;font-weight:700;color:#a8d5b8}
+body .prise-mobile-nav .mobile-nav-link{min-height:44px;margin-bottom:3px;padding:10px 12px;gap:12px;font-size:14.5px}
+body .prise-mobile-nav .mobile-nav-link i{flex:0 0 22px;width:22px;text-align:center;font-size:18px}
+body .prise-mobile-nav .mobile-nav-link.active{background:rgba(255,255,255,.16)}
+body .prise-mobile-nav form.mt-3{margin-top:16px!important}
+
+:focus-visible{outline-offset:2px}
+body .sidebar .side-nav .nav-link:focus-visible,.alert-chip:focus-visible,.phase-pill-select:focus-visible,.mobile-phase-select:focus-visible,.sidebar .logout-btn:focus-visible{outline:3px solid #7ee2a8}
+
+/* ---------- Alertes en en-tête (≥851 px) : puces + phase ---------- */
+.alert-chip{position:relative;width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;font-size:19px;text-decoration:none;color:#5d7a6b;background:#eef4f1;border:1px solid #dbe8e1;transition:background .15s,color .15s,border-color .15s}
+.alert-chip:hover{color:#064d25;background:#e2f0e8}
+.alert-chip.has-alert.alert-chip-contract{color:#b3261e;background:#fdecea;border-color:#f6c9c4}
+.alert-chip.has-alert.alert-chip-guarantee{color:#9a5b00;background:#fff3dc;border-color:#f3d79b}
+.alert-chip.has-alert.alert-chip-security{color:#27529a;background:#e9f0fd;border-color:#c9d9f6}
+.chip-badge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#c62828;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff;line-height:1}
+.alert-chip-guarantee .chip-badge{background:#d98900}
+.alert-chip-security .chip-badge{background:#315ea8}
+button.alert-chip{padding:0;cursor:pointer;font:inherit;font-size:19px}
+.alert-chip.has-alert.alert-chip-notif{color:#064d25;background:#e2f5ea;border-color:#b7e0c7}
+.alert-chip-notif .chip-badge{background:#087a3f}
+
+.phase-pill-form{position:relative;margin:0;display:flex;align-items:center}
+.phase-pill-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#087a3f;font-size:16px;pointer-events:none}
+.phase-pill-select{appearance:none;-webkit-appearance:none;max-width:360px;min-width:190px;height:42px;padding:0 40px 0 38px;border-radius:999px;border:1px solid #bfe0cd;background:#e8f6ee url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 16 16' fill='%23087a3f'%3E%3Cpath d='M1.6 5.2a.9.9 0 0 1 1.3 0L8 10.3l5.1-5.1a.9.9 0 1 1 1.3 1.3l-5.8 5.8a.9.9 0 0 1-1.3 0L1.6 6.5a.9.9 0 0 1 0-1.3z'/%3E%3C/svg%3E") no-repeat right 14px center;color:#064d25;font-family:'Plus Jakarta Sans',Inter,sans-serif;font-size:14.5px;font-weight:800;text-overflow:ellipsis;cursor:pointer}
+.phase-pill-select:hover{background-color:#dcf1e5}
+
+/* ---------- Alertes : icône garantie ---------- */
+.alert-icon.warning{background:#fff3dc;color:#9a5b00}
+.alert-item-icon.warning{background:#fff3dc;color:#9a5b00}
+.alert-item-icon.danger{background:#fdecea;color:#b3261e}
+
+/* ---------- Dashboard : aperçu des garanties ---------- */
+.guarantee-overview .guarantee-mini-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.guarantee-mini-kpis>div{padding:10px 12px;border:1px solid #e2ece7;border-radius:12px;background:#fbfdfc;display:flex;flex-direction:column;gap:3px}
+.guarantee-mini-kpis span{font-size:11.5px;color:#64796d;font-weight:600}
+.guarantee-mini-kpis strong{font-size:19px;color:#17332b;font-family:'Plus Jakarta Sans',Inter,sans-serif}
+.guarantee-mini-kpis .warn strong{color:#9a5b00}.guarantee-mini-kpis .bad strong{color:#b3261e}
+.guarantee-overview .table td,.guarantee-overview .table th{white-space:nowrap}
+@media(max-width:700px){.guarantee-overview .guarantee-mini-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- Comptes : validation, mot de passe temporaire ---------- */
+.pending-banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:#fff6e0;border:1px solid #f1d58f;color:#6d4a00}
+.pending-banner i{font-size:20px;margin-top:2px}
+.temp-password-card{padding:16px 18px;border-radius:14px;background:#eaf6ef;border:1px solid #bfe0cd}
+.temp-password-card code{display:inline-block;margin:6px 0;padding:8px 14px;border-radius:10px;background:#fff;border:1px dashed #087a3f;color:#064d25;font-size:20px;font-weight:800;letter-spacing:.06em;user-select:all}
+.status-pending{background:#fff3dc;color:#9a5b00}
+.super-badge{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 8px;border-radius:999px;background:#e8f6ee;color:#064d25;font-size:11px;font-weight:800}
+
+/* ---------- Saisie décimale ---------- */
+input[data-decimal="true"].is-invalid{border-color:#c62828;box-shadow:0 0 0 .2rem rgba(198,40,40,.15)}
+input[data-decimal="true"]{font-variant-numeric:tabular-nums}
+
+@media (prefers-reduced-motion:reduce){.alert-chip{transition:none}}
+
+/* ==========================================================================
+   V1F — consultation en lecture seule, histogrammes, tableau d'alertes, matrice des garanties
+   ========================================================================== */
+
+/* Page de consultation (lecture seule) */
+.readonly-badge{display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:#e8f6ee;border:1px solid #bfe0cd;color:#064d25;font-size:13px;font-weight:800}
+
+/* Histogrammes horizontaux */
+.hist-scroll{max-height:560px;overflow-y:auto;overflow-x:hidden;border-radius:12px}
+.hist-chart{position:relative;width:100%;min-height:250px}
+.hist-chart canvas{max-width:100%}
+
+/* Tableau des alertes */
+.alert-table-card{padding:18px 18px 8px!important;border-radius:18px}
+.alert-table-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.alert-filters{display:flex;gap:8px;flex-wrap:wrap}
+.alert-filter{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid #d5e4dc;background:#f6faf8;color:#35524a;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.alert-filter b{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:#e1eee7;color:#064d25;font-size:11.5px}
+.alert-filter:hover{background:#eaf5ef;border-color:#b9d8c8}
+.alert-filter.active{background:#064d25;border-color:#064d25;color:#fff}
+.alert-filter.active b{background:rgba(255,255,255,.2);color:#fff}
+.alert-filter:focus-visible{outline:3px solid #7ee2a8;outline-offset:2px}
+
+.alert-table{border-collapse:separate;border-spacing:0 8px;margin-bottom:6px}
+.alert-table thead th{padding:0 14px 6px;border:0!important;background:transparent!important;color:#5d7a6b;font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:none;white-space:nowrap}
+.alert-table tbody td{padding:12px 14px;background:#fff;border-top:1px solid #e3ede7;border-bottom:1px solid #e3ede7;vertical-align:middle}
+.alert-table tbody td:first-child{border-left:1px solid #e3ede7;border-radius:14px 0 0 14px}
+.alert-table tbody td:last-child{border-right:1px solid #e3ede7;border-radius:0 14px 14px 0}
+.alert-table tbody tr.alert-tr:hover td{background:#f8fbf9}
+.alert-table tbody tr.sev-critical td:first-child{box-shadow:inset 5px 0 0 #c62828}
+.alert-table tbody tr.sev-warning td:first-child{box-shadow:inset 5px 0 0 #d98900}
+.alert-table tbody tr.sev-info td:first-child{box-shadow:inset 5px 0 0 #16844a}
+.alert-table tbody tr.sev-critical td{background:linear-gradient(90deg,#fff6f5 0,#fff 38%)}
+.alert-table tbody tr.sev-warning td{background:linear-gradient(90deg,#fffaf0 0,#fff 38%)}
+.alert-table tbody tr.alert-tr small{font-size:12px;line-height:1.35}
+.alert-meter{min-width:150px}
+.meter-line{display:flex;justify-content:space-between;gap:10px;margin-bottom:4px;font-size:12px;color:#5d7a6b}
+.alert-actions-cell{width:1%}
+.alert-table .alert-actions{display:flex;gap:6px;justify-content:flex-end}
+.alert-table .alert-actions form{margin:0}
+.alert-table .empty-state{background:transparent;border:0}
+
+.sev-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.sev-pill.sev-critical{background:#fdecea;color:#b3261e}
+.sev-pill.sev-warning{background:#fff3dc;color:#8a5200}
+.sev-pill.sev-info{background:#e6f5ec;color:#0b6b37}
+.kind-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:10px;font-size:12px;font-weight:800;white-space:nowrap;background:#eef4f1;color:#35524a}
+.kind-chip.kind-garantie{background:#fff3dc;color:#8a5200}
+.kind-chip.kind-retard{background:#fdecea;color:#b3261e}
+.kind-chip.kind-vigilance{background:#fff3dc;color:#8a5200}
+.kind-chip.kind-site,.kind-chip.kind-contrat{background:#e6f5ec;color:#0b6b37}
+.alert-history-table tbody tr:hover td{background:#f8fbf9}
+@media (max-width:700px){.alert-table-card{padding:12px 10px 4px!important}.alert-filter{padding:7px 11px;font-size:12.5px}}
+
+/* Matrice des garanties (rapports) */
+.gm-table th,.gm-table td{white-space:nowrap}
+.gm-month{text-align:center;min-width:64px}
+.gm-cell{text-align:center;font-size:11.5px;font-weight:800;border-left:2px solid #fff!important;min-width:64px}
+.gm-ok{background:#d8f0e2!important;color:#0b6b37}
+.gm-warn{background:#ffe9bd!important;color:#8a5200}
+.gm-bad{background:#f9d3cf!important;color:#a52019}
+.gm-future{background:#e8edf3!important;color:#5b6b7b}
+.gm-none{background:#f3f5f4!important;color:#9aa8a1}
+.gm-chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef4f1;color:#35524a;font-size:11.5px;font-weight:700}
+.gm-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:#5d7a6b}
+.gm-legend span{display:inline-flex;align-items:center;gap:6px}
+.gm-dot{display:inline-block;width:14px;height:14px;border-radius:4px}
+.gm-history-btn{font-size:12px;font-weight:700;white-space:nowrap}
+
+/* Matrice des garanties : les 4 indicateurs restent sur une seule ligne sur PC,
+   comme les autres cards du rapport. */
+body .guarantee-matrix-card .guarantee-mini-kpis{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  width:100%!important;
+  gap:14px!important;
+  align-items:stretch!important;
+}
+body .guarantee-matrix-card .guarantee-mini-kpis>div{
+  min-width:0!important;
+  min-height:82px!important;
+  padding:13px 16px!important;
+}
+@media (max-width:900px){
+  body .guarantee-matrix-card .guarantee-mini-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media (max-width:520px){
+  body .guarantee-matrix-card .guarantee-mini-kpis{grid-template-columns:1fr!important}
+}
+
+
+/* Icônes non autorisées : visibles mais neutres, jamais invisibles. */
+body .alert-chip-disabled{opacity:.72!important;cursor:default!important;pointer-events:none!important;filter:saturate(.65)!important}
+
+/* ==========================================================================
+   V1H — en-tête et bandeau : logos agrandis, 3 icônes TOUJOURS visibles,
+   phase de largeur limitée. Bloc unique et prioritaire (remplace les anciens
+   correctifs V1F-UX / UX2 / FIX-FINAL).
+   ========================================================================== */
+
+/* ---------- Logos de l'en-tête (prise2.png et predire_logo.png) ---------- */
+body header.topbar img.topbar-logo{
+  flex:1 1 auto!important;min-width:0!important;
+  width:100%!important;max-width:720px!important;
+  height:62px!important;margin:0!important;
+  object-fit:contain!important;object-position:left center!important;
+}
+body header.topbar img.topbar-logo.project-logo-predire{max-width:640px!important}
+@media (min-width:851px) and (max-width:1280px){
+  body .phase-pill-select{max-width:250px;min-width:170px}
+}
+@media (min-width:601px) and (max-width:850px){
+  body header.topbar img.topbar-logo{max-width:none!important;height:54px!important}
+}
+@media (max-width:600px){
+  body header.topbar img.topbar-logo,
+  body header.topbar img.topbar-logo.project-logo-predire{
+    max-width:calc(100vw - 58px)!important;height:52px!important;object-position:center center!important;
+  }
+}
+body .prise-mobile-nav .mobile-logo{height:58px}
+
+/* ---------- Bandeau tablette + mobile (≤ 850 px) : [ icônes ][ phase ] ---------- */
+@media (max-width:850px){
+  body .mobile-utility-strip{
+    display:flex!important;flex-direction:row!important;align-items:center!important;
+    justify-content:flex-end!important;gap:8px!important;
+    height:var(--strip-h)!important;padding:0 10px!important;
+    overflow:visible!important;box-sizing:border-box!important;
+  }
+  /* Les icônes passent AVANT la phase et ne rétrécissent jamais. */
+  body .mobile-utility-strip .mobile-utility-right{
+    order:1!important;flex:0 0 auto!important;width:auto!important;min-width:max-content!important;max-width:none!important;
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:6px!important;
+    visibility:visible!important;opacity:1!important;overflow:visible!important;
+  }
+  body .mobile-utility-strip .mobile-utility-right .alert-chip,
+  body .mobile-utility-strip .mobile-utility-right .alert-chip-disabled{
+    display:inline-flex!important;flex:0 0 auto!important;
+    width:34px!important;min-width:34px!important;max-width:34px!important;
+    height:34px!important;min-height:34px!important;max-height:34px!important;
+    margin:0!important;padding:0!important;border-radius:9px!important;
+    align-items:center!important;justify-content:center!important;
+    position:relative!important;visibility:visible!important;opacity:1!important;font-size:16px!important;
+  }
+  body .mobile-utility-strip .mobile-utility-right .alert-chip .bi{
+    display:inline-block!important;visibility:visible!important;opacity:1!important;font-size:16px!important;line-height:1!important;
+  }
+  body .mobile-utility-strip .chip-badge{top:-6px!important;right:-5px!important;min-width:16px!important;height:16px!important;padding:0 4px!important;font-size:9.5px!important;line-height:1!important}
+
+  /* La phase prend seulement la place utile, plafonnée : jamais toute la largeur. */
+  body .mobile-utility-strip .mobile-utility-left{
+    order:2!important;flex:0 1 auto!important;width:auto!important;min-width:0!important;max-width:300px!important;
+    display:flex!important;overflow:hidden!important;
+  }
+  body .mobile-utility-strip .mobile-phase-pill{
+    display:flex!important;flex:1 1 auto!important;width:100%!important;min-width:0!important;max-width:none!important;overflow:hidden!important;
+  }
+  body .mobile-utility-strip .mobile-phase-select{
+    display:block!important;flex:1 1 auto!important;width:100%!important;min-width:0!important;max-width:100%!important;
+    height:34px!important;line-height:34px!important;padding:0 24px 0 28px!important;
+    font-size:12px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  }
+  body .mobile-utility-strip .phase-pill-icon{left:9px!important;font-size:13px!important}
+}
+@media (max-width:440px){
+  body .mobile-utility-strip{gap:6px!important;padding:0 8px!important}
+  body .mobile-utility-strip .mobile-utility-left{max-width:210px!important}
+  body .mobile-utility-strip .mobile-utility-right{gap:5px!important}
+  body .mobile-utility-strip .mobile-utility-right .alert-chip,
+  body .mobile-utility-strip .mobile-utility-right .alert-chip-disabled{
+    width:32px!important;min-width:32px!important;max-width:32px!important;height:32px!important;min-height:32px!important;max-height:32px!important;
+  }
+  body .mobile-utility-strip .mobile-phase-select{font-size:11px!important;height:32px!important;line-height:32px!important;padding:0 20px 0 25px!important}
+}
+@media (max-width:360px){
+  body .mobile-utility-strip{gap:4px!important;padding:0 6px!important}
+  body .mobile-utility-strip .mobile-utility-left{max-width:170px!important}
+  body .mobile-utility-strip .mobile-utility-right{gap:4px!important}
+  body .mobile-utility-strip .mobile-utility-right .alert-chip,
+  body .mobile-utility-strip .mobile-utility-right .alert-chip-disabled{
+    width:30px!important;min-width:30px!important;max-width:30px!important;height:30px!important;min-height:30px!important;max-height:30px!important;border-radius:8px!important;
+  }
+  body .mobile-utility-strip .mobile-utility-right .alert-chip .bi{font-size:14px!important}
+  body .mobile-utility-strip .mobile-phase-select{font-size:10.5px!important;padding:0 18px 0 23px!important}
+  body .mobile-utility-strip .phase-pill-icon{left:7px!important;font-size:12px!important}
+}
+@media (min-width:601px) and (max-width:850px){
+  body .mobile-utility-strip{left:var(--sb-w)!important;right:0!important;top:var(--tb-h)!important}
+  body .mobile-utility-strip .mobile-utility-left{max-width:340px!important}
+  body .mobile-utility-strip .mobile-phase-select{font-size:13px!important}
+}
+@media (max-width:600px){
+  body .mobile-utility-strip{left:0!important;right:0!important;top:var(--tb-h)!important}
+}
+
+/* ---------- Mobile (≤ 600 px) : le bouton menu descend dans le bandeau pour libérer
+   toute la largeur de l'en-tête au logo (≈ 20 % plus grand qu'avant) ---------- */
+@media (max-width:600px){
+  body header.topbar{padding:0 6px!important}
+  body header.topbar img.topbar-logo,
+  body header.topbar img.topbar-logo.project-logo-predire{
+    width:100%!important;max-width:100%!important;height:56px!important;object-position:center center!important;
+  }
+  body .mobile-menu{
+    position:fixed!important;left:8px!important;top:calc(var(--tb-h) + (var(--strip-h) - 34px) / 2)!important;
+    width:38px!important;height:34px!important;flex:none!important;margin:0!important;padding:0!important;
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;
+    border-radius:9px!important;z-index:70!important;
+  }
+  body .mobile-utility-strip{padding-left:54px!important}
+}
+
+/* ==========================================================================
+   V1I — bandeau tablette/mobile : même rendu que sur PC (puces carrées teintées,
+   pastille de compteur, phase en pilule avec icône et chevron), tailles ajustées.
+   ========================================================================== */
+@media (max-width:850px){
+  body .mobile-utility-strip .mobile-utility-right{gap:8px!important}
+  body .mobile-utility-strip .mobile-utility-right .alert-chip,
+  body .mobile-utility-strip .mobile-utility-right .alert-chip-disabled{
+    width:40px!important;min-width:40px!important;max-width:40px!important;
+    height:40px!important;min-height:40px!important;max-height:40px!important;
+    border-radius:12px!important;font-size:18px!important;
+  }
+  body .mobile-utility-strip .mobile-utility-right .alert-chip .bi{font-size:18px!important}
+  body .mobile-utility-strip .chip-badge{top:-7px!important;right:-7px!important;min-width:19px!important;height:19px!important;font-size:10.5px!important;border:2px solid #fff!important}
+  body .mobile-utility-strip .mobile-phase-select{
+    height:40px!important;line-height:40px!important;border-radius:999px!important;
+    font-size:14px!important;font-weight:800!important;padding:0 34px 0 38px!important;
+  }
+  body .mobile-utility-strip .phase-pill-icon{left:13px!important;font-size:16px!important}
+}
+@media (max-width:440px){
+  body .mobile-utility-strip{gap:8px!important;padding:0 8px 0 54px!important}
+  body .mobile-utility-strip .mobile-utility-right{gap:6px!important}
+  body .mobile-utility-strip .mobile-utility-right .alert-chip,
+  body .mobile-utility-strip .mobile-utility-right .alert-chip-disabled{
+    width:36px!important;min-width:36px!important;max-width:36px!important;
+    height:36px!important;min-height:36px!important;max-height:36px!important;border-radius:10px!important;font-size:16px!important;
+  }
+  body .mobile-utility-strip .mobile-utility-right .alert-chip .bi{font-size:16px!important}
+  body .mobile-utility-strip .mobile-phase-select{height:36px!important;line-height:36px!important;font-size:12.5px!important;padding:0 26px 0 31px!important}
+  body .mobile-utility-strip .phase-pill-icon{left:10px!important;font-size:14px!important}
+}
+@media (max-width:360px){
+  body .mobile-utility-strip{gap:5px!important;padding:0 6px 0 52px!important}
+  body .mobile-utility-strip .mobile-utility-right{gap:4px!important}
+  body .mobile-utility-strip .mobile-utility-right .alert-chip,
+  body .mobile-utility-strip .mobile-utility-right .alert-chip-disabled{
+    width:32px!important;min-width:32px!important;max-width:32px!important;
+    height:32px!important;min-height:32px!important;max-height:32px!important;border-radius:9px!important;
+  }
+  body .mobile-utility-strip .mobile-utility-right .alert-chip .bi{font-size:15px!important}
+  body .mobile-utility-strip .mobile-phase-select{height:32px!important;line-height:32px!important;font-size:11.5px!important;padding:0 20px 0 26px!important}
+  body .mobile-utility-strip .phase-pill-icon{left:8px!important;font-size:12.5px!important}
+  body .mobile-utility-strip .chip-badge{top:-6px!important;right:-5px!important;min-width:16px!important;height:16px!important;font-size:9.5px!important}
+}
+@media (min-width:601px) and (max-width:850px){
+  body .mobile-utility-strip .mobile-utility-left{max-width:360px!important}
+}
+

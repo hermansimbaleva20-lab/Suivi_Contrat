@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "montserrat",
+        "createdAt": "2026-10-29T13:41:59.576Z",
+        "reason": "Charte du projet (CLAUDE.md, section Frontend) : Montserrat pour les titres, Roboto pour le texte, Inter local pour les éléments techniques ; la refonte préserve cette typographie existante."
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-29T13:41:59.869Z",
+        "reason": "Charte du projet (CLAUDE.md, section Frontend) : Montserrat pour les titres, Roboto pour le texte, Inter local pour les éléments techniques ; la refonte préserve cette typographie existante."
+      },
+      {
+        "rule": "overused-font",
+        "value": "roboto",
+        "createdAt": "2026-10-29T13:42:00.161Z",
+        "reason": "Charte du projet (CLAUDE.md, section Frontend) : Montserrat pour les titres, Roboto pour le texte, Inter local pour les éléments techniques ; la refonte préserve cette typographie existante."
+      }
+    ]
+  }
+}
