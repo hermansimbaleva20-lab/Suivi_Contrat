@@ -52,3 +52,27 @@ Thumbs.db
 *.bak
 *.backup
 *.old
+
+# Laravel fichiers temporaires
+/backend/.phpunit.result.cache
+/backend/.vite/
+/backend/bootstrap/cache/*
+!/backend/bootstrap/cache/.gitkeep
+
+/backend/storage/framework/cache/*
+!/backend/storage/framework/cache/.gitkeep
+
+/backend/storage/framework/views/*
+!/backend/storage/framework/views/.gitkeep
+
+/backend/storage/logs/*
+!/backend/storage/logs/.gitkeep
+
+/backend/sh.exe.stackdump
+
+# Configuration locale
+/.claude/settings.local.json
+
+# Fichiers personnels
+*.log
+*.stackdump
