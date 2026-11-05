@@ -100,14 +100,48 @@ class FleetMetricsTest extends TestCase
 
     public function test_entretien_avertissement_puis_echeance_puis_remise_a_zero(): void
     {
-        $this->assertSame('OK', FleetMetrics::maintenance(self::VEHICLE, 44400, [])['level']);
-        $this->assertSame('SOON', FleetMetrics::maintenance(self::VEHICLE, 44600, [])['level']);
+        // Sans programmation : à un intervalle de l'entrée au parc (42 000 + 3 000), alerte aux trois quarts.
+        $this->assertSame('OK', FleetMetrics::maintenance(self::VEHICLE, 44249, [])['level']);
+        $this->assertSame('SOON', FleetMetrics::maintenance(self::VEHICLE, 44250, [])['level']);
         $m = FleetMetrics::maintenance(self::VEHICLE, 45100, []);
         $this->assertSame('DUE', $m['level']);
         $this->assertSame(45000.0, $m['nextMeter']);
-        $after = FleetMetrics::maintenance(self::VEHICLE, 45100, [45050.0]);
+        $after = FleetMetrics::maintenance(self::VEHICLE, 45100, [['reading' => 45050.0, 'next' => null]]);
         $this->assertSame('OK', $after['level']);
         $this->assertSame(48050.0, $after['nextMeter']);
+    }
+
+    public function test_entretien_programme_alerte_aux_trois_quarts_du_parcours(): void
+    {
+        // Dernier à 40 000 km, prochain à 44 000 km : l'alerte commence à 43 000 km.
+        $asset = ['maintenance_last_meter' => 40000.0, 'maintenance_next_meter' => 44000.0] + self::VEHICLE;
+        $m = FleetMetrics::maintenance($asset, 42999, []);
+        $this->assertSame(['OK', 43000.0, 44000.0, 1001.0, 'PLAN', true], [$m['level'], $m['warnMeter'], $m['nextMeter'], $m['remaining'], $m['source'], $m['planned']]);
+
+        $soon = FleetMetrics::maintenance($asset, 43000, []);
+        $this->assertSame(['SOON', 75.0, 1000.0], [$soon['level'], $soon['consumedPercent'], $soon['remaining']]);
+        $alert = FleetMetrics::alerts(self::VEHICLE, 80.0, $soon, null, '2026-10-28', '2026-10-28')[0];
+        $this->assertSame(['warning', 'MAINTENANCE'], [$alert['level'], $alert['code']]);
+        $this->assertStringContainsString('il reste 1 000 km (75 % du parcours consommé)', $alert['text']);
+        // Chaque avancée du compteur rapproche l'échéance affichée.
+        $this->assertStringContainsString('il reste 200 km', FleetMetrics::alerts(self::VEHICLE, 80.0, FleetMetrics::maintenance($asset, 43800, []), null, '2026-10-28', '2026-10-28')[0]['text']);
+
+        $due = FleetMetrics::maintenance($asset, 44150, []);
+        $this->assertSame('DUE', $due['level']);
+        $alert = FleetMetrics::alerts(self::VEHICLE, 80.0, $due, null, '2026-10-28', '2026-10-28')[0];
+        $this->assertSame('danger', $alert['level']);
+        $this->assertStringContainsString('prévu à 44 000 km, dépassé de 150 km', $alert['text']);
+
+        // L'entretien enregistré repart de son compteur : l'alerte s'arrête.
+        $done = FleetMetrics::maintenance(self::VEHICLE, 44150, [['reading' => 44100.0, 'next' => 47100.0]]);
+        $this->assertSame(['OK', 44100.0, 47100.0, 46350.0, 'RECORD'], [$done['level'], $done['lastMeter'], $done['nextMeter'], $done['warnMeter'], $done['source']]);
+        $this->assertSame([], array_filter(FleetMetrics::alerts(self::VEHICLE, 80.0, $done, null, '2026-10-28', '2026-10-28'), fn ($a) => $a['code'] === 'MAINTENANCE'));
+
+        // Le dernier entretien est le plus haut compteur, même saisi plus tard ; une programmation plus récente l'emporte.
+        $records = [['reading' => 44100.0, 'next' => 47100.0], ['reading' => 41000.0, 'next' => 43000.0]];
+        $this->assertSame(47100.0, FleetMetrics::maintenance(self::VEHICLE, 44150, $records)['nextMeter']);
+        $recent = FleetMetrics::maintenance(['maintenance_last_meter' => 45000.0, 'maintenance_next_meter' => 50000.0] + self::VEHICLE, 45100, $records);
+        $this->assertSame(['PLAN', 50000.0], [$recent['source'], $recent['nextMeter']]);
     }
 
     public function test_assurance_et_carnet_non_tenu(): void

@@ -1,6 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,AiController,NotificationController};
+use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,NotificationController};
 
 // ---- Public (le projet est transmis par l'en-tête X-Project)
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -129,17 +129,6 @@ Route::middleware(['auth:sanctum', 'project'])->group(function () {
         Route::post('/run', [AlertSettingsController::class, 'run'])->middleware('throttle:10,1');
     });
 
-    // IA : réglages (super-admin, contrôlé dans le contrôleur) et fonctions autorisées
-    Route::prefix('ai')->group(function () {
-        Route::get('/status', [AiController::class, 'status']);
-        Route::get('/settings', [AiController::class, 'settings']);
-        Route::put('/settings', [AiController::class, 'update']);
-        Route::post('/test', [AiController::class, 'test'])->middleware('throttle:10,1');
-        Route::post('/report-comment', [AiController::class, 'reportComment'])->middleware(['permission:can_view_reports|can_view_situation', 'throttle:20,1']);
-        Route::post('/extract', [AiController::class, 'extract'])->middleware(['permission:can_manage_contracts|can_manage_companies', 'throttle:20,1']);
-        Route::post('/extract/apply', [AiController::class, 'applyExtraction']);
-    });
-
     // Logistique — tableau de bord : synthèse des modules autorisés (stock, charroi, groupes)
     Route::middleware('permission:can_view_stock|can_manage_stock|can_view_fleet|can_manage_fleet|can_authorize_fleet')
         ->get('/logistics/dashboard', [LogisticsController::class, 'dashboard']);
@@ -166,6 +155,7 @@ Route::middleware(['auth:sanctum', 'project'])->group(function () {
         Route::post('/assets', [FleetController::class, 'storeAsset']);
         Route::put('/assets/{id}', [FleetController::class, 'updateAsset'])->whereNumber('id');
         Route::put('/assets/{id}/toggle', [FleetController::class, 'toggleAsset'])->whereNumber('id');
+        Route::put('/assets/{id}/maintenance-plan', [FleetController::class, 'planMaintenance'])->whereNumber('id');
         Route::delete('/assets/{id}', [FleetController::class, 'destroyAsset'])->whereNumber('id');
         Route::get('/assets/{id}/logbook', [FleetController::class, 'logbook'])->whereNumber('id');
         Route::post('/logs', [FleetController::class, 'storeLog']);

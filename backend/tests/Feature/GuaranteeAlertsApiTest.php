@@ -133,13 +133,13 @@ class GuaranteeAlertsApiTest extends TestCase
 
     public function test_modeles_modifiables_et_historique_par_numero_de_garantie(): void
     {
-        $admin = $this->user(['role' => 'ADMINISTRATEUR']);
-        $antenne = $this->user(['role' => 'ADMINISTRATEUR', 'organizational_unit_id' => $this->pool->id]);
+        $admin = $this->user(['role' => 'ADMINISTRATEUR', 'can_view_alert_history' => true]);
+        $antenne = $this->user(['role' => 'ADMINISTRATEUR', 'can_view_alert_history' => true, 'organizational_unit_id' => $this->pool->id]);
         $id = $this->guarantee();
         $autre = $this->guarantee();
         $number = DB::table('performance_guarantees')->where('id', $id)->value('account_number');
 
-        $this->assertCount(9, $this->as($antenne)->getJson('/api/alerts/templates')->assertOk()->assertJsonPath('canEdit', false)->json('templates'));
+        $this->assertCount(8, $this->as($antenne)->getJson('/api/alerts/templates')->assertOk()->assertJsonPath('canEdit', false)->json('templates'));
         $tpl = ['subject' => 'Garantie n° {numero_garantie} — {contrat}', 'body' => "Cher partenaire,\n\nVotre garantie n° {numero_garantie} expire le {echeance}.\n\n{projet}"];
         $this->as($antenne)->putJson('/api/alerts/templates/GARANTIE_VIGILANCE', $tpl)->assertForbidden();
         $this->as($admin)->putJson('/api/alerts/templates/GARANTIE_VIGILANCE', ['subject' => 'X {avancement}', 'body' => $tpl['body']])->assertStatus(422)->assertJsonValidationErrors('body');
@@ -195,7 +195,7 @@ class GuaranteeAlertsApiTest extends TestCase
 
     public function test_message_de_retard_d_un_contrat_adresse_a_l_entreprise(): void
     {
-        $admin = $this->user(['role' => 'ADMINISTRATEUR']);
+        $admin = $this->user(['role' => 'ADMINISTRATEUR', 'can_view_alert_history' => true]);
         $today = Dates::today();
         $co = DB::table('companies')->insertGetId(['project_id' => $this->prise->id, 'name' => 'SZTC', 'email' => 'contact@sztc.test', 'created_at' => now(), 'updated_at' => now()]);
         $nomail = DB::table('companies')->insertGetId(['project_id' => $this->prise->id, 'name' => 'CGC', 'created_at' => now(), 'updated_at' => now()]);
@@ -229,7 +229,7 @@ class GuaranteeAlertsApiTest extends TestCase
 
     public function test_rappel_hebdomadaire_du_personnel_jusqu_a_la_regularisation(): void
     {
-        $admin = $this->user(['role' => 'ADMINISTRATEUR']);
+        $admin = $this->user(['role' => 'ADMINISTRATEUR', 'can_view_alert_history' => true]);
         foreach (['raf@example.test' => 'GARANTIE', 'suivi@example.test' => 'RETARD'] as $email => $cat) {
             DB::table('alert_recipients')->insert(['project_id' => $this->prise->id, 'email' => $email, 'categories' => $cat, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         }
@@ -319,7 +319,7 @@ class GuaranteeAlertsApiTest extends TestCase
         $s = $this->as($admin)->getJson('/api/settings')->assertOk()->assertJsonPath('canEditRecipients', true)->json();
         $this->assertSame(['nouveau@example.test', 'Jeanne KABEYA', 'HRAF'], [$s['recipients'][0]['email'], $s['recipients'][0]['name'], $s['recipients'][0]['position']]);
         $this->assertContains(['id' => $poste, 'name' => 'HRAF', 'unit' => 'Coordination nationale'], $s['positions']);
-        $this->assertSame(['RETARD', 'GARANTIE', 'STOCK', 'CHARROI', 'GROUPE'], explode(',', DB::table('alert_recipients')->value('categories')));
+        $this->assertSame(['RETARD', 'GARANTIE'], explode(',', DB::table('alert_recipients')->value('categories')));
 
         // Un destinataire enregistré sans poste (ancienne liste) se complète par la modification.
         $sansPoste = DB::table('alert_recipients')->insertGetId(['project_id' => $this->prise->id, 'email' => 'ancien@example.test', 'categories' => 'RETARD', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);

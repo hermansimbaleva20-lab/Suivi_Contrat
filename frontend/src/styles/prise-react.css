@@ -16,6 +16,8 @@
 .info-grid span{display:block;font-size:12px;color:#64796d;font-weight:600}
 .info-grid strong{display:block;margin-top:2px}
 .login-page .login-card form button[disabled]{opacity:.7}
+/* Sceau au-dessus du titre : « multiply » fond le blanc du JPEG dans la couleur de la carte */
+.login-seal{display:block;width:84px;height:84px;margin:0 auto;mix-blend-mode:multiply}
 @media (max-width:700px){.prise-modal .modal-body{max-height:calc(100vh - 160px)}}
 .info-grid .grid-span{grid-column:1/-1}
 
@@ -120,13 +122,9 @@ pre, code, kbd, samp, .technical-box, .tech-box, .info-grid,
 @keyframes pieSliceIn{from{opacity:.35;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.kpi,.chart-wrap,.chart-wrap canvas,.pie3d-visual svg path{animation:none!important;transition:none!important}}
 
-/* Alignement des titres et cartes de la situation du tableau de bord */
-.dashboard-section-heading { min-height: 32px; }
-.dashboard-situation-row > [class*="col-"] { display: flex; flex-direction: column; }
-.dashboard-situation-row > [class*="col-"] > .cardx { flex: 1 1 auto; min-height: 260px; }
-@media (max-width: 1199.98px) {
-  .dashboard-situation-row > [class*="col-"] > .cardx { min-height: 0; }
-}
+/* Répartition des contrats par province : une ligne de titre par province */
+.province-table thead th { white-space: normal; vertical-align: bottom; }
+.province-table .province-row > td { background: var(--prise-green-soft, #e8f5ee); color: var(--prise-green, #087a3f); font-family: 'Montserrat', Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 
 /* Menu : option principale avec sous-options (Logistique > Stock, Charroi, Groupes électrogènes) */
 body .sidebar .side-nav .nav-link .nav-caret { width: auto !important; margin-left: auto !important; font-size: 11px; opacity: .75; }
@@ -146,14 +144,15 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 /* ------------------------------------------------------------------ Documents imprimés (PrintDocument)
    Le document est rendu hors de l'application : à l'impression, seul lui est visible, en couleur. */
 .print-doc { display: none; }
-@page paysage { size: A4 landscape; margin: 10mm 9mm; }
-@page portrait { size: A4 portrait; margin: 12mm 10mm; }
+@page paysage { size: A4 landscape; margin: 0; }
+@page portrait { size: A4 portrait; margin: 0; }
 @media print {
   body.has-print-doc > :not(.print-doc) { display: none !important; }
   html:has(> body.has-print-doc), body.has-print-doc { background: #fff !important; margin: 0; }
   body.has-print-doc .print-doc { display: block; color: #1d2c25; font-family: 'Roboto', Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-doc[data-orientation='paysage'] { page: paysage; }
-  .print-doc[data-orientation='portrait'] { page: portrait; }
+  .print-doc[data-orientation='paysage'] { page: paysage; padding: 10mm 9mm; }
+  .print-doc[data-orientation='portrait'] { page: portrait; padding: 12mm 10mm; }
+  .print-doc { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 }
 .pdoc-letterhead { display: block; height: 22mm; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; }
 .pdoc-rule { height: 0; border: 0; border-top: 1.2pt solid #064d25; margin: 2.5mm 0 3mm; }
@@ -173,6 +172,10 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 .pdoc-table tr.pdoc-rejected td { color: #8a5a5a; background: #fdf1f1; }
 .pdoc-table tr.pdoc-rejected .pdoc-amount { text-decoration: line-through; }
 .pdoc-table .pdoc-strong { font-weight: 700; }
+.pdoc-table.pdoc-provinces { font-size: 9pt; }
+.pdoc-table.pdoc-provinces thead th { font-size: 7.6pt; }
+.pdoc-table tr.province-row { break-after: avoid; }
+.pdoc-table tr.province-row td { background: #d9efe2; color: #064d25; font-family: 'Montserrat', Arial, sans-serif; font-weight: 700; text-align: left; }
 /* Fiche de stock : modèle papier, lignes hautes et visas en bas de page. */
 .pdoc-table.pdoc-card { font-size: 9pt; }
 .pdoc-table.pdoc-card thead th { font-size: 8pt; }

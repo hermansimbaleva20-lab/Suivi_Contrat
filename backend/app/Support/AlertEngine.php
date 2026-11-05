@@ -15,9 +15,12 @@ use Illuminate\Support\Facades\DB;
  */
 class AlertEngine
 {
+    /**
+     * Catégories envoyées par e-mail. Le reste demeure dans l'application : stock, charroi et groupes (AlertEngine::logistics),
+     * décomptes à valider (notification à l'espace du valideur, DecompteController).
+     */
     public const CATEGORIES = [
-        'RETARD' => 'Contrats (vigilance et retard)', 'GARANTIE' => 'Garanties de bonne exécution', 'DECOMPTE' => 'Décomptes à valider',
-        'STOCK' => 'Stock (rupture, niveau minimum)', 'CHARROI' => 'Charroi (réservoir, entretien, assurance, carnet)', 'GROUPE' => 'Groupes électrogènes',
+        'RETARD' => 'Contrats (vigilance et retard)', 'GARANTIE' => 'Garanties de bonne exécution',
     ];
 
     /** Alertes en cours : [category, key, unitId, title, text]. */
@@ -97,106 +100,9 @@ class AlertEngine
         $rules = DB::table('alert_rules')->where('project_id', $projectId)->get()->keyBy('category');
         $history = DB::table('alert_dispatches')->where('project_id', $projectId)->where('status', 'ENVOYE')
             ->groupBy('alert_key')->selectRaw('alert_key, COUNT(*) AS n, MAX(created_at) AS last')->get()->keyBy('alert_key');
-        $project = DB::table('projects')->where('id', $projectId)->value('code');
-
-        $groups = [];
-        foreach (self::collect($projectId) as $al) {
-            // Séquence par défaut (relance tous les 7 jours, 3 envois) si le super-admin ne l'a pas encore réglée.
-            $rule = $rules[$al['category']] ?? (object) ['is_enabled' => true, 'interval_days' => 7, 'max_sends' => 3];
-            if (!$rule->is_enabled) continue;
-            $h = $history[$al['key']] ?? null;
-            if (!self::isDue((int) ($h->n ?? 0), $h ? Dates::part($h->last) : null, (int) $rule->interval_days, (int) $rule->max_sends, $today)) continue;
-            $to = self::recipients($projectId, $al['category'], $al['unitId']);
-            if (!$to) continue;
-            $gk = $al['category'] . '|' . implode(',', $to);
-            $groups[$gk] ??= ['category' => $al['category'], 'recipients' => $to, 'alerts' => []];
-            $groups[$gk]['alerts'][] = $al + ['sendNo' => (int) ($h->n ?? 0) + 1];
-        }
-
-        $plan = [];
-        foreach ($groups as $g) {
-            $n = count($g['alerts']);
-            $subject = "[{$project}] " . self::CATEGORIES[$g['category']] . " : {$n} alerte(s)";
-            $lines = array_map(fn ($a) => "• {$a['title']} : {$a['text']}" . ($a['sendNo'] > 1 ? " (relance n° {$a['sendNo']})" : ''), $g['alerts']);
-            $text = "Alertes du " . Dates::fr($today) . " — " . self::CATEGORIES[$g['category']] . "\n\n" . implode("\n", $lines)
-                . "\n\nMessage automatique de l’application de suivi {$project}. Les destinataires et la séquence d’envoi sont réglés par le super-administrateur.";
-            $entry = ['category' => $g['category'], 'subject' => $subject, 'recipients' => $g['recipients'], 'alerts' => $g['alerts'], 'status' => 'SIMULATION', 'message' => ''];
-            if (!$dryRun) {
-                // Synthèse rédigée par l'IA en tête du message, si le super-admin l'a autorisée ; sans elle, le message part tel quel.
-                if (AiService::enabled($projectId, 'alerts')) {
-                    $ai = AiService::complete($projectId, 'Tu rédiges en français, en 2 à 4 phrases, la synthèse d’un message d’alerte destiné à l’équipe d’un projet : '
-                        . 'ce qui est le plus urgent, puis l’action attendue. Uniquement à partir des alertes fournies, sans formule de politesse.', implode("\n", $lines), 600);
-                    if ($ai['ok']) $text = "Synthèse (rédigée par l’IA) : {$ai['text']}\n\n" . $text;
-                }
-                $res = MailService::send($projectId, $subject, $text, $g['recipients']);
-                $entry['status'] = $res['success'] ? 'ENVOYE' : 'ECHEC';
-                $entry['message'] = $res['message'];
-                foreach ($g['alerts'] as $a) {
-                    DB::table('alert_dispatches')->insert([
-                        'project_id' => $projectId, 'category' => $g['category'], 'alert_key' => $a['key'], 'subject' => mb_substr("{$a['title']} : {$a['text']}", 0, 255),
-                        'recipients' => implode(', ', $g['recipients']), 'status' => $entry['status'], 'message' => mb_substr($res['message'], 0, 1000),
-                        'trigger' => $trigger, 'sent_by' => $userId, 'created_at' => now(), 'updated_at' => now(),
-                    ]);
-                }
-                Ctx::audit('ALERTE_' . $g['category'], 'AlertDispatch', $g['category'], "{$subject} — " . ($res['success'] ? 'envoyé' : 'échec') . ' (' . ($trigger === 'AUTO' ? 'envoi planifié' : 'envoi manuel') . "). {$res['message']}", $projectId, $userId);
-            }
-            $plan[] = $entry;
-        }
+        // Les alertes logistiques et les décomptes à valider restent dans l'application : aucun e-mail (décisions du 05/11/2026).
         $guarantees = GuaranteeAlerts::plan($projectId);
-        return array_merge($plan, self::runGuarantees($guarantees, $projectId, $dryRun, $trigger, $userId), self::runContracts($rules, $history, $projectId, $dryRun, $trigger, $userId), self::runStaff($guarantees, $rules, $history, $projectId, $dryRun, $trigger, $userId),
-            self::runDecompteReminders($rules, $history, $projectId, $dryRun, $trigger, $userId));
-    }
-
-    /**
-     * Rappel d'un décompte à valider : un jour après sa transmission puis chaque jour tant qu'il est en attente, à l'adresse
-     * du compte qui détient explicitement can_validate_decomptes (le chef de cellule infrastructures). Jamais au
-     * super-admin ni à la personne qui a établi le décompte. Sans valideur désigné, rien ne part : le plan le signale.
-     */
-    private static function runDecompteReminders($rules, $history, int $projectId, bool $dryRun, string $trigger, ?int $userId): array
-    {
-        if (!(bool) ($rules['DECOMPTE']->is_enabled ?? true)) return [];
-        $today = Dates::today();
-        $lines = DB::table('contract_decomptes as d')->join('contracts as c', 'c.id', '=', 'd.contract_id')->leftJoin('companies as co', 'co.id', '=', 'c.company_id')->leftJoin('users as u', 'u.id', '=', 'd.submitted_by')
-            ->where('d.project_id', $projectId)->where('d.status', DecompteLedger::PENDING)->where('d.created_at', '<=', now()->subDay())->orderBy('d.created_at')
-            ->get(['d.id', 'd.number', 'd.gross_amount', 'd.operation_date', 'd.created_at', 'd.submitted_by', 'd.contract_id', 'c.reference', 'co.name as company', 'u.full_name as submitted_by_name']);
-        if ($lines->isEmpty()) return [];
-        $validators = DB::table('users')->where('project_id', $projectId)->where('is_active', true)->where('is_pending', false)->where('is_super_admin', false)
-            ->where('can_validate_decomptes', true)->get(['id', 'email']);
-        $template = AlertTemplates::all($projectId)['DECOMPTE_RAPPEL'];
-        $label = GuaranteeAlerts::projectLabel($projectId);
-
-        $plan = [];
-        foreach ($lines as $d) {
-            $key = "DECOMPTE_RAPPEL:{$d->id}";
-            $h = $history[$key] ?? null;
-            if (!self::isDue((int) ($h->n ?? 0), $h ? Dates::part($h->last) : null, 1, PHP_INT_MAX, $today)) continue;
-            $to = $validators->filter(fn ($v) => (int) $v->id !== (int) $d->submitted_by && filter_var($v->email, FILTER_VALIDATE_EMAIL))->pluck('email')->values()->all();
-            $sentOn = Dates::part($d->created_at);
-            $days = max(1, Dates::daysBetween($sentOn, $today));
-            $msg = AlertTemplates::render($template, [
-                'decompte' => $d->number, 'contrat' => $d->reference, 'entreprise' => $d->company, 'montant' => number_format((float) $d->gross_amount, 2, ',', ' '),
-                'date_decompte' => Dates::fr(Dates::part($d->operation_date)), 'transmis_le' => Dates::fr($sentOn), 'saisi_par' => $d->submitted_by_name, 'attente' => $days . ($days > 1 ? ' jours' : ' jour'),
-                'lien' => config('prise.frontend_url') . '/decomptes?contrat=' . $d->contract_id, 'projet' => $label,
-            ]);
-            $entry = ['category' => 'DECOMPTE', 'subject' => $msg['subject'], 'recipients' => $to, 'status' => 'SIMULATION', 'message' => '',
-                'alerts' => [['key' => $key, 'title' => "{$d->number} du contrat {$d->reference}", 'text' => "en attente de décision depuis le " . Dates::fr($sentOn) . '.', 'sendNo' => (int) ($h->n ?? 0) + 1]]];
-            if (!$to) {
-                $entry['status'] = 'SANS_DESTINATAIRE';
-                $entry['message'] = 'Aucun compte n’est habilité à valider ce décompte : le super-administrateur doit l’accorder au chef de cellule infrastructures dans Utilisateurs.';
-                $plan[] = $entry;
-                continue;
-            }
-            if (!$dryRun) {
-                $res = MailService::send($projectId, $msg['subject'], $msg['text'], $to);
-                $entry['status'] = $res['success'] ? 'ENVOYE' : 'ECHEC';
-                $entry['message'] = $res['message'];
-                self::record($projectId, ['category' => 'DECOMPTE', 'key' => $key, 'subject' => $msg['subject'], 'recipients' => $to, 'status' => $entry['status'], 'message' => $res['message'],
-                    'trigger' => $trigger, 'userId' => $userId, 'contractId' => (int) $d->contract_id, 'type' => 'RAPPEL', 'body' => $msg['text']]);
-                Ctx::audit('ALERTE_DECOMPTE', 'Decompte', $d->id, "{$msg['subject']} — rappel n° " . ((int) ($h->n ?? 0) + 1) . ' : ' . ($res['success'] ? 'envoyé' : 'échec') . ' (' . ($trigger === 'AUTO' ? 'envoi planifié' : 'envoi manuel') . "). {$res['message']}", $projectId, $userId);
-            }
-            $plan[] = $entry;
-        }
-        return $plan;
+        return array_merge(self::runGuarantees($guarantees, $projectId, $dryRun, $trigger, $userId), self::runContracts($rules, $history, $projectId, $dryRun, $trigger, $userId), self::runStaff($guarantees, $rules, $history, $projectId, $dryRun, $trigger, $userId));
     }
 
     /** Valeurs des champs des modèles d'un contrat ; niveau : « vigilance » ou « retard » pour le personnel du projet. */

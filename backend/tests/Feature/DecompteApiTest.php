@@ -185,19 +185,12 @@ class DecompteApiTest extends TestCase
         $this->assertEquals(380, $d['rows'][0]['net']);
     }
 
-    /** Rappels de décomptes prévus par le prochain envoi. */
-    private function reminders(): array
-    {
-        return array_values(array_filter(AlertEngine::run($this->prise->id, true), fn ($m) => $m['category'] === 'DECOMPTE'));
-    }
-
-    public function test_rappel_au_chef_de_cellule_un_jour_apres_la_transmission(): void
+    public function test_le_decompte_a_valider_reste_dans_l_application_sans_e_mail(): void
     {
         $c = $this->contract();
         $chef = $this->user(['can_validate_decomptes' => true, 'email' => 'chef.cellule@example.test', 'full_name' => 'Chef de cellule']);
-        $this->user(['is_super_admin' => true, 'role' => 'ADMINISTRATEUR', 'email' => 'super@example.test']);
         $saisie = $this->user(['can_manage_payments' => true, 'full_name' => 'Jorcelin MIKADO']);
-        // Le personnel abonné à l'ancienne catégorie ne reçoit plus les décomptes.
+        // Un ancien abonné à la catégorie ne reçoit rien non plus.
         DB::table('alert_recipients')->insert(['project_id' => $this->prise->id, 'email' => 'personnel@example.test', 'categories' => 'DECOMPTE', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
 
         $this->assertSame(['Chef de cellule'], $this->as($saisie)->getJson("/api/decomptes?contract_id={$c}")->assertOk()->json('validators'));
@@ -206,54 +199,16 @@ class DecompteApiTest extends TestCase
         $this->assertStringContainsString('chef de cellule infrastructures', $res->json('message'));
         $this->assertSame(1, $this->as($chef)->getJson('/api/notifications')->json('unread'));
 
-        // Moins de 24 heures : pas de rappel.
-        $this->assertSame([], $this->reminders());
-        DB::table('contract_decomptes')->where('id', $id)->update(['created_at' => now()->subHours(23)]);
-        $this->assertSame([], $this->reminders());
-
-        // Au-delà : à sa seule adresse, ni au super-admin ni au personnel, et aucun récapitulatif interne.
-        DB::table('contract_decomptes')->where('id', $id)->update(['created_at' => now()->subHours(25)]);
-        $r = $this->reminders();
-        $this->assertCount(1, $r);
-        $this->assertSame(['chef.cellule@example.test'], $r[0]['recipients']);
-        $this->assertStringContainsString('Rappel — DECOMPTE N°1', $r[0]['subject']);
-
-        // Le texte envoyé (SMTP absent ici : échec tracé, non consommé) porte le décompte et le lien.
+        // Même après plusieurs jours d'attente : aucun message prévu ni envoyé, la notification reste à traiter.
+        DB::table('contract_decomptes')->where('id', $id)->update(['created_at' => now()->subDays(3)]);
+        $this->assertSame([], array_values(array_filter(AlertEngine::run($this->prise->id, true), fn ($m) => ($m['category'] ?? '') === 'DECOMPTE')));
         AlertEngine::run($this->prise->id, false);
-        $line = DB::table('alert_dispatches')->first();
-        $this->assertSame(['RAPPEL', 'ECHEC', 'chef.cellule@example.test', $c], [$line->message_type, $line->status, $line->recipients, (int) $line->contract_id]);
-        $this->assertStringContainsString("/decomptes?contrat={$c}", $line->body);
-        $this->assertStringContainsString('par Jorcelin MIKADO', $line->body);
-        $this->assertCount(1, $this->reminders());
+        $this->assertSame(0, DB::table('alert_dispatches')->where('category', 'DECOMPTE')->count());
+        $this->assertSame(1, $this->as($chef)->getJson('/api/notifications')->json('unread'));
 
-        // Une fois envoyé : plus rien le même jour, de nouveau le lendemain.
-        DB::table('alert_dispatches')->update(['status' => 'ENVOYE']);
-        $this->assertSame([], $this->reminders());
-        DB::table('alert_dispatches')->update(['created_at' => now()->subDay()]);
-        $this->assertCount(1, $this->reminders());
-
-        // La décision arrête le rappel.
+        // La décision clôt la notification.
         $this->as($chef)->postJson("/api/decomptes/{$id}/decision", ['decision' => 'VALIDE'])->assertOk();
-        $this->assertSame([], $this->reminders());
-    }
-
-    public function test_sans_valideur_designe_le_rappel_ne_part_pas_au_super_admin(): void
-    {
-        $c = $this->contract();
-        $this->user(['is_super_admin' => true, 'role' => 'ADMINISTRATEUR', 'email' => 'super@example.test', 'can_validate_decomptes' => true]);
-        $saisie = $this->user(['can_manage_payments' => true, 'can_validate_decomptes' => true, 'email' => 'saisie@example.test']);
-        $id = $this->as($saisie)->postJson("/api/contracts/{$c}/decomptes", ['number' => 'DECOMPTE N°1', 'operation_date' => '2026-02-25', 'gross_amount' => '1 000'])->assertOk()->json('id');
-        DB::table('contract_decomptes')->where('id', $id)->update(['created_at' => now()->subDays(2)]);
-
-        // La personne qui a établi le décompte ne peut pas le valider : elle n'est pas rappelée non plus.
-        $r = $this->reminders();
-        $this->assertSame(['SANS_DESTINATAIRE', []], [$r[0]['status'], $r[0]['recipients']]);
-        AlertEngine::run($this->prise->id, false);
-        $this->assertSame(0, DB::table('alert_dispatches')->count());
-
-        // La catégorie désactivée coupe le rappel.
-        DB::table('alert_rules')->insert(['project_id' => $this->prise->id, 'category' => 'DECOMPTE', 'is_enabled' => false, 'interval_days' => 7, 'max_sends' => 3, 'created_at' => now(), 'updated_at' => now()]);
-        $this->assertSame([], $this->reminders());
+        $this->assertSame(0, $this->as($chef)->getJson('/api/notifications')->json('unread'));
     }
 
     public function test_la_validation_passe_du_comptable_au_chef_de_cellule(): void

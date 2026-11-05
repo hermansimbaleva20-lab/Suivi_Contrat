@@ -42,6 +42,16 @@ class Ctx
         return self::isAdmin($user) || (bool) ($user->{$permission} ?? false);
     }
 
+    /**
+     * Modèles et historique des alertes : le super-administrateur et les comptes à qui il accorde cette habilitation.
+     * Contrairement à can(), être administrateur ne suffit pas (décision du 05/11/2026).
+     */
+    public static function canViewAlertHistory($user = null): bool
+    {
+        $user = $user ?: self::user();
+        return $user && ($user->is_super_admin || $user->can_view_alert_history);
+    }
+
     public static function need(string $permission): void
     {
         abort_unless(self::can($permission), 403, 'Vous ne disposez pas de l’habilitation nécessaire pour cette opération.');

@@ -66,7 +66,6 @@ function StateTable({ rows }) {
 
 export default function ReportSnapshotsPage() {
   const { data, loading, error, reload } = useLoad('/report-snapshots');
-  const { data: ai } = useLoad('/ai/status');
   const [period, setPeriod] = useState(null);
   const [preview, setPreview] = useState(null);
   const [comment, setComment] = useState('');
@@ -174,11 +173,6 @@ export default function ReportSnapshotsPage() {
                 <label className={label} htmlFor="rp-comment">Commentaire de la période (facultatif)</label>
                 <textarea id="rp-comment" rows="2" className={input} value={comment} onChange={(e) => setComment(e.target.value)} maxLength={2000} placeholder="Faits marquants, difficultés, perspectives…" />
               </div>
-              {ai?.comments && (
-                <button type="button" className={btnGhost} disabled={busy} onClick={() => run(() => api.post('/ai/report-comment', p), (d) => setComment(d.comment))}>
-                  <i className="bi bi-stars" aria-hidden="true" />Proposer avec l’IA
-                </button>
-              )}
               <button type="button" className={btnPrimary} disabled={busy} onClick={freeze}><i className="bi bi-lock" aria-hidden="true" />Figer l’état « {preview.label} »</button>
             </div>
           )}

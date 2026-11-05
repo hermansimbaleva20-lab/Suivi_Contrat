@@ -96,15 +96,12 @@
 .syn-bullet-tick { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--syn-ink); box-shadow: 0 0 0 1px #fff; }
 .syn-table tfoot th, .syn-table tfoot td { border-top: 1.5px solid var(--syn-deep); font-weight: 700; }
 
-/* Observations, définitions, signature */
-.syn-notes dl, .syn-defs dl { margin: 0; }
+/* Observations, signature */
+.syn-notes dl { margin: 0; }
 .syn-notes dl > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; padding: 6px 0; border-top: 1px solid var(--syn-rule); }
 .syn-notes dl > div:first-child { border-top: 0; padding-top: 0; }
 .syn-notes dt { font-family: 'Inter', Arial, sans-serif; font-weight: 600; font-size: 13px; }
 .syn-notes dd { max-width: 90ch; margin: 0; font-size: 13px; }
-.syn-defs dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 32px; }
-.syn-defs dt { font-size: 12.5px; font-weight: 500; }
-.syn-defs dd { margin: 0; color: var(--syn-muted); font-size: 12.5px; line-height: 1.4; }
 .syn-signoff { margin: 22px 0 0; padding-top: 10px; border-top: 1px solid var(--syn-rule); color: var(--syn-muted); font-size: 12.5px; }
 
 .syn-loading { opacity: .55; transition: opacity 150ms ease-out; }
@@ -129,16 +126,12 @@
   .syn-figure:nth-child(n + 3) { border-top: 1px solid var(--syn-rule); }
   .syn-cols, .syn-overview { grid-template-columns: minmax(0, 1fr); }
   .syn-donut-wrap { grid-template-columns: 112px minmax(0, 1fr); gap: 16px; }
-  .syn-defs dl { grid-template-columns: minmax(0, 1fr); }
   .syn-notes dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .syn-figure-value { font-size: 18px; }
 }
 
 /* ------------------------------------------------------------------ Impression (rendu dans PrintDocument) */
-@page syn-paysage {
-  size: A4 landscape; margin: 11mm 11mm 13mm;
-  @bottom-right { content: 'Page ' counter(page) ' / ' counter(pages); color: #5a6f63; font-family: 'Roboto', sans-serif; font-size: 7.5pt; }
-}
+@page syn-paysage { size: A4 landscape; margin: 0; }
 @media print {
   .syn { font-size: 9.2pt; line-height: 1.42; }
   .syn .pdoc-letterhead { height: 17mm; }
@@ -190,7 +183,5 @@
   .syn-notes dl > div { grid-template-columns: 28mm minmax(0, 1fr); padding: 1.4mm 0; }
   .syn-notes dt, .syn-notes dd { font-size: 8.2pt; }
   .syn-notes dd { max-width: none; }
-  .syn-defs dl { gap: 1.6mm 8mm; }
-  .syn-defs dt, .syn-defs dd { font-size: 7.6pt; }
   .syn-signoff { margin-top: 5mm; padding-top: 2mm; font-size: 8pt; }
 }

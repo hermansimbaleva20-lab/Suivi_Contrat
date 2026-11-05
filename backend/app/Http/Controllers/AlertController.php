@@ -131,7 +131,7 @@ class AlertController extends Controller
 
     private static function canEditTemplates(): bool
     {
-        return Ctx::isAdmin() && Ctx::isNationalCoordination();
+        return Ctx::canViewAlertHistory() && Ctx::isAdmin() && Ctx::isNationalCoordination();
     }
 
     /** Modèles des messages, avec les champs disponibles et un exemple de chacun. */
@@ -140,7 +140,7 @@ class AlertController extends Controller
         $pid = Ctx::projectId();
         $seeGuarantees = Ctx::can('can_view_alerts_guarantees');
         $seeContracts = Ctx::can('can_view_alerts_contracts');
-        abort_unless($seeGuarantees || $seeContracts, 403, 'Vous n’êtes pas habilité à consulter ces modèles.');
+        abort_unless(Ctx::canViewAlertHistory() && ($seeGuarantees || $seeContracts), 403, 'Vous n’êtes pas habilité à consulter ces modèles.');
         $saved = DB::table('alert_templates as t')->leftJoin('users as u', 'u.id', '=', 't.updated_by')->where('t.project_id', $pid)->get(['t.code', 't.updated_at', 'u.full_name'])->keyBy('code');
         $all = AlertTemplates::all($pid);
         $out = [];
@@ -157,7 +157,7 @@ class AlertController extends Controller
 
     private function needTemplateCode(string $code): void
     {
-        abort_unless(self::canEditTemplates(), 403, 'Les modèles des messages sont modifiés par un administrateur de la coordination nationale ou le super-administrateur.');
+        abort_unless(self::canEditTemplates(), 403, 'Les modèles des messages sont modifiés par un administrateur de la coordination nationale habilité à les consulter, ou le super-administrateur.');
         abort_unless(isset(AlertTemplates::DEFAULTS[$code]), 404, 'Modèle inconnu.');
     }
 
@@ -193,7 +193,7 @@ class AlertController extends Controller
         $pid = Ctx::projectId();
         $seeGuarantees = Ctx::can('can_view_alerts_guarantees');
         $seeContracts = Ctx::can('can_view_alerts_contracts');
-        abort_unless($seeGuarantees || $seeContracts, 403, 'Vous n’êtes pas habilité à consulter cet historique.');
+        abort_unless(Ctx::canViewAlertHistory() && ($seeGuarantees || $seeContracts), 403, 'Vous n’êtes pas habilité à consulter cet historique.');
         $q = DB::table('alert_dispatches as d')->leftJoin('contracts as c', 'c.id', '=', 'd.contract_id')->leftJoin('companies as co', 'co.id', '=', 'c.company_id')
             ->leftJoin('users as u', 'u.id', '=', 'd.sent_by')->where('d.project_id', $pid)->whereNotNull('d.contract_id');
         if (!$seeGuarantees) $q->whereNull('d.performance_guarantee_id');

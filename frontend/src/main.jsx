@@ -10,7 +10,10 @@ import './styles/prise-react.css';
 import './styles/prise-design.css';
 import './styles/tailwind.css';
 import App from './App.jsx';
+import { installPressFeedback } from './lib/pressFeedback.js';
 import { AuthProvider } from './context/AuthContext.jsx';
+
+installPressFeedback();
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>

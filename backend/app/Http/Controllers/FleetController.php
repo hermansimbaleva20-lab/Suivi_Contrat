@@ -44,6 +44,8 @@ class FleetController extends Controller
             'fuel_price' => (float) $a->fuel_price, 'fuel_alert_level' => $a->fuel_alert_level === null ? null : (float) $a->fuel_alert_level,
             'maintenance_interval' => (int) $a->maintenance_interval, 'maintenance_warning' => (int) $a->maintenance_warning,
             'initial_meter' => (float) $a->initial_meter, 'is_active' => (bool) $a->is_active,
+            'maintenance_last_meter' => isset($a->maintenance_last_meter) ? (float) $a->maintenance_last_meter : null,
+            'maintenance_next_meter' => isset($a->maintenance_next_meter) ? (float) $a->maintenance_next_meter : null,
         ];
     }
 
@@ -119,12 +121,15 @@ class FleetController extends Controller
     /** Situation d'un engin : compteur, réservoir, autonomie, entretien, assurance, alertes. */
     public static function status(array $asset, array $logs, array $maintenances, array $insurances, string $today): array
     {
-        $readings = array_map(fn ($m) => (float) $m->meter_reading, $maintenances);
+        $records = array_map(fn ($m) => ['reading' => (float) $m->meter_reading, 'next' => $m->next_meter === null ? null : (float) $m->next_meter], $maintenances);
+        $readings = array_column($records, 'reading');
+        if ($asset['maintenance_last_meter'] !== null) $readings[] = $asset['maintenance_last_meter'];
         $meter = FleetMetrics::currentMeter($asset, $logs, $readings);
         $level = FleetMetrics::fuelLevel($asset, $logs);
-        $maintenance = FleetMetrics::maintenance($asset, $meter, $readings);
-        $last = $maintenances ? end($maintenances) : null;
-        $maintenance['lastDate'] = $last ? Dates::part($last->maintenance_date) : null;
+        $maintenance = FleetMetrics::maintenance($asset, $meter, $records);
+        $last = null;
+        foreach ($maintenances as $m) if ($last === null || (float) $m->meter_reading >= (float) $last->meter_reading) $last = $m;
+        $maintenance['lastDate'] = $last && $maintenance['source'] === 'RECORD' ? Dates::part($last->maintenance_date) : null;
         // L'assurance n'est exigée que pour les véhicules ; un groupe n'est suivi que s'il a une police enregistrée.
         $insurance = ($asset['kind'] === FleetMetrics::VEHICULE || $insurances) ? FleetMetrics::insurance($insurances, $today) : null;
         $active = array_values(array_filter($logs, fn ($l) => !$l['cancelled']));
@@ -241,7 +246,7 @@ class FleetController extends Controller
             'registration' => 'nullable|string|max:40',
             'organizational_unit_id' => ['required', 'integer', Rule::exists('organizational_units', 'id')->where('project_id', $pid)],
             'maintenance_interval' => 'required|integer|min:1|max:1000000',
-            'maintenance_warning' => 'required|integer|min:0|lte:maintenance_interval',
+            'maintenance_warning' => 'nullable|integer|min:0|lte:maintenance_interval',
         ], [
             'name.unique' => 'Un engin porte déjà ce nom dans le projet : ajoutez par exemple l’immatriculation.',
             'maintenance_warning.lte' => 'L’avertissement doit arriver avant l’échéance de l’entretien.',
@@ -256,7 +261,7 @@ class FleetController extends Controller
             'consumption_rate' => self::decimalField($r, 'consumption_rate', 'le taux de consommation', false),
             'fuel_price' => self::decimalField($r, 'fuel_price', 'le prix du litre', true),
             'fuel_alert_level' => self::decimalField($r, 'fuel_alert_level', 'le seuil d’alerte du réservoir', false, $capacity),
-            'maintenance_interval' => (int) $d['maintenance_interval'], 'maintenance_warning' => (int) $d['maintenance_warning'],
+            'maintenance_interval' => (int) $d['maintenance_interval'], 'maintenance_warning' => (int) ($d['maintenance_warning'] ?? ceil((int) $d['maintenance_interval'] * FleetMetrics::MAINTENANCE_WARNING_SHARE)),
             'initial_meter' => self::decimalField($r, 'initial_meter', 'le compteur initial', false) ?? 0,
         ];
     }
@@ -626,7 +631,7 @@ class FleetController extends Controller
                 $a = $byId[$assetId];
                 $history[] = [
                     'id' => $m->id, 'assetId' => $assetId, 'assetName' => $a['name'], 'registration' => $a['registration'], 'kind' => $a['kind'], 'unitName' => $a['unit_name'],
-                    'date' => Dates::part($m->maintenance_date), 'meterReading' => (float) $m->meter_reading, 'designation' => $m->designation,
+                    'date' => Dates::part($m->maintenance_date), 'meterReading' => (float) $m->meter_reading, 'nextMeter' => $m->next_meter === null ? null : (float) $m->next_meter, 'designation' => $m->designation,
                     'cost' => $m->cost === null ? null : (float) $m->cost, 'provider' => $m->provider, 'observation' => (string) $m->observation,
                     'canEdit' => Ctx::can('can_manage_fleet') && Ctx::canWriteUnit((int) $m->organizational_unit_id),
                 ];
@@ -655,12 +660,32 @@ class FleetController extends Controller
             'observation' => 'nullable|string|max:500',
         ], [], ['maintenance_date' => 'date', 'designation' => 'désignation', 'provider' => 'garage ou prestataire']);
         if ($d['maintenance_date'] > Dates::today()) throw ValidationException::withMessages(['maintenance_date' => 'La date ne peut pas être postérieure à aujourd’hui.']);
+        $isVehicle = $asset['kind'] === FleetMetrics::VEHICULE;
+        $reading = self::decimalField($r, 'meter_reading', $isVehicle ? 'le kilométrage' : 'le compteur horaire', true);
+        $next = self::decimalField($r, 'next_meter', $isVehicle ? 'le kilométrage du prochain entretien' : 'le compteur du prochain entretien', true);
+        if ($next <= $reading) throw ValidationException::withMessages(['next_meter' => 'Le prochain entretien doit être au-delà du compteur de cet entretien.']);
         return [
             'maintenance_date' => $d['maintenance_date'], 'designation' => trim($d['designation']),
-            'meter_reading' => self::decimalField($r, 'meter_reading', $asset['kind'] === FleetMetrics::VEHICULE ? 'le kilométrage' : 'le compteur horaire', true),
+            'meter_reading' => $reading, 'next_meter' => $next,
             'cost' => self::decimalField($r, 'cost', 'le coût', false),
             'provider' => isset($d['provider']) ? trim($d['provider']) : null, 'observation' => isset($d['observation']) ? trim($d['observation']) : null,
         ];
+    }
+
+    /** Programmation du prochain entretien d'un engin : compteur du dernier entretien et compteur du prochain. */
+    public function planMaintenance(Request $r, int $id)
+    {
+        $asset = $this->assetOr404($id);
+        $this->needWrite($asset);
+        $isVehicle = $asset['kind'] === FleetMetrics::VEHICULE;
+        $last = self::decimalField($r, 'last_meter', $isVehicle ? 'le kilométrage du dernier entretien' : 'le compteur du dernier entretien', true);
+        $next = self::decimalField($r, 'next_meter', $isVehicle ? 'le kilométrage du prochain entretien' : 'le compteur du prochain entretien', true);
+        if ($next <= $last) throw ValidationException::withMessages(['next_meter' => 'Le prochain entretien doit être au-delà du dernier.']);
+        $before = ['maintenance_last_meter' => $asset['maintenance_last_meter'], 'maintenance_next_meter' => $asset['maintenance_next_meter']];
+        $after = ['maintenance_last_meter' => $last, 'maintenance_next_meter' => $next];
+        DB::table('fleet_assets')->where('id', $id)->update($after + ['updated_at' => now()]);
+        Ctx::auditChange('MODIFICATION', 'FleetAsset', $id, "Prochain entretien de {$asset['name']} programmé à {$next} (dernier entretien à {$last}).", $before, $after);
+        return ['message' => 'Prochain entretien programmé.'];
     }
 
     public function storeMaintenance(Request $r)
@@ -668,10 +693,16 @@ class FleetController extends Controller
         $asset = $this->assetOr404((int) $r->input('fleet_asset_id'));
         $this->needWrite($asset);
         $data = $this->maintenanceData($r, $asset);
-        $id = DB::table('fleet_maintenances')->insertGetId($data + [
-            'project_id' => Ctx::projectId(), 'organizational_unit_id' => $asset['unit_id'], 'fleet_asset_id' => $asset['id'],
-            'created_by' => Ctx::user()->id, 'created_at' => now(), 'updated_at' => now(),
-        ]);
+        $id = DB::transaction(function () use ($data, $asset) {
+            // L'entretien effectué remplace la programmation : l'alerte s'arrête, le suivi repart de ce compteur.
+            if ($asset['maintenance_last_meter'] !== null && (float) $data['meter_reading'] >= $asset['maintenance_last_meter']) {
+                DB::table('fleet_assets')->where('id', $asset['id'])->update(['maintenance_last_meter' => null, 'maintenance_next_meter' => null, 'updated_at' => now()]);
+            }
+            return DB::table('fleet_maintenances')->insertGetId($data + [
+                'project_id' => Ctx::projectId(), 'organizational_unit_id' => $asset['unit_id'], 'fleet_asset_id' => $asset['id'],
+                'created_by' => Ctx::user()->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
         Ctx::auditChange('CREATION', 'FleetMaintenance', $id, "Entretien « {$data['designation']} » de {$asset['name']} le " . Dates::fr($data['maintenance_date']) . '.', null, $data);
         return ['message' => 'Entretien enregistré.', 'id' => $id];
     }

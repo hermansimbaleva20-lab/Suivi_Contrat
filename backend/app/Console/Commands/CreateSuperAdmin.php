@@ -16,7 +16,7 @@ class CreateSuperAdmin extends Command
     public function handle(): int
     {
         $email = strtolower(trim((string) ($this->argument('email') ?: config('prise.super_admin_email'))));
-        $flags = ['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes'];
+        $flags = ['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes', 'can_follow_new_contracts', 'can_view_alert_history'];
         foreach (Project::all() as $project) {
             $u = User::where('project_id', $project->id)->whereRaw('LOWER(email)=?', [$email])->first();
             if (!$u) $u = new User(['project_id' => $project->id, 'email' => $email, 'password' => Hash::make(Str::random(60))]);

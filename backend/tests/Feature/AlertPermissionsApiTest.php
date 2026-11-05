@@ -75,7 +75,7 @@ class AlertPermissionsApiTest extends TestCase
 
     public function test_alertes_des_contrats_seulement(): void
     {
-        $u = $this->user(['can_view_alerts_contracts' => true]);
+        $u = $this->user(['can_view_alerts_contracts' => true, 'can_view_alert_history' => true]);
         $d = $this->as($u)->getJson('/api/alerts')->assertOk()->json();
         $this->assertContains($this->contract, array_column($d['retards'], 'id'));
         $this->assertSame([[], []], [$d['guarantees'], $d['logistics']]);
@@ -85,7 +85,7 @@ class AlertPermissionsApiTest extends TestCase
 
         $codes = array_column($this->as($u)->getJson('/api/alerts/templates')->assertOk()->json('templates'), 'code');
         $this->assertContains('CONTRAT_RETARD', $codes);
-        $this->assertContains('DECOMPTE_RAPPEL', $codes);
+        $this->assertNotContains('DECOMPTE_RAPPEL', $codes);
         $this->assertNotContains('GARANTIE_RETARD', $codes);
         $this->assertNotContains('GARANTIE_PERSONNEL', $codes);
 
@@ -95,7 +95,7 @@ class AlertPermissionsApiTest extends TestCase
 
     public function test_alertes_de_bonne_execution_seulement(): void
     {
-        $u = $this->user(['can_view_alerts_guarantees' => true]);
+        $u = $this->user(['can_view_alerts_guarantees' => true, 'can_view_alert_history' => true]);
         $d = $this->as($u)->getJson('/api/alerts')->assertOk()->json();
         $this->assertSame([$this->guarantee], array_column($d['guarantees'], 'id'));
         $this->assertSame([[], [], [], [], []], [$d['retards'], $d['vigilances'], $d['sites'], $d['contracts'], $d['logistics']]);
@@ -109,10 +109,41 @@ class AlertPermissionsApiTest extends TestCase
         DB::table('alert_dispatches')->insert([$line('GARANTIE:1', $this->guarantee), $line('CONTRAT:1', null)]);
         $h = $this->as($u)->getJson('/api/alerts/history')->assertOk()->json();
         $this->assertSame(['GARANTIE'], array_column($h['data'], 'scope'));
-        $c = $this->user(['can_view_alerts_contracts' => true]);
+        $c = $this->user(['can_view_alerts_contracts' => true, 'can_view_alert_history' => true]);
         $h = $this->as($c)->getJson('/api/alerts/history')->assertOk()->json();
         $this->assertSame(['CONTRAT'], array_column($h['data'], 'scope'));
         $this->assertSame([], $h['guarantees']);
+    }
+
+    public function test_modeles_et_historique_reserves_au_super_admin_et_aux_comptes_habilites(): void
+    {
+        $paths = ['/api/alerts/templates', '/api/alerts/history'];
+        $tpl = ['subject' => 'Objet {contrat}', 'body' => 'Message du contrat {contrat}, vingt caractères au moins.'];
+        $me = fn ($u) => $this->as($u)->getJson('/api/auth/me')->assertOk()->json('user.permissions.canViewAlertHistory');
+
+        // Un simple droit d'alerte ou le rôle d'administrateur ne suffit pas, ni pour lire ni pour modifier.
+        foreach ([$this->user(['can_view_alerts_contracts' => true]), $this->user(['role' => 'ADMINISTRATEUR'])] as $u) {
+            foreach ($paths as $path) $this->as($u)->getJson($path)->assertForbidden();
+            $this->assertFalse($me($u));
+        }
+        $this->as($this->user(['role' => 'ADMINISTRATEUR']))->putJson('/api/alerts/templates/CONTRAT_RETARD', $tpl)->assertForbidden();
+
+        // Le super-administrateur voit toujours, sans avoir la case.
+        $super = $this->user(['role' => 'ADMINISTRATEUR', 'is_super_admin' => true]);
+        foreach ($paths as $path) $this->as($super)->getJson($path)->assertOk();
+        $this->assertTrue($me($super));
+
+        // L'habilitation s'ajoute aux rubriques : seule, elle n'ouvre rien ; elle ne donne pas le droit de modifier.
+        $seule = $this->user(['can_view_alert_history' => true]);
+        $this->assertTrue($me($seule));
+        foreach ($paths as $path) $this->as($seule)->getJson($path)->assertForbidden();
+        $agent = $this->user(['can_view_alerts_contracts' => true, 'can_view_alert_history' => true]);
+        $this->as($agent)->getJson('/api/alerts/templates')->assertOk()->assertJsonPath('canEdit', false);
+        $this->as($agent)->putJson('/api/alerts/templates/CONTRAT_RETARD', $tpl)->assertForbidden();
+
+        // Accordée à un administrateur de la coordination, elle lui rend aussi la modification.
+        $admin = $this->user(['role' => 'ADMINISTRATEUR', 'can_view_alert_history' => true]);
+        $this->as($admin)->getJson('/api/alerts/templates')->assertOk()->assertJsonPath('canEdit', true);
     }
 
     public function test_alertes_logistiques_seulement_et_limitees_a_l_unite(): void

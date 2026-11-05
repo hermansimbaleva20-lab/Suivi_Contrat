@@ -1,0 +1,84 @@
+/*
+ * Connexion, demande d'accès et mot de passe oublié : animations autour de la carte, sur le thème de l'eau du forage (mêmes couleurs que le chargeur).
+ * L'entrée joue une fois à l'ouverture de la page ; ensuite, seuls la photo, les ondes et la lueur du contour restent en mouvement,
+ * jamais les champs. Les déplacements passent par « translate » et « scale » : prise-ui.css impose « transform: none !important »
+ * à la carte sur petit écran.
+ */
+
+/* Tant que le chargeur d'ouverture couvre la page, l'entrée attend : elle serait jouée sans être vue. */
+body:has(.opening-loader) .login-bg .login-page *,
+body:has(.opening-loader) .login-bg .login-page *::before { animation-play-state: paused; }
+
+/* Photo : dérive très lente. --login-drift reprend sa position au passage d'une page à l'autre (AuthPage, Auth.jsx). */
+.login-bg::before { content: ""; position: fixed; inset: 0; z-index: 0; background: url('/images/login_bg.png') center / cover no-repeat; transform-origin: 62% 42%; animation: loginDrift 46s ease-in-out var(--login-drift, 0s) infinite alternate; will-change: transform; }
+@keyframes loginDrift { from { scale: 1; } to { scale: 1.07; translate: -1% -.6%; } }
+
+/* Les ondes dépassent de la carte : coupées ici, elles ne font jamais apparaître de barre de défilement. */
+.login-bg .login-page { overflow: clip; }
+
+/* Texte de gauche */
+.login-bg .login-hero > * { animation: loginRise .7s cubic-bezier(.16, 1, .3, 1) both; }
+.login-bg .login-hero > :nth-child(1) { animation-name: loginReveal; animation-duration: .85s; animation-delay: .05s; }
+.login-bg .login-hero > :nth-child(2) { animation-delay: .2s; }
+.login-bg .login-hero > :nth-child(3) { animation-delay: .29s; }
+.login-bg .login-hero > :nth-child(4) { animation-delay: .38s; }
+@keyframes loginRise { from { opacity: 0; translate: 0 14px; } }
+@keyframes loginReveal { from { opacity: 0; translate: 0 22px; clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 -10% 0); } }
+
+/* Carte, sceau et contenu */
+.login-bg .login-card { position: relative; animation: loginCard .75s cubic-bezier(.16, 1, .3, 1) .12s both; }
+@keyframes loginCard { from { opacity: 0; translate: 0 26px; scale: .98; } }
+.login-bg .login-seal { animation: loginSeal .6s cubic-bezier(.16, 1, .3, 1) .42s both; }
+@keyframes loginSeal { from { opacity: 0; scale: 1.28; } }
+.login-bg .login-card > .text-center > :not(.login-seal),
+.login-bg .login-card form > * { animation: loginRise .5s cubic-bezier(.16, 1, .3, 1) .56s both; }
+.login-bg .login-card form > :nth-child(n + 3) { animation-delay: .62s; }
+.login-bg .login-card form > :nth-child(n + 5) { animation-delay: .68s; }
+.login-bg .login-card form > :nth-child(n + 7) { animation-delay: .74s; }
+.login-bg .login-card > :last-child { animation: loginRise .5s cubic-bezier(.16, 1, .3, 1) .8s both; }
+/* Message d'erreur affiché après l'entrée : tout de suite, sans le délai ci-dessus. */
+.login-bg .login-card form > .alert { animation: loginRise .25s cubic-bezier(.16, 1, .3, 1) both; }
+
+/* Autour de la carte */
+.card-halo { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; animation: none !important; }
+.card-halo > i { position: absolute; inset: 0; border: 1.5px solid rgba(167, 243, 208, .85); border-radius: inherit; opacity: 0; animation: haloRing 9s linear infinite; }
+.card-halo > i:nth-child(1) { animation-delay: 1.5s; }
+.card-halo > i:nth-child(2) { animation-delay: 4.5s; }
+.card-halo > i:nth-child(3) { animation-delay: 7.5s; }
+@keyframes haloRing {
+  0% { opacity: 0; scale: 1; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
+  4% { opacity: .75; animation-timing-function: linear; }
+  34% { opacity: 0; scale: 1.13; }
+  100% { opacity: 0; scale: 1.13; }
+}
+.card-trace { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.card-trace rect { fill: none; stroke: url(#card-trace-water); }
+/* Lueur du contour : un dégradé en rotation, découpé en anneau par le masque. Seule la rotation change d'une image à l'autre : la
+   carte graphique peut s'en charger, alors qu'un tracé SVG animé serait redessiné à chaque image.
+   Le carré fait 1,5 fois la hauteur de la carte : il la couvre tant qu'elle est plus haute que large. */
+.card-glint { position: absolute; inset: -1.5px; padding: 2.5px; border-radius: 23.5px; overflow: hidden; opacity: 0; animation: traceShow .8s ease 1.8s forwards; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.card-glint::before { content: ""; position: absolute; left: 50%; top: 50%; height: 150%; aspect-ratio: 1; margin-left: -75%; margin-top: -75%; background: conic-gradient(from 0deg, transparent 0 72%, #10b981 84%, #14b8a6 91%, #d4a72c 97%, transparent 100%); animation: traceSpin 12s linear infinite; will-change: transform; }
+.card-trace .trace-draw { stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0; animation: traceDraw 1.7s cubic-bezier(.33, 0, .2, 1) .4s both; }
+@keyframes traceDraw { 0% { opacity: 1; stroke-dashoffset: 100; } 75% { opacity: 1; stroke-dashoffset: 0; } 100% { opacity: 0; stroke-dashoffset: 0; } }
+@keyframes traceSpin { to { transform: rotate(360deg); } }
+@keyframes traceShow { to { opacity: 1; } }
+
+/* Le libellé du champ en cours de saisie prend la couleur du thème. */
+.login-bg .form-label { transition: color .18s ease; }
+.login-bg .form-label:has(+ :focus),
+.login-bg .form-label:has(+ .password-wrap :focus),
+.login-bg .col-md-6:focus-within > .form-label { color: #087a3f; }
+.login-bg .btn-primary .spinner-border { margin-right: .5rem; vertical-align: -.12em; }
+
+/* Animations réduites : la page apparaît en fondu, rien ne reste en mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .login-bg::before { animation: none; will-change: auto; }
+  .card-halo { display: none; }
+  .login-bg .login-hero > *,
+  .login-bg .login-card,
+  .login-bg .login-seal,
+  .login-bg .login-card > .text-center > :not(.login-seal),
+  .login-bg .login-card form > *,
+  .login-bg .login-card > :last-child { animation: loginFade .25s ease both; }
+}
+@keyframes loginFade { from { opacity: 0; } }

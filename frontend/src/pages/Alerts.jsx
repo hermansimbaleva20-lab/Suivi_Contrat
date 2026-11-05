@@ -41,12 +41,14 @@ function AlertTable({ rows, empty, sending, onSend, canGuarantees }) {
 }
 
 export default function Alerts() {
-  const { can } = useAuth();
+  const { can, me } = useAuth();
   const { data: d, loading, error, reload } = useLoad('/alerts');
   const { hash } = useLocation();
   const seeContracts = can('canViewAlertsContracts');
   const seeGuarantees = can('canViewAlertsGuarantees');
   const seeLogistics = can('canViewAlertsLogistics');
+  // Pas de can() : être administrateur ne suffit pas pour les modèles et l'historique.
+  const seeHistory = me.user.permissions.canViewAlertHistory && (seeContracts || seeGuarantees);
   const [filter, setFilter] = useState('all');
   const [flash, setFlash] = useState({ type: 'success', text: '' });
   const [sending, setSending] = useState('');
@@ -112,7 +114,7 @@ export default function Alerts() {
 
   return (
     <>
-      <PageHead kicker="SURVEILLANCE CONTRACTUELLE" title="Alertes" desc={seeContracts || seeGuarantees ? 'Les alertes sont détectées dans le projet et la phase actifs. Les messages aux entreprises suivent les modèles ci-dessous et sont tracés dans l’historique des envois.' : 'Stock, charroi et groupes électrogènes de votre périmètre : les produits concernés clignotent.'} />
+      <PageHead kicker="SURVEILLANCE CONTRACTUELLE" title="Alertes" desc={seeContracts || seeGuarantees ? `Les alertes sont détectées dans le projet et la phase actifs.${seeHistory ? ' Les messages aux entreprises suivent les modèles ci-dessous et sont tracés dans l’historique des envois.' : ''}` : 'Stock, charroi et groupes électrogènes de votre périmètre : les produits concernés clignotent.'} />
       <Notice type={flash.type} onClose={() => say('')}>{flash.text}</Notice>
       {(seeContracts || seeGuarantees) && <div className="alert alert-info alert-policy"><i className="bi bi-shield-check me-2" /><strong>Envois aux entreprises.</strong> Les alertes des contrats partent automatiquement une fois par semaine, et les relances des garanties selon leur séquence (Finance › Garanties). Le bouton les envoie aussi à la demande, après vérification du message. Le personnel du projet reçoit son propre rappel, une fois par semaine.</div>}
 
@@ -153,8 +155,8 @@ export default function Alerts() {
       </div>}
 
       {seeLogistics && <LogisticsAlertsPanel items={d.logistics} />}
-      {(seeContracts || seeGuarantees) && <AlertTemplatesPanel />}
-      {(seeContracts || seeGuarantees) && <AlertHistoryPanel rev={rev} />}
+      {seeHistory && <AlertTemplatesPanel />}
+      {seeHistory && <AlertHistoryPanel rev={rev} />}
 
       {confirm && (
         <Modal

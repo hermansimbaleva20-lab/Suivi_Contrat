@@ -120,7 +120,7 @@ const bounds = boundaryLayer.getBounds();
   }, [JSON.stringify(rows)]);
   return (
     <>
-      <div ref={el} className="prise-map" style={{ height: 360, borderRadius: 14, overflow: 'hidden' }} />
+      <div ref={el} className="prise-map" style={{ height: 500, borderRadius: 14, overflow: 'hidden' }} />
       <div className="province-legend mt-2 d-flex gap-3 flex-wrap small text-secondary">
         <span><i className="province-dot" style={{ background: '#16844a' }} /> Province d’intervention — normal</span>
         <span><i className="province-dot" style={{ background: '#d98200' }} /> Vigilance</span>

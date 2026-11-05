@@ -105,9 +105,10 @@ class Views
     public static function user($u): array
     {
         $perms = [];
-        foreach (['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes'] as $k) {
+        foreach (['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes', 'can_follow_new_contracts'] as $k) {
             $perms[lcfirst(str_replace('_', '', ucwords($k, '_')))] = Ctx::can($k, $u);
         }
+        $perms['canViewAlertHistory'] = Ctx::canViewAlertHistory($u);
         return [
             'id' => $u->id, 'name' => $u->full_name ?: $u->name, 'email' => $u->email, 'title' => Ctx::title($u), 'position' => (string) $u->project_position,
             'role' => $u->role, 'isSuperAdmin' => (bool) $u->is_super_admin, 'isAdmin' => Ctx::isAdmin($u), 'projectId' => (int) $u->project_id, 'permissions' => $perms,

@@ -393,6 +393,8 @@ class Structure
             $t->unsignedInteger('maintenance_interval');
             $t->unsignedInteger('maintenance_warning');
             $t->decimal('initial_meter', 12, 1)->default(0);
+            $t->decimal('maintenance_last_meter', 12, 1)->nullable(); // programmation : compteur du dernier entretien
+            $t->decimal('maintenance_next_meter', 12, 1)->nullable(); // programmation : compteur du prochain entretien
             $t->boolean('is_active')->default(true);
             $t->timestamps();
             $t->unique(['project_id', 'name'], 'fleet_assets_project_name_unique');
@@ -438,6 +440,7 @@ class Structure
             $t->foreignId('organizational_unit_id')->constrained('organizational_units')->restrictOnDelete();
             $t->foreignId('fleet_asset_id')->constrained('fleet_assets')->restrictOnDelete();
             $t->date('maintenance_date');
+            $t->decimal('next_meter', 12, 1)->nullable(); // compteur du prochain entretien
             $t->decimal('meter_reading', 12, 1);
             $t->string('designation', 255);
             $t->decimal('cost', 14, 2)->nullable();

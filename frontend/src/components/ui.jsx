@@ -106,6 +106,21 @@ export function Pager({ meta, onPage }) {
   );
 }
 
+/**
+ * Bouton d'enregistrement d'une boîte. state : idle, busy (requête en cours) ou done (réussi). Hors idle il refuse le clic
+ * mais garde le focus, pour que le clavier le retrouve si l'enregistrement échoue.
+ */
+export function SubmitButton({ state = 'idle', onClick, disabled, children }) {
+  const idle = state === 'idle';
+  return (
+    <button type="button" className="btn btn-primary submit-btn" data-state={state} disabled={disabled} aria-disabled={!idle} aria-busy={state === 'busy'} aria-live="polite" onClick={idle ? onClick : undefined}>
+      <span className="submit-label is-idle">{children}</span>
+      <span className="submit-label is-busy"><span className="spinner-border spinner-border-sm" aria-hidden="true" />Enregistrement…</span>
+      <span className="submit-label is-done"><i className="bi bi-check-lg" aria-hidden="true" />Enregistré</span>
+    </button>
+  );
+}
+
 export function Modal({ title, subtitle, onClose, children, footer, size = 'lg' }) {
   useEffect(() => {
     document.body.classList.add('modal-open');

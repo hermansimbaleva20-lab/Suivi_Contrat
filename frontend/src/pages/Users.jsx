@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { api, apiError } from '../api.js';
 import { useLoad } from '../lib/hooks.js';
 import { frDateTime } from '../lib/format.js';
-import { Loading, Modal, Notice, PageHead, Empty } from '../components/ui.jsx';
+import { Empty, Loading, Modal, Notice, PageHead, SubmitButton } from '../components/ui.jsx';
+import { animateModalOut } from '../lib/modalMotion.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const PERMS = [
@@ -13,7 +14,11 @@ const PERMS = [
   ['canViewStock', 'Consulter le stock'], ['canManageStock', 'Gérer le stock'],
   ['canViewFleet', 'Consulter le charroi et les groupes électrogènes'], ['canManageFleet', 'Gérer le charroi et les groupes électrogènes'],
   ['canValidateDecomptes', 'Valider les décomptes (chef de cellule infrastructures)'],
+  ['canFollowNewContracts', 'Notifié des nouveaux contrats (suivi)'],
+  ['canViewAlertHistory', 'Voir modèles et historique des alertes'],
 ];
+// Accordées une à une, y compris à un administrateur : le rôle ne les donne pas.
+const EXPLICIT = ['canFollowNewContracts', 'canViewAlertHistory'];
 // Logistique : chaque unité (coordination nationale, antennes) la gère de manière autonome, dans son seul périmètre.
 const LOGISTICS = ['canViewAlertsLogistics', 'canViewStock', 'canManageStock', 'canViewFleet', 'canManageFleet'];
 // Autorisation des demandes logistiques : une case par poste, selon l'unité du compte (une seule qualité à la fois).
@@ -23,12 +28,17 @@ const AUTHORITIES = {
 };
 const AUTHORITY_LABEL = { CA: 'Autorise : C.A', HRAF: 'Autorise : HRAF', COMPTABLE: 'Autorise : comptable' };
 const snake = (k) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-const chips = { canManageContracts: 'Contrats', canManageProgress: 'Avancement', canManagePayments: 'Paiements', canManageGuarantees: 'Garanties', canViewReports: 'Rapports', canViewAlertsContracts: 'Alertes contrats', canViewAlertsGuarantees: 'Alertes garanties', canViewAlertsLogistics: 'Alertes logistique', canViewSituation: 'Situation', canManageStock: 'Stocks', canManageFleet: 'Charroi', canAuthorizeFleet: 'Visa charroi' };
+const chips = { canManageContracts: 'Contrats', canManageProgress: 'Avancement', canManagePayments: 'Paiements', canManageGuarantees: 'Garanties', canViewReports: 'Rapports', canViewAlertsContracts: 'Alertes contrats', canViewAlertsGuarantees: 'Alertes garanties', canViewAlertsLogistics: 'Alertes logistique', canViewSituation: 'Situation', canManageStock: 'Stocks', canManageFleet: 'Charroi', canAuthorizeFleet: 'Visa charroi', canViewAlertHistory: 'Modèles et historique' };
 
 const ROLES = [
   ['UTILISATEUR', 'Utilisateur simple', 'Seulement les habilitations cochées ci-dessous.'],
   ['ADMINISTRATEUR', 'Administrateur', 'Toutes les habilitations, dans son unité seulement.'],
 ];
+// Temps de lecture de « Enregistré » avant la fermeture de la boîte.
+const DONE_PAUSE = 380;
+const SUBMIT_IDLE = { state: 'idle', error: '' };
+const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
 const roleLabel = (u) => (u.isSuperAdmin ? 'Super-administrateur' : u.isAdmin ? 'Administrateur' : 'Utilisateur simple');
 
 export default function Users() {
@@ -38,6 +48,7 @@ export default function Users() {
   const [perm, setPerm] = useState(null);
   const [temp, setTemp] = useState(null);
   const [assign, setAssign] = useState(null);
+  const [submit, setSubmit] = useState(SUBMIT_IDLE);
   const org = useLoad('/organization', {}, !!assign);
   if (loading && !data) return <Loading />;
   if (!data) return <Notice>{error}</Notice>;
@@ -49,9 +60,44 @@ export default function Users() {
   const call = async (fn, after) => {
     try { const r = await fn(); say(r.data.message); if (after) after(r.data); await reload(); } catch (e) { say(apiError(e), 'danger'); }
   };
-  const saveAssign = () => call(() => api.put(`/users/${assign.id}/assignment`, { organizational_unit_id: assign.unitId || null, position_id: assign.positionId || null }), () => setAssign(null));
+  // Enregistrement depuis une boîte : elle se ferme une fois l'opération réussie ; une erreur s'affiche dans la boîte, seule visible à ce moment.
+  const saveDialog = async (fn, close) => {
+    if (submit.state !== 'idle') return;
+    setSubmit({ state: 'busy', error: '' });
+    let message;
+    try {
+      message = (await fn()).data.message;
+    } catch (e) {
+      setSubmit({ state: 'idle', error: apiError(e) });
+      return;
+    }
+    setSubmit({ state: 'done', error: '' });
+    await wait(DONE_PAUSE);
+    await animateModalOut();
+    close();
+    setSubmit(SUBMIT_IDLE);
+    say(message);
+    await reload();
+  };
+  const dismiss = (close) => {
+    if (submit.state !== 'idle') return;
+    setSubmit(SUBMIT_IDLE);
+    close();
+  };
+  const dialogFooter = (close, save, label, disabled = false) => (
+    <>
+      {submit.error && <div className="modal-error"><Notice>{submit.error}</Notice></div>}
+      <button className="btn btn-light" disabled={submit.state !== 'idle'} onClick={() => dismiss(close)}>Annuler</button>
+      <SubmitButton state={submit.state} disabled={disabled} onClick={save}>{label}</SubmitButton>
+    </>
+  );
+  const closeAssign = () => setAssign(null);
+  const closePerm = () => setPerm(null);
+  const saveAssign = () => saveDialog(() => api.put(`/users/${assign.id}/assignment`, { organizational_unit_id: assign.unitId || null, position_id: assign.positionId || null }), closeAssign);
   const unitLabel = (u) => (u.unit ? u.unit.name : 'Non affecté');
-  const savePerm = () => call(() => api.put(`/users/${perm.id}/permissions`, { ...Object.fromEntries(PERMS.map(([k]) => [snake(k), !!perm.permissions[k]])), can_view_pools: perm.canViewPools, logistics_authority: perm.authority || null, role: perm.role }), () => setPerm(null));
+  // Une qualité sans case dans l'unité du compte (déplacé depuis) n'est ni visible ni décochable : elle ne doit pas bloquer l'enregistrement.
+  const authorityOf = (p) => ((AUTHORITIES[p.unit?.type] || []).some(([value]) => value === p.authority) ? p.authority : null);
+  const savePerm = () => saveDialog(() => api.put(`/users/${perm.id}/permissions`, { ...Object.fromEntries(PERMS.map(([k]) => [snake(k), !!perm.permissions[k]])), can_view_pools: perm.canViewPools, logistics_authority: authorityOf(perm), role: perm.role }), closePerm);
   // Hors super-admin, on n'affecte qu'à sa propre unité.
   const assignableUnits = (units) => (data.callerIsSuper ? units : units.filter((u) => me.user.unit && u.id === me.user.unit.id));
 
@@ -141,8 +187,7 @@ export default function Users() {
       </div>
 
       {assign && (
-        <Modal title="Affectation" subtitle={assign.name} size="md" onClose={() => setAssign(null)}
-          footer={<><button className="btn btn-light" onClick={() => setAssign(null)}>Annuler</button><button className="btn btn-primary" disabled={!org.data} onClick={saveAssign}>Enregistrer l’affectation</button></>}>
+        <Modal title="Affectation" subtitle={assign.name} size="md" onClose={() => dismiss(closeAssign)} footer={dialogFooter(closeAssign, saveAssign, 'Enregistrer l’affectation', !org.data)}>
           {!org.data ? (org.error ? <Notice>{org.error}</Notice> : <Loading text="Chargement des unités…" />) : (
             <div className="row g-3">
               <div className="col-12">
@@ -165,8 +210,7 @@ export default function Users() {
         </Modal>
       )}
       {perm && (
-        <Modal title="Rôle et habilitations" subtitle={`${perm.name} — ${perm.title}${perm.unit ? ` (${perm.unit.name})` : ''}`} onClose={() => setPerm(null)}
-          footer={<><button className="btn btn-light" onClick={() => setPerm(null)}>Annuler</button><button className="btn btn-primary" onClick={savePerm}>Enregistrer</button></>}>
+        <Modal title="Rôle et habilitations" subtitle={`${perm.name} — ${perm.title}${perm.unit ? ` (${perm.unit.name})` : ''}`} onClose={() => dismiss(closePerm)} footer={dialogFooter(closePerm, savePerm, 'Enregistrer')}>
           <fieldset className="mb-3">
             <legend className="section-title mb-2" style={{ fontSize: 15 }}>Rôle dans le système</legend>
             <div className="row g-2">
@@ -189,11 +233,11 @@ export default function Users() {
           </fieldset>
           <fieldset>
             <legend className="section-title mb-2" style={{ fontSize: 15 }}>Habilitations</legend>
-            {perm.role === 'ADMINISTRATEUR' && <div className="small text-secondary mb-2">Un administrateur dispose déjà de toutes les habilitations dans son unité. Les cases ci-dessous servent s’il redevient utilisateur simple.</div>}
+            {perm.role === 'ADMINISTRATEUR' && <div className="small text-secondary mb-2">Un administrateur dispose déjà de ces habilitations dans son unité, sauf les deux cases modifiables, à accorder une à une. Les autres cases servent s’il redevient utilisateur simple.</div>}
             <div className="row g-2">
               {PERMS.filter(([k]) => !LOGISTICS.includes(k)).map(([k, label]) => (
                 <div className="col-md-6" key={k}>
-                  <label className="permission-toggle"><input type="checkbox" disabled={perm.role === 'ADMINISTRATEUR'} checked={perm.role === 'ADMINISTRATEUR' || !!perm.permissions[k]} onChange={(e) => setPerm({ ...perm, permissions: { ...perm.permissions, [k]: e.target.checked } })} /><span>{label}</span></label>
+                  <label className="permission-toggle"><input type="checkbox" disabled={perm.role === 'ADMINISTRATEUR' && !EXPLICIT.includes(k)} checked={(perm.role === 'ADMINISTRATEUR' && !EXPLICIT.includes(k)) || !!perm.permissions[k]} onChange={(e) => setPerm({ ...perm, permissions: { ...perm.permissions, [k]: e.target.checked } })} /><span>{label}</span></label>
                 </div>
               ))}
             </div>

@@ -8,16 +8,15 @@ import { ModuleHeader } from '../shared/ModuleHeader.jsx';
 import { useMutation } from '../fleet/fleetHooks.js';
 
 /*
- * Administration > Alertes e-mail (super-administrateur) : adresses qui reçoivent les alertes, par catégorie et par
- * unité ; séquence d'envoi de chaque catégorie ; simulation et envoi immédiat ; historique des envois.
+ * Administration > Alertes e-mail (super-administrateur) : adresses qui reçoivent les alertes, par catégorie ; séquence
+ * d'envoi de chaque catégorie ; simulation et envoi immédiat ; historique des envois. Les alertes logistiques restent
+ * dans l'application : elles ne partent pas par e-mail.
  * L'envoi automatique a lieu chaque jour à 7 h (commande planifiée prise:send-alerts).
  */
 
 const th = 'tw:border-b tw:border-prise-border tw:bg-prise-bg tw:px-3 tw:py-2.5 tw:text-left tw:font-tech tw:text-[11px] tw:font-semibold tw:uppercase tw:tracking-wide tw:text-prise-muted';
 const td = 'tw:border-b tw:border-prise-border tw:px-3 tw:py-2.5 tw:text-sm tw:text-prise-text tw:align-top';
 const STATUS = { ENVOYE: ['Envoyé', 'tw:bg-prise-green-soft tw:text-prise-green-2'], ECHEC: ['Échec', 'tw:bg-red-50 tw:text-prise-danger'], SIMULATION: ['Simulation', 'tw:bg-sky-50 tw:text-sky-800'], SANS_ADRESSE: ['Adresse manquante', 'tw:bg-amber-50 tw:text-amber-800'], SANS_DESTINATAIRE: ['Aucun valideur', 'tw:bg-amber-50 tw:text-amber-800'] };
-// Les décomptes ne vont pas à cette liste : leur rappel part au compte habilité à les valider.
-const forRecipients = (categories) => categories.filter((c) => c !== 'DECOMPTE' && c.key !== 'DECOMPTE');
 const Badge = ({ s }) => <span className={`tw:whitespace-nowrap tw:rounded-full tw:px-2 tw:py-0.5 tw:text-[11px] tw:font-bold ${STATUS[s][1]}`}>{STATUS[s][0]}</span>;
 
 function RecipientForm({ initial, data, onSubmit, onCancel, busy, errors }) {
@@ -42,17 +41,10 @@ function RecipientForm({ initial, data, onSubmit, onCancel, busy, errors }) {
         </select>
         <FieldError text={errors.position_id} />
       </div>
-      <div className="tw:sm:col-span-12">
-        <label className={label} htmlFor="ar-unit">Unité concernée</label>
-        <select id="ar-unit" className={input} value={f.organizational_unit_id} onChange={(e) => setF({ ...f, organizational_unit_id: e.target.value })}>
-          <option value="">Toutes les unités</option>
-          {data.units.map((u) => <option key={u.id} value={u.id}>{u.name} seulement</option>)}
-        </select>
-      </div>
       <fieldset className="tw:m-0 tw:border-0 tw:p-0 tw:sm:col-span-12">
         <legend className={label}>Alertes reçues</legend>
         <div className="tw:flex tw:flex-wrap tw:gap-2">
-          {forRecipients(data.categories).map((c) => (
+          {data.categories.map((c) => (
             <label key={c.key} className={`tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-1.5 tw:text-sm tw:ring-1 ${f.categories.includes(c.key) ? 'tw:bg-prise-green-soft tw:ring-prise-green-2' : 'tw:bg-white tw:ring-prise-border'}`}>
               <input type="checkbox" className="tw:size-4 tw:accent-prise-green-2" checked={f.categories.includes(c.key)} onChange={() => toggle(c.key)} />{c.label}
             </label>
@@ -98,7 +90,7 @@ export default function AlertSettingsPage() {
           <h2 className="tw:m-0 tw:font-display tw:text-[17px] tw:font-bold tw:text-prise-blue">Destinataires <span className="tw:font-tech tw:text-sm tw:font-medium tw:text-prise-muted">{data.recipients.length}</span></h2>
           {editing !== 'new' && <button type="button" className={btnPrimary} onClick={() => { setErrors({}); setEditing('new'); }}><i className="bi bi-plus-lg" aria-hidden="true" />Ajouter une adresse</button>}
         </header>
-        {editing === 'new' && <RecipientForm initial={{ email: '', name: '', organizational_unit_id: '', position_id: '', categories: forRecipients(data.categories).map((c) => c.key) }} data={data} onSubmit={save} onCancel={() => setEditing(null)} busy={busy} errors={errors} />}
+        {editing === 'new' && <RecipientForm initial={{ email: '', name: '', organizational_unit_id: '', position_id: '', categories: data.categories.map((c) => c.key) }} data={data} onSubmit={save} onCancel={() => setEditing(null)} busy={busy} errors={errors} />}
         <ul className="tw:m-0 tw:list-none tw:p-0">
           {data.recipients.map((x) => (
             <li key={x.id} className="tw:border-b tw:border-prise-border tw:last:border-b-0">
@@ -115,7 +107,7 @@ export default function AlertSettingsPage() {
                     </div>
                     <div className="tw:mt-1 tw:flex tw:flex-wrap tw:gap-1.5 tw:text-[11px]">
                       <span className="tw:rounded-full tw:bg-prise-bg tw:px-2 tw:py-0.5 tw:font-semibold tw:text-prise-text"><i className="bi bi-geo-alt tw:mr-1" aria-hidden="true" />{x.unitId ? unitName[x.unitId] : 'Toutes les unités'}</span>
-                      {forRecipients(x.categories).map((c) => <span key={c} className="tw:rounded-full tw:bg-prise-green-soft tw:px-2 tw:py-0.5 tw:font-semibold tw:text-prise-green-2">{catLabel[c]}</span>)}
+                      {x.categories.map((c) => <span key={c} className="tw:rounded-full tw:bg-prise-green-soft tw:px-2 tw:py-0.5 tw:font-semibold tw:text-prise-green-2">{catLabel[c]}</span>)}
                     </div>
                   </div>
                   <div className="tw:flex tw:gap-1">
@@ -146,9 +138,7 @@ export default function AlertSettingsPage() {
                   <td className={td}><input type="checkbox" aria-label={`Activer ${catLabel[x.category]}`} className="tw:size-4 tw:accent-prise-green-2" checked={x.isEnabled} onChange={(e) => setRule(x.category, 'isEnabled', e.target.checked)} /></td>
                   {x.category === 'GARANTIE' ? (
                     <td className={`${td} tw:text-xs tw:text-prise-muted`} colSpan={2}>Entreprise : selon la part consommée de la garantie (1 à 4 envois par semaine), paliers réglés dans <Link to="/guarantees">Finance › Garanties</Link>. Personnel : une fois par semaine jusqu’à la prolongation ou au renouvellement.</td>
-                  ) : x.category === 'DECOMPTE' ? (
-                    <td className={`${td} tw:text-xs tw:text-prise-muted`} colSpan={2}>Un jour après la transmission puis chaque jour, à l’adresse du compte habilité à valider (le chef de cellule infrastructures), jamais au super-admin.</td>
-                  ) : x.category === 'RETARD' ? (
+                                    ) : x.category === 'RETARD' ? (
                     <td className={`${td} tw:text-xs tw:text-prise-muted`} colSpan={2}>Entreprise et personnel : une fois par semaine, jusqu’à l’amélioration de l’avancement physique. Le bouton de la page <Link to="/alerts">Alertes</Link> envoie aussi à la demande.</td>
                   ) : (
                     <>

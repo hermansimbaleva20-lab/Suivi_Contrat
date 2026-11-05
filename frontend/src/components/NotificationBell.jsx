@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { frDateTime } from '../lib/format.js';
 
 const ICONS = {
+  NOUVEAU_CONTRAT: 'file-earmark-plus',
   DECOMPTE_A_VALIDER: 'receipt-cutoff',
   DECOMPTE_DECISION: 'check2-square',
   DECOMPTE_A_PAYER: 'cash-coin',

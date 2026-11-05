@@ -177,15 +177,6 @@ function PerformanceTable({ rows, s }) {
   );
 }
 
-const DEFINITIONS = [
-  ['Avancement physique', 'Moyenne des sites du contrat, cumul des saisies plafonné à 100 % par site, à la date d’arrêt.'],
-  ['Repère noir', 'Délai consommé : la barre verte doit l’atteindre pour que le contrat soit au rythme prévu.'],
-  ['Écart', 'Avancement physique moins délai consommé, en points. Négatif : en retard sur le délai.'],
-  ['SPI', 'Indice de performance des délais : avancement physique ÷ délai consommé. 1,00 correspond au rythme prévu.'],
-  ['Taux de paiement', 'Avance de démarrage et paiements enregistrés, rapportés au montant du contrat. En rouge s’il dépasse l’avancement physique.'],
-  ['Statut', 'Normal, Vigilance (écart de −20 à −25 points), Retard (au-delà, ou date de fin dépassée), Terminé, Résilié.'],
-];
-
 /** Contenu de la synthèse, partagé par l'écran et l'impression. */
 function SynthesisBody({ d, printing }) {
   const { summary: s, rows, period: p } = d;
@@ -268,12 +259,6 @@ function SynthesisBody({ d, printing }) {
             </dl>
           </section>
         )}
-        <section className="syn-section syn-defs">
-          <h3>Définitions</h3>
-          <dl>
-            {DEFINITIONS.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
-          </dl>
-        </section>
         <p className="syn-signoff">Établi le {fr(d.issuedBy.date)} par {d.issuedBy.name}{d.issuedBy.title ? `, ${d.issuedBy.title}` : ''}. Montants en USD.</p>
       </div>
     </article>

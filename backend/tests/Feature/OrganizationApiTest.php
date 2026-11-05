@@ -203,6 +203,15 @@ class OrganizationApiTest extends TestCase
         $this->as($super)->putJson("/api/users/{$hraf->id}/permissions", $form(null))->assertOk();
         $this->assertFalse((bool) $hraf->fresh()->can_authorize_fleet);
         $this->assertNull($hraf->fresh()->logistics_authority);
+
+        // La qualité ne suit pas un compte déplacé vers un autre type d'unité, mais reste d'une antenne à l'autre.
+        $p2 = $this->pool($this->prise, 'P2');
+        $this->as($super)->putJson("/api/users/{$ca->id}/assignment", ['organizational_unit_id' => $p2->id])->assertOk();
+        $this->assertSame('CA', $ca->fresh()->logistics_authority);
+        $this->as($super)->putJson("/api/users/{$ca->id}/assignment", ['organizational_unit_id' => $cn->id])->assertOk();
+        $this->assertNull($ca->fresh()->logistics_authority);
+        $this->assertFalse((bool) $ca->fresh()->can_authorize_fleet);
+        $this->as($super)->putJson("/api/users/{$ca->id}/permissions", $form(null))->assertOk();
     }
 }
 

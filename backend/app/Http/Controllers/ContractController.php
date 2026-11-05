@@ -7,6 +7,7 @@ use App\Support\DecompteLedger;
 use App\Support\GoodsProcedure;
 use App\Support\Loader;
 use App\Support\Metrics;
+use App\Support\Notifier;
 use App\Support\Views;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -251,6 +252,12 @@ class ContractController extends Controller
             return $cid;
         });
         Ctx::audit('CREATION', 'Contract', $id, "Contrat {$number} créé avec " . count($sites) . ' site(s).');
+        // Le suivi commence : les comptes choisis par le super-admin sont prévenus. Une fourniture de bureau ne se suit que par le stock.
+        if (!$officeUnit) {
+            $company = DB::table('companies')->where('id', $companyId)->value('name');
+            Notifier::send(Notifier::holders($pid, 'can_follow_new_contracts'), 'NOUVEAU_CONTRAT', "Nouveau contrat {$number} — suivi à commencer",
+                "Le contrat {$number} ({$company}) vient d’être enregistré. Commencez le suivi de son avancement physique et financier.", "/contracts/{$id}", 'Contract', $id);
+        }
         return response()->json(['id' => $id, 'message' => 'Contrat créé.'], 201);
     }
 

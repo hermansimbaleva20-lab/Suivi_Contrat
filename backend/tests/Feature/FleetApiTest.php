@@ -238,7 +238,7 @@ class FleetApiTest extends TestCase
         $codes = fn () => array_column($this->as($agent)->getJson('/api/fleet')->json('assets.0.alerts'), 'code');
         $this->assertEqualsCanonicalizing(['MAINTENANCE', 'FUEL', 'INSURANCE'], $codes());
 
-        $this->as($agent)->postJson('/api/fleet/maintenances', ['fleet_asset_id' => $v, 'maintenance_date' => now()->toDateString(), 'meter_reading' => '42700', 'designation' => 'Vidange et filtres', 'cost' => '180'])->assertOk();
+        $this->as($agent)->postJson('/api/fleet/maintenances', ['fleet_asset_id' => $v, 'maintenance_date' => now()->toDateString(), 'meter_reading' => '42700', 'next_meter' => '45700', 'designation' => 'Vidange et filtres', 'cost' => '180'])->assertOk();
         $this->as($agent)->postJson('/api/fleet/insurances', ['fleet_asset_id' => $v, 'start_date' => now()->toDateString(), 'end_date' => now()->addYear()->toDateString(), 'designation' => 'SONAS police 123', 'cost' => '950'])->assertOk();
         $this->as($agent)->postJson('/api/fleet/insurances', ['fleet_asset_id' => $v, 'start_date' => '2026-10-10', 'end_date' => '2026-10-01', 'designation' => 'X'])->assertStatus(422)->assertJsonValidationErrors('end_date');
         $this->assertSame(['FUEL'], $codes());
@@ -246,6 +246,52 @@ class FleetApiTest extends TestCase
         $m = $this->as($agent)->getJson('/api/fleet/maintenances')->assertOk()->json();
         $this->assertSame(45700.0, (float) $m['assets'][0]['maintenance']['nextMeter']);
         $this->as($this->logisticien($this->mbujiMayi))->deleteJson('/api/fleet/maintenances/' . $m['history'][0]['id'], ['reason' => 'Erreur de saisie'])->assertForbidden();
+    }
+
+    public function test_programmation_du_prochain_entretien_et_fin_de_l_alerte(): void
+    {
+        $agent = $this->logisticien($this->kananga);
+        $v = $this->vehicle($this->kananga, ['initial_meter' => 40000]);
+        $this->trip($agent, $v, 42000, 42600, ['log_date' => now()->toDateString(), 'fuel_level_before' => '120'])->assertOk();
+        $maintenance = fn () => $this->as($agent)->getJson('/api/fleet/maintenances')->assertOk()->json('assets.0.maintenance');
+        $alert = fn () => collect($this->as($agent)->getJson('/api/fleet')->json('assets.0.alerts'))->firstWhere('code', 'MAINTENANCE');
+
+        // Seules la logistique de l'unité programme, et le prochain doit être au-delà du dernier.
+        $plan = ['last_meter' => '42000', 'next_meter' => '46000'];
+        $this->as($this->logisticien($this->mbujiMayi))->putJson("/api/fleet/assets/{$v}/maintenance-plan", $plan)->assertForbidden();
+        $this->as($agent)->putJson("/api/fleet/assets/{$v}/maintenance-plan", ['last_meter' => '42000', 'next_meter' => '42000'])->assertStatus(422)->assertJsonValidationErrors('next_meter');
+        $this->as($agent)->putJson("/api/fleet/assets/{$v}/maintenance-plan", ['next_meter' => '46000'])->assertStatus(422)->assertJsonValidationErrors('last_meter');
+
+        // 600 km sur 4 000 : aucune alerte.
+        $this->as($agent)->putJson("/api/fleet/assets/{$v}/maintenance-plan", $plan)->assertOk();
+        $m = $maintenance();
+        $this->assertSame(['OK', 'PLAN', 42000.0, 46000.0, 45000.0], [$m['level'], $m['source'], (float) $m['lastMeter'], (float) $m['nextMeter'], (float) $m['warnMeter']]);
+        $this->assertNull($alert());
+
+        // Trois quarts du parcours : l'alerte commence, et se met à jour à chaque course.
+        $this->trip($agent, $v, 42600, 45000, ['log_date' => now()->toDateString()])->assertOk();
+        $this->assertSame('SOON', $maintenance()['level']);
+        $this->assertStringContainsString('il reste 1 000 km', $alert()['text']);
+        $this->assertSame('warning', $alert()['level']);
+        $this->trip($agent, $v, 45000, 45800, ['log_date' => now()->toDateString()])->assertOk();
+        $this->assertStringContainsString('il reste 200 km', $alert()['text']);
+        // Elle figure aussi dans les alertes logistiques de l'application.
+        $this->assertTrue(collect(\App\Support\AlertEngine::logistics($this->prise->id, null))->contains(fn ($a) => $a['code'] === 'MAINTENANCE' && $a['itemId'] === $v));
+
+        // L'entretien effectué exige le prochain compteur et arrête l'alerte.
+        $entry = ['fleet_asset_id' => $v, 'maintenance_date' => now()->toDateString(), 'meter_reading' => '45800', 'designation' => 'Vidange et filtres'];
+        $this->as($agent)->postJson('/api/fleet/maintenances', $entry)->assertStatus(422)->assertJsonValidationErrors('next_meter');
+        $this->as($agent)->postJson('/api/fleet/maintenances', $entry + ['next_meter' => '45800'])->assertStatus(422)->assertJsonValidationErrors('next_meter');
+        $id = $this->as($agent)->postJson('/api/fleet/maintenances', $entry + ['next_meter' => '48800'])->assertOk()->json('id');
+        $m = $maintenance();
+        $this->assertSame(['OK', 'RECORD', 45800.0, 48800.0], [$m['level'], $m['source'], (float) $m['lastMeter'], (float) $m['nextMeter']]);
+        $this->assertNull($alert());
+        $this->assertNull(DB::table('fleet_assets')->where('id', $v)->value('maintenance_next_meter'));
+        $this->assertEquals(48800, $this->as($agent)->getJson('/api/fleet/maintenances')->json('history.0.nextMeter'));
+
+        // L'entretien corrigé : le prochain suit.
+        $this->as($agent)->putJson("/api/fleet/maintenances/{$id}", $entry + ['next_meter' => '46000'])->assertOk();
+        $this->assertSame([46000.0, 45950.0, 'OK'], [(float) $maintenance()['nextMeter'], (float) $maintenance()['warnMeter'], $maintenance()['level']]);
     }
 
     public function test_rapport_de_periode_par_mois_par_unite_et_export(): void

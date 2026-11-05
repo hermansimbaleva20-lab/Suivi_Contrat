@@ -4,6 +4,7 @@ import { useLoad } from '../lib/hooks.js';
 import { fr, money, num, statusClass } from '../lib/format.js';
 import { Empty, Kpi, Loading, Notice, PageHead, Progress, StatusPill } from '../components/ui.jsx';
 import ProvinceMap from '../components/ProvinceMap.jsx';
+import ProvinceContractsTable from '../modules/dashboard/ProvinceContractsTable.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Dashboard() {
@@ -19,7 +20,6 @@ export default function Dashboard() {
   const guaranteePages = Math.max(1, Math.ceil((g.rows || []).length / pageSize));
   const contractRows = (d.contracts || []).slice((contractPage - 1) * pageSize, contractPage * pageSize);
   const guaranteeRows = (g.rows || []).slice((guaranteePage - 1) * pageSize, guaranteePage * pageSize);
-  const dist = [['Normal', d.normal], ['Vigilance', d.vigilance], ['Retard', d.retard], ['Terminé', d.termines], ['Résilié', d.resilies]];
 
   return (
     <>
@@ -120,76 +120,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="row g-3 mb-3 dashboard-situation-row">
-        <div className="col-xl-6">
-          <div className="d-flex align-items-center mb-3 dashboard-section-heading">
-            <div className="section-title">Situation générale des contrats</div>
-          </div>
-          <div className="cardx p-3 h-100 general-situation">
-            {dist.map(([label, n]) => (
-              <div className="mb-3" key={label}>
-                <div className="d-flex justify-content-between"><span>{label}</span><strong>{n}</strong></div>
-                <div className="progress-bar-prise"><span className={label === 'Retard' ? 'low' : ''} style={{ width: `${d.total ? (n / d.total) * 100 : 0}%` }} /></div>
-              </div>
-            ))}
-            <div className="small text-secondary">Avancement physique moyen : <strong>{num(d.average, 1)} %</strong> · Fin de contrat sous 30 jours : <strong>{d.near}</strong></div>
-          </div>
-        </div>
-        <div className="col-xl-6">
-          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 dashboard-section-heading">
-            <div className="section-title">Alertes récentes</div>
-            {(can('canViewAlertsContracts') || can('canViewAlertsGuarantees') || can('canViewAlertsLogistics')) && <Link to="/alerts" className="btn btn-outline-primary btn-sm">Centre des alertes</Link>}
-          </div>
-          <div className="cardx p-3 h-100">
-            <div className="alert-list">
-              {g.alerts.map((x) => (
-                <Link key={`g${x.id}`} to="/alerts" className="alert-item">
-                  <span className={`alert-item-icon ${x.isExpired ? 'danger' : 'warning'}`}><i className="bi bi-shield-exclamation" /></span>
-                  <span>
-                    <strong>{x.contractNumber} — {x.company}</strong>
-                    <small>{x.isExpired ? `Garantie échue le ${fr(x.endDate)}` : x.isExpiringSoon ? `Garantie à renouveler avant le ${fr(x.endDate)}` : 'Garantie : plus de 80 % de la durée consommée'}</small>
-                  </span>
-                </Link>
-              ))}
-              {d.recentAlerts.map((c) => (
-                <Link key={`c${c.id}`} to={`/overview/${c.id}`} className="alert-item">
-                  <span className={`alert-item-icon ${c.status === 'Retard' ? 'danger' : 'success'}`}><i className={`bi ${c.status === 'Retard' ? 'bi-exclamation-triangle-fill' : 'bi-patch-check-fill'}`} /></span>
-                  <span>
-                    <strong>{c.number} — {c.company}</strong>
-                    <small>{c.status === 'Retard' ? `Retard — avancement ${num(c.progress)} %, fin prévue ${fr(c.endDate)}` : `Satisfaction — avancement ${num(c.progress)} %`}</small>
-                  </span>
-                </Link>
-              ))}
-              {!g.alerts.length && !d.recentAlerts.length && <div className="alert alert-success mb-0"><i className="bi bi-check-circle me-2" />Aucune alerte de contrat ou de garantie pour le moment.</div>}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProvinceContractsTable groups={d.provinceContracts} />
 
       <div className="cardx p-3 map-card">
         <div className="section-title">Provinces concernées</div>
         <div className="section-subtitle mb-3">Contrats et sites par province ; la couleur indique l’état le plus critique.</div>
-        <div className="row g-3">
-          <div className="col-xl-7"><ProvinceMap rows={d.provinceMap} /></div>
-          <div className="col-xl-5">
-            <div className="table-wrap">
-              <table className="table table-sm align-middle">
-                <thead><tr><th>Province</th><th>Contrats</th><th>Sites</th><th>Avancement</th></tr></thead>
-                <tbody>
-                  {d.provinceMap.map((p) => (
-                    <tr key={p.name} title={`${p.categories} — ${p.sites}`}>
-                      <td><strong>{p.name}</strong><div className="small text-secondary">{p.categories}</div></td>
-                      <td>{p.contracts}</td>
-                      <td>{p.siteCount}</td>
-                      <td><span className={`status ${p.retard ? 'status-retard' : p.vigilance ? 'status-vigilance' : 'status-normal'}`}>{num(p.progress)}%</span></td>
-                    </tr>
-                  ))}
-                  {!d.provinceMap.length && <tr><td colSpan="4"><Empty text="Aucune province renseignée." /></td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <ProvinceMap rows={d.provinceMap} />
       </div>
     </>
   );

@@ -216,13 +216,19 @@ class OrganizationController extends Controller
         if (!self::positionFitsUnit($d['position_id'] ?? null, $d['organizational_unit_id'] ?? null)) {
             throw \Illuminate\Validation\ValidationException::withMessages(['position_id' => 'Ce poste n’est pas prévu pour l’unité choisie.']);
         }
-        $before = ['organizational_unit_id' => $user->organizational_unit_id, 'position_id' => $user->position_id];
+        $before = ['organizational_unit_id' => $user->organizational_unit_id, 'position_id' => $user->position_id, 'logistics_authority' => $user->logistics_authority];
         $user->organizational_unit_id = $d['organizational_unit_id'] ?? null;
         $user->position_id = $d['position_id'] ?? null;
         if ($user->position_id) $user->project_position = Position::find($user->position_id)->name;
+        // La qualité d'autorisation dépend de l'unité : elle ne suit pas un compte déplacé vers un autre type d'unité.
+        $unitType = $user->organizational_unit_id ? OrganizationalUnit::where('id', $user->organizational_unit_id)->value('type') : null;
+        if ($user->logistics_authority && !in_array($user->logistics_authority, UserController::authoritiesFor($unitType), true)) {
+            $user->logistics_authority = null;
+            $user->can_authorize_fleet = false;
+        }
         $user->save();
         Ctx::auditChange('AFFECTATION_UTILISATEUR', 'User', $user->id, "Affectation de {$user->email} mise à jour.", $before,
-            ['organizational_unit_id' => $user->organizational_unit_id, 'position_id' => $user->position_id]);
+            ['organizational_unit_id' => $user->organizational_unit_id, 'position_id' => $user->position_id, 'logistics_authority' => $user->logistics_authority]);
         return ['message' => 'Affectation enregistrée.'];
     }
 }

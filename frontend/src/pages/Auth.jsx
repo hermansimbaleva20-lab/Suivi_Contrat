@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { api, apiError } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from '../components/ui.jsx';
+import '../styles/login-motion.css';
 
 const PROJECTS = {
   PRISE: {
@@ -14,6 +15,38 @@ const PROJECTS = {
     desc: 'Systèmes d’AEP solaires et thermiques • Renforcement d’expérience opérationnelle  • Campagnes d\'IEC pour le changement de comportements',
   },
 };
+
+/* Fond des pages de connexion, de demande d'accès et de mot de passe oublié : la photo reprend sa dérive là où elle en était (login-motion.css). */
+function AuthPage({ children }) {
+  const [drift] = useState(() => `-${Math.round(performance.now())}ms`);
+  return <div className="login-bg" style={{ '--login-drift': drift }}><div className="login-page">{children}</div></div>;
+}
+
+/* Autour de la carte : ondes qui s'en éloignent, tracé du contour à l'arrivée, puis lueur qui en fait le tour. */
+function CardHalo() {
+  const edge = { x: 0, y: 0, width: '100%', height: '100%', rx: 22, pathLength: 100 };
+  return (
+    <span className="card-halo" aria-hidden="true">
+      <i /><i /><i />
+      <svg className="card-trace">
+        <defs>
+          <linearGradient id="card-trace-water" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#10b981" />
+            <stop offset=".45" stopColor="#14b8a6" />
+            <stop offset=".75" stopColor="#d4a72c" />
+            <stop offset="1" stopColor="#22c55e" />
+          </linearGradient>
+        </defs>
+        <rect className="trace-draw" {...edge} />
+      </svg>
+      <b className="card-glint" />
+    </span>
+  );
+}
+
+function Seal() {
+  return <img src="/images/logo-min.jpg" alt="Sceau de la République démocratique du Congo" width="84" height="84" className="login-seal" />;
+}
 
 function Hero({ code, title }) {
   const p = PROJECTS[code] || PROJECTS.PRISE;
@@ -77,11 +110,12 @@ export function Login() {
   };
 
   return (
-    <div className="login-bg">
-      <div className="login-page">
+    <AuthPage>
         <Hero code={project} />
       <section className="login-card">
+        <CardHalo />
         <div className="text-center mb-4">
+          <Seal />
           <h2 className="mt-2 mb-1">Bienvenue</h2>
           <div className="text-secondary">Connectez-vous à votre espace du projet PRISE ou programme PREDIRE</div>
         </div>
@@ -92,15 +126,14 @@ export function Login() {
           <label className="form-label">Adresse e-mail</label>
           <input className="form-control mb-3" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" autoFocus required />
           <PasswordField label="Mot de passe" value={password} onChange={setPassword} autoComplete="current-password" />
-          <button type="submit" className="btn btn-primary w-100" disabled={busy}>{busy ? 'CONNEXION…' : 'SE CONNECTER'}</button>
+          <button type="submit" className="btn btn-primary w-100" disabled={busy}>{busy ? <><span className="spinner-border spinner-border-sm" aria-hidden="true" />CONNEXION…</> : 'SE CONNECTER'}</button>
         </form>
         <div className="d-flex justify-content-between mt-4 pt-3 border-top">
           <Link to="/forgot-password" style={{ color: '#087a3f', fontWeight: 750 }}>Mot de passe oublié ?</Link>
           <Link to="/register" style={{ color: '#087a3f', fontWeight: 750 }}>Demander un accès</Link>
         </div>
       </section>
-      </div>
-    </div>
+    </AuthPage>
   );
 }
 
@@ -144,10 +177,11 @@ export function Register() {
   );
 
   return (
-    <div className="login-bg"><div className="login-page">
+    <AuthPage>
       <Hero code={f.project} title="Demande d’accès à un projet" />
       <section className="login-card">
-        <div className="text-center mb-3"><h2 className="mt-2 mb-1">Demande d’accès</h2><div className="text-secondary">Votre compte sera activé après validation par l’administrateur du projet.</div></div>
+        <CardHalo />
+        <div className="text-center mb-3"><Seal /><h2 className="mt-2 mb-1">Demande d’accès</h2><div className="text-secondary">Votre compte sera activé après validation par l’administrateur du projet.</div></div>
         <form onSubmit={submit}>
           <Notice>{error}</Notice>
           <ProjectSelect value={f.project} onChange={set('project')} />
@@ -176,11 +210,11 @@ export function Register() {
           </div>
           <PasswordField label="Mot de passe (8 caractères minimum)" value={f.password} onChange={set('password')} autoComplete="new-password" />
           <PasswordField label="Confirmation" value={f.password_confirmation} onChange={set('password_confirmation')} autoComplete="new-password" />
-          <button type="submit" className="btn btn-primary w-100" disabled={busy}>ENVOYER MA DEMANDE</button>
+          <button type="submit" className="btn btn-primary w-100" disabled={busy}>{busy ? <><span className="spinner-border spinner-border-sm" aria-hidden="true" />ENVOI…</> : 'ENVOYER MA DEMANDE'}</button>
         </form>
         <div className="text-center mt-4 pt-3 border-top"><Link to="/login" style={{ color: '#087a3f', fontWeight: 750 }}>← Retour à la connexion</Link></div>
       </section>
-    </div></div>
+    </AuthPage>
   );
 }
 
@@ -202,10 +236,11 @@ export function ForgotPassword() {
     } finally { setBusy(false); }
   };
   return (
-    <div className="login-page">
+    <AuthPage>
       <Hero code={project} title="Réinitialisation du mot de passe" />
       <section className="login-card">
-        <div className="text-center mb-4"><h2 className="mt-2 mb-1">Mot de passe oublié</h2><div className="text-secondary">Recevoir un lien de réinitialisation valable 30 minutes</div></div>
+        <CardHalo />
+        <div className="text-center mb-4"><Seal /><h2 className="mt-2 mb-1">Mot de passe oublié</h2><div className="text-secondary">Recevoir un lien de réinitialisation valable 30 minutes</div></div>
         {message ? <div className="alert alert-success">{message}</div> : (
           <form onSubmit={submit}>
             <Notice>{error}</Notice>
@@ -218,7 +253,7 @@ export function ForgotPassword() {
         )}
         <div className="text-center mt-4 pt-3 border-top"><Link to="/login" style={{ color: '#087a3f', fontWeight: 750 }}>← Retour à la connexion</Link></div>
       </section>
-    </div>
+    </AuthPage>
   );
 }
 

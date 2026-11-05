@@ -96,15 +96,22 @@ class ReportingAlertsApiTest extends TestCase
         $this->as($super)->getJson('/api/alert-settings')->assertOk();
 
         $poste = DB::table('positions')->insertGetId(['project_id' => $this->prise->id, 'name' => 'LOGISTICIEN', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'sans.poste@example.test', 'name' => 'X', 'categories' => ['STOCK']])->assertStatus(422)->assertJsonValidationErrors('position_id');
-        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'Logistique@Example.test', 'name' => 'Logistique', 'position_id' => $poste, 'categories' => ['STOCK'], 'organizational_unit_id' => $pool->id])->assertOk();
-        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'logistique@example.test', 'name' => 'X', 'position_id' => $poste, 'categories' => ['STOCK']])->assertStatus(422)->assertJsonValidationErrors('email');
+        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'sans.poste@example.test', 'name' => 'X', 'categories' => ['RETARD']])->assertStatus(422)->assertJsonValidationErrors('position_id');
+        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'Logistique@Example.test', 'name' => 'Logistique', 'position_id' => $poste, 'categories' => ['GARANTIE']])->assertOk();
+        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'logistique@example.test', 'name' => 'X', 'position_id' => $poste, 'categories' => ['GARANTIE']])->assertStatus(422)->assertJsonValidationErrors('email');
         $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'raf@example.test', 'name' => 'RAF', 'position_id' => $poste, 'categories' => []])->assertStatus(422)->assertJsonValidationErrors('categories');
-        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'raf@example.test', 'name' => 'RAF', 'position_id' => $poste, 'categories' => ['RETARD', 'STOCK', 'INCONNUE']])->assertStatus(422);
-        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'raf@example.test', 'name' => 'RAF', 'position_id' => $poste, 'categories' => ['RETARD', 'STOCK']])->assertOk();
+        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'raf@example.test', 'name' => 'RAF', 'position_id' => $poste, 'categories' => ['RETARD', 'INCONNUE']])->assertStatus(422);
+        // Les alertes logistiques restent dans l'application : ni destinataire, ni séquence d'envoi.
+        foreach (['STOCK', 'CHARROI', 'GROUPE'] as $logistics) {
+            $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'raf@example.test', 'name' => 'RAF', 'position_id' => $poste, 'categories' => [$logistics]])->assertStatus(422);
+            $this->as($super)->putJson('/api/alert-settings/rules', ['rules' => [['category' => $logistics, 'is_enabled' => true, 'interval_days' => 3, 'max_sends' => 2]]])->assertStatus(422);
+        }
+        $this->as($super)->postJson('/api/alert-settings/recipients', ['email' => 'raf@example.test', 'name' => 'RAF', 'position_id' => $poste, 'categories' => ['RETARD']])->assertOk();
 
-        $this->as($super)->putJson('/api/alert-settings/rules', ['rules' => [['category' => 'STOCK', 'is_enabled' => true, 'interval_days' => 3, 'max_sends' => 2]]])->assertOk();
-        $this->assertSame(3, (int) DB::table('alert_rules')->where('category', 'STOCK')->value('interval_days'));
+        $this->as($super)->putJson('/api/alert-settings/rules', ['rules' => [['category' => 'RETARD', 'is_enabled' => true, 'interval_days' => 3, 'max_sends' => 2]]])->assertOk();
+        $this->assertSame(3, (int) DB::table('alert_rules')->where('category', 'RETARD')->value('interval_days'));
+        // Un ancien destinataire inscrit au stock ne reçoit plus rien pour la logistique.
+        DB::table('alert_recipients')->where('email', 'logistique@example.test')->update(['categories' => 'STOCK,CHARROI,GROUPE']);
 
         // Article en rupture à Kananga, contrat en retard : simulation sans envoi.
         $a = StockArticle::create(['project_id' => $this->prise->id, 'number' => 1, 'designation' => 'Cartouche', 'unit' => 'Pce', 'unit_price' => 45, 'alert_threshold' => 5, 'is_active' => true]);
@@ -112,9 +119,11 @@ class ReportingAlertsApiTest extends TestCase
         $this->contract();
         $plan = $this->as($super)->postJson('/api/alert-settings/run', ['dry_run' => true])->assertOk()->json('plan');
         $byCat = collect($plan)->keyBy('category');
-        $this->assertEqualsCanonicalizing(['logistique@example.test', 'raf@example.test'], $byCat['STOCK']['recipients']);
+        $this->assertFalse($byCat->has('STOCK'));
         $this->assertSame(['raf@example.test'], $byCat['RETARD']['recipients']);
-        $this->assertSame('SIMULATION', $byCat['STOCK']['status']);
+        $this->assertSame('SIMULATION', $byCat['RETARD']['status']);
+        // L'alerte reste dans l'application.
+        $this->assertTrue(collect(\App\Support\AlertEngine::logistics($this->prise->id, null))->contains(fn ($al) => $al['category'] === 'STOCK' && $al['itemId'] === $a->id));
         $this->assertSame(0, DB::table('alert_dispatches')->count());
 
         // Envoi réel sans SMTP configuré : échec tracé, la séquence n'est pas consommée.

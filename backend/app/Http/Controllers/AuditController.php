@@ -20,7 +20,7 @@ class AuditController extends Controller
         'Contract' => 'Contrat', 'ContractPayment' => 'Paiement', 'ProgressEntry' => 'Avancement', 'PerformanceGuarantee' => 'Garantie', 'Company' => 'Entreprise',
         'User' => 'Compte', 'OrganizationalUnit' => 'Unité', 'Position' => 'Poste', 'StockArticle' => 'Article de stock', 'StockMovement' => 'Mouvement de stock',
         'FleetAsset' => 'Engin', 'FleetLog' => 'Carnet de bord', 'FleetMaintenance' => 'Entretien', 'FleetInsurance' => 'Assurance', 'ContractAdvance' => 'Avance de démarrage', 'Decompte' => 'Décompte',
-        'ReportSnapshot' => 'État figé', 'AlertRecipient' => 'Destinataire d’alertes', 'AlertRule' => 'Séquence d’alertes', 'AlertDispatch' => 'Envoi d’alertes', 'AlertTemplate' => 'Modèle de message', 'AiSettings' => 'Paramètres IA',
+        'ReportSnapshot' => 'État figé', 'AlertRecipient' => 'Destinataire d’alertes', 'AlertRule' => 'Séquence d’alertes', 'AlertDispatch' => 'Envoi d’alertes', 'AlertTemplate' => 'Modèle de message',
     ];
 
     private function query(Request $r)

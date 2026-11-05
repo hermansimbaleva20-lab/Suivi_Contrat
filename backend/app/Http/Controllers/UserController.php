@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    private const FLAGS = ['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes'];
+    private const FLAGS = ['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes', 'can_follow_new_contracts', 'can_view_alert_history'];
 
     /** Comptes visibles : ceux de son unité ; tous pour le super-admin et les comptes à vue nationale. */
     private function scoped()
@@ -105,6 +105,12 @@ class UserController extends Controller
      * Seul le super-admin octroie les habilitations, décide si le compte est administrateur (toutes les habilitations,
      * dans son unité) ou utilisateur simple, et désigne qui consulte les pools au niveau national (lecture seule).
      */
+    /** Qualités d'autorisation logistique possibles selon l'unité du compte. */
+    public static function authoritiesFor(?string $unitType): array
+    {
+        return $unitType === 'POOL' ? ['CA'] : ($unitType === 'COORDINATION' ? ['HRAF', 'COMPTABLE'] : []);
+    }
+
     public function permissions(Request $r, int $id)
     {
         abort_unless(Ctx::user()->is_super_admin, 403, 'Les habilitations sont octroyées par le super-administrateur.');
@@ -114,7 +120,7 @@ class UserController extends Controller
         // Autorisation des demandes logistiques : une qualité par poste, selon l'unité (C.A en antenne, HRAF ou comptable à la coordination).
         $authority = $r->input('logistics_authority') ?: null;
         $unitType = $u->organizational_unit_id ? $u->organizationalUnit?->type : null;
-        $allowed = $unitType === 'POOL' ? ['CA'] : ($unitType === 'COORDINATION' ? ['HRAF', 'COMPTABLE'] : []);
+        $allowed = self::authoritiesFor($unitType);
         if ($authority !== null && !in_array($authority, $allowed, true)) {
             throw ValidationException::withMessages(['logistics_authority' => $unitType === 'POOL'
                 ? 'Dans une antenne, l’autorisation des demandes logistiques revient au C.A.'

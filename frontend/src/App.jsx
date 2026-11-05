@@ -34,8 +34,6 @@ import DecomptesPage from './modules/decomptes/DecomptesPage.jsx';
 import ReportSnapshotsPage from './modules/reports/ReportSnapshotsPage.jsx';
 import SynthesisPage from './modules/reports/SynthesisPage.jsx';
 import AlertSettingsPage from './modules/alerts/AlertSettingsPage.jsx';
-import AiSettingsPage from './modules/ai/AiSettingsPage.jsx';
-import ContractExtractPage from './modules/ai/ContractExtractPage.jsx';
 import OpeningLoader from './components/OpeningLoader.jsx';
 import { FINANCE } from './lib/navigation.js';
 
@@ -137,8 +135,6 @@ export default function App() {
         <Route path="/generators/reports" element={<Guard any={FLEET}><FleetReportPage kind="GROUPE" /></Guard>} />
         <Route path="/organization" element={<Guard any={['canManageSettings']}><OrganizationPage /></Guard>} />
         <Route path="/phases" element={<Guard any={['canManageSettings']}><Phases /></Guard>} />
-        <Route path="/settings/ai" element={<SuperAdminGuard><AiSettingsPage /></SuperAdminGuard>} />
-        <Route path="/contracts/ai-extract" element={<Guard any={['canManageContracts', 'canManageCompanies']}><ContractExtractPage /></Guard>} />
         <Route path="/settings/alerts" element={<SuperAdminGuard><AlertSettingsPage /></SuperAdminGuard>} />
         <Route path="/settings" element={<Guard any={['canManageSettings']}><Settings /></Guard>} />
         <Route path="/audit" element={<Guard any={['canManageUsers', 'canManageSettings']}><Audit /></Guard>} />

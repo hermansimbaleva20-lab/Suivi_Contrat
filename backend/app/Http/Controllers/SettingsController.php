@@ -60,7 +60,7 @@ class SettingsController extends Controller
     public function storeRecipient(Request $r)
     {
         $this->needEditRecipients();
-        $data = $this->recipientData($r) + ['categories' => implode(',', array_diff(array_keys(AlertEngine::CATEGORIES), ['DECOMPTE']))];
+        $data = $this->recipientData($r) + ['categories' => implode(',', array_keys(AlertEngine::CATEGORIES))];
         $id = DB::table('alert_recipients')->insertGetId($data + ['project_id' => Ctx::projectId(), 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         Ctx::auditChange('CREATION', 'AlertRecipient', $id, "Destinataire du projet {$data['email']} ajouté.", null, $data);
         return ['message' => "{$data['email']} recevra les alertes du projet."];

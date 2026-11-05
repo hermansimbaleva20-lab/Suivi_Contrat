@@ -13,9 +13,7 @@ const reports = (c) => c('canViewReports') || c('canViewSituation');
 // [groupe, libellé, libellé court, chemin, icône, visibilité, actif seulement sur le chemin exact]
 const NAV = [
   ['Suivi', 'Dashboard', 'Accueil', '/dashboard', 'grid-1x2-fill', () => true],
-  ['Suivi', 'Contrats', 'Contrats', '/contracts', 'file-earmark-text-fill', () => true, true, [
-    ['Repérage par l’IA', '/contracts/ai-extract', 'stars', (c) => c('canManageContracts') || c('canManageCompanies')],
-  ]],
+  ['Suivi', 'Contrats', 'Contrats', '/contracts', 'file-earmark-text-fill', () => true],
   ['Suivi', 'Suivi & Avancement', 'Suivi', '/progress', 'activity', (c) => c('canManageProgress') || c('canViewSituation')],
   // « Finance » regroupe paiements, décomptes et garanties ; elle ouvre la première sous-option accessible.
   ['Suivi', 'Finance', 'Finance', '/finance', 'wallet2', (c) => FINANCE.some((s) => s[3](c)), true, FINANCE],
@@ -38,7 +36,6 @@ const NAV = [
   ['Administration', 'Organisation', 'Organisation', '/organization', 'diagram-3-fill', (c) => c('canManageSettings')],
   ['Administration', 'Phases', 'Phases', '/phases', 'layers-fill', (c) => c('canManageSettings')],
   ['Administration', 'Paramètres', 'Réglages', '/settings', 'gear-fill', (c) => c('canManageSettings'), true],
-  ['Administration', 'Intelligence artificielle', 'IA', '/settings/ai', 'stars', (c, user) => !!user?.isSuperAdmin],
   ['Administration', 'Alertes e-mail', 'E-mails', '/settings/alerts', 'envelope-paper-fill', (c, user) => !!user?.isSuperAdmin],
   ['Administration', 'Journal d’audit', 'Audit', '/audit', 'journal-text', (c) => c('canManageUsers') || c('canManageSettings')],
 ];

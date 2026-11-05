@@ -55,8 +55,7 @@ function AssetForm({ initial, units, onSubmit, onCancel, busy, errors }) {
       {field('fuel_alert_level', 'Alerte réservoir à (L)', { num: true, hint: isVehicle ? '¼ du réservoir : 30 L pour 120 L' : 'Facultatif' })}
       {field('consumption_rate', `Consommation estimée (L/${u})`, { num: true, hint: isVehicle ? 'Méthode retenue : 0,2 L/km' : 'Facultatif' })}
       {field('fuel_price', 'Prix du litre (USD)', { num: true, required: true, hint: 'Proposé à la saisie, modifiable' })}
-      {field('maintenance_interval', `Entretien tous les (${u})`, { num: true, required: true })}
-      {field('maintenance_warning', `Avertir à partir de (${u})`, { num: true, required: true, hint: 'Depuis le dernier entretien' })}
+      {field('maintenance_interval', `Entretien tous les (${u})`, { num: true, required: true, hint: 'Propose le prochain entretien, modifiable' })}
       {field('initial_meter', isVehicle ? 'Kilométrage à l’entrée dans le parc' : 'Compteur horaire à l’entrée', { num: true, span: 'tw:sm:col-span-4' })}
       <div className="tw:flex tw:items-end tw:justify-end tw:gap-2 tw:sm:col-span-8">
         <button type="button" className={btnGhost} onClick={onCancel}>Annuler</button>

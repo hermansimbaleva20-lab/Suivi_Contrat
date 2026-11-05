@@ -16,7 +16,6 @@ import { useMutation } from '../fleet/fleetHooks.js';
 const GROUPS = [
   ['GARANTIE', 'Entreprises — garantie de bonne exécution', 'bi-shield-check'], ['CONTRAT', 'Entreprises — contrats', 'bi-file-earmark-text'],
   ['PERSONNEL', 'Personnel du projet — rappel une fois par semaine', 'bi-people'],
-  ['DECOMPTE', 'Chef de cellule infrastructures — décompte à valider', 'bi-receipt-cutoff'],
 ];
 const KIND = {
   VIGILANCE: ['Vigilance', 'tw:bg-amber-50 tw:text-amber-800'], RETARD: ['Retard', 'tw:bg-red-50 tw:text-prise-danger'], SATISFACTION: ['Satisfaction', 'tw:bg-prise-green-soft tw:text-prise-green-2'],

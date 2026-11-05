@@ -105,7 +105,7 @@ Les comptes utilisateurs (mots de passe, habilitations, super-administrateur) so
 
 ## 5. Habilitations
 
-`can_manage_contracts`, `can_manage_progress`, `can_manage_payments`, `can_manage_guarantees`, `can_manage_companies`, `can_manage_users`, `can_manage_settings`, `can_delete_contracts`, `can_view_reports`, `can_view_alerts_contracts`, `can_view_alerts_guarantees`, `can_view_alerts_logistics`, `can_view_situation`, `can_view_archives`. Les administrateurs et le super-administrateur disposent de toutes les habilitations ; **seul le super-administrateur** peut lancer et télécharger la sauvegarde SQL.
+`can_manage_contracts`, `can_manage_progress`, `can_manage_payments`, `can_follow_new_contracts` (notifié de chaque nouveau contrat pour en commencer le suivi), `can_view_alert_history` (modèles et historique des alertes : le rôle d'administrateur ne le donne pas), `can_manage_guarantees`, `can_manage_companies`, `can_manage_users`, `can_manage_settings`, `can_delete_contracts`, `can_view_reports`, `can_view_alerts_contracts`, `can_view_alerts_guarantees`, `can_view_alerts_logistics`, `can_view_situation`, `can_view_archives`. Les administrateurs et le super-administrateur disposent de toutes les habilitations ; **seul le super-administrateur** peut lancer et télécharger la sauvegarde SQL.
 
 ## 6. Limites connues
 

@@ -19,7 +19,6 @@ class AlertTemplates
         'GARANTIE_VIGILANCE' => 'Garantie — alerte de vigilance', 'GARANTIE_RETARD' => 'Garantie — alerte de retard', 'GARANTIE_SATISFACTION' => 'Garantie — message de satisfaction',
         'CONTRAT_VIGILANCE' => 'Contrat — alerte de vigilance', 'CONTRAT_RETARD' => 'Contrat — alerte de retard', 'CONTRAT_SATISFACTION' => 'Contrat — message de satisfaction',
         'GARANTIE_PERSONNEL' => 'Personnel du projet — garantie à suivre', 'CONTRAT_PERSONNEL' => 'Personnel du projet — contrat à suivre',
-        'DECOMPTE_RAPPEL' => 'Chef de cellule infrastructures — décompte à valider',
     ];
 
     /** Quand chaque message part. */
@@ -32,7 +31,6 @@ class AlertTemplates
         'CONTRAT_SATISFACTION' => 'Automatique, une fois : quand le contrat est terminé. Le bouton de la page Alertes l’envoie aussi à la demande.',
         'GARANTIE_PERSONNEL' => 'Automatique, une fois par semaine : dès le premier palier de la garantie, jusqu’à sa prolongation ou son renouvellement.',
         'CONTRAT_PERSONNEL' => 'Automatique, une fois par semaine : tant que le contrat est en vigilance ou en retard, jusqu’à l’amélioration de l’avancement physique.',
-        'DECOMPTE_RAPPEL' => 'Automatique, chaque jour : un jour après la transmission d’un décompte encore en attente, à l’adresse du compte habilité à le valider.',
     ];
 
     /** Champ propre aux messages du personnel du projet. */
@@ -50,12 +48,6 @@ class AlertTemplates
             'contrat' => ['N° du contrat', '144/PRISE/2026'], 'entreprise' => ['Entreprise', 'GENERTEL GROUPE'], 'intitule' => ['Intitulé du contrat', 'Construction de forages'],
             'avancement' => ['Avancement physique', '45,0 %'], 'jours_consommes' => ['Délai consommé', '78,0 %'], 'date_debut' => ['Date de démarrage', '15/01/2026'],
             'date_fin' => ['Date de fin prévue', '15/01/2027'], 'projet' => ['Projet', 'PRISE II'],
-        ],
-        'DECOMPTE' => [
-            'decompte' => ['N° du décompte', 'DECOMPTE N°1'], 'contrat' => ['N° du contrat', '144/PRISE/2026'], 'entreprise' => ['Entreprise', 'GENERTEL GROUPE'],
-            'montant' => ['Montant du décompte (USD)', '45 000,00'], 'date_decompte' => ['Date du décompte', '02/11/2026'], 'transmis_le' => ['Date de transmission', '02/11/2026'],
-            'saisi_par' => ['Personne qui a établi le décompte', 'Jorcelin MIKADO'], 'attente' => ['Attente depuis la transmission', '1 jour'],
-            'lien' => ['Lien vers le décompte dans l’application', 'https://suivi.exemple/decomptes?contrat=144'], 'projet' => ['Projet', 'PRISE II'],
         ],
     ];
 
@@ -115,20 +107,11 @@ class AlertTemplates
                 . "Merci d'accorder une attention particulière à ce dossier jusqu'à l'amélioration de l'avancement physique.\n\n"
                 . "Ce rappel vous est envoyé une fois par semaine par l'application de suivi {projet}.",
         ],
-        'DECOMPTE_RAPPEL' => [
-            'subject' => '[{projet}] Rappel — {decompte} du contrat n° {contrat} à valider',
-            'body' => "Bonjour,\n\n"
-                . "Le {decompte} du contrat n° {contrat} ({entreprise}), d'un montant de {montant} USD, vous a été transmis le {transmis_le} par {saisi_par} et attend toujours votre décision.\n\n"
-                . "Merci de le valider ou de le rejeter dans l'application de suivi : {lien}\n\n"
-                . "Ce rappel vous est envoyé chaque jour tant que le décompte n'a pas été traité.\n\n"
-                . "Application de suivi {projet}",
-        ],
     ];
 
     public static function group(string $code): string
     {
-        foreach (['GARANTIE', 'DECOMPTE'] as $g) if (str_starts_with($code, $g)) return $g;
-        return 'CONTRAT';
+        return str_starts_with($code, 'GARANTIE') ? 'GARANTIE' : 'CONTRAT';
     }
 
     /** Message destiné au personnel du projet, et non à l'entreprise. */

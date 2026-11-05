@@ -22,7 +22,7 @@ class AlertSettingsController extends Controller
     private static function recipientView(object $r): array
     {
         return ['id' => $r->id, 'email' => $r->email, 'name' => (string) $r->name, 'positionId' => $r->position_id ? (int) $r->position_id : null, 'position' => $r->position_name, 'unitId' => $r->organizational_unit_id ? (int) $r->organizational_unit_id : null,
-            'categories' => array_values(array_filter(explode(',', (string) $r->categories))), 'isActive' => (bool) $r->is_active];
+            'categories' => array_values(array_intersect(explode(',', (string) $r->categories), array_keys(AlertEngine::CATEGORIES))), 'isActive' => (bool) $r->is_active];
     }
 
     public function index()

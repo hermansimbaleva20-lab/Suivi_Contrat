@@ -13,10 +13,14 @@ namespace App\Support;
  *  - litres estimés = distance × taux (0,2 L/km par défaut) ; montant = litres × prix (1,37 USD/L par défaut, modifiable à la saisie) ;
  *  - consommation moyenne = litres achetés ÷ km × 100, comme au pied du carnet de bord papier ;
  *  - niveau du réservoir = niveau au départ + litres achetés − litres estimés, reporté de course en course ;
- *  - entretien : avertissement après « maintenance_warning » (2 500 km / 75 h), échéance après « maintenance_interval » (3 000 km / 100 h).
+ *  - entretien : prochain entretien programmé au compteur ; alerte dès les trois quarts du parcours entre le dernier et le prochain,
+ *    jusqu'à ce que l'entretien soit enregistré ;
  */
 class FleetMetrics
 {
+    /** Part du parcours entre deux entretiens à partir de laquelle l'alerte commence. */
+    public const MAINTENANCE_WARNING_SHARE = 0.75;
+
     public const VEHICULE = 'VEHICULE';
     public const GROUPE = 'GROUPE';
 
@@ -166,14 +170,40 @@ class FleetMetrics
         return round($m, 1);
     }
 
-    /** OK | SOON (avertissement) | DUE (entretien dû) depuis le dernier entretien (ou l'entrée dans le parc). */
-    public static function maintenance(array $asset, float $currentMeter, array $maintenanceReadings): array
+    /**
+     * Prochain entretien (décision du 05/11/2026). Point de départ : le dernier entretien enregistré ou la programmation de
+     * l'engin si elle est au moins aussi récente, sinon l'entrée au parc. Prochain : le compteur programmé, à défaut
+     * dernier + intervalle. OK | SOON (trois quarts du parcours consommés) | DUE (compteur du prochain atteint).
+     * Entretien : ['reading' => float, 'next' => ?float].
+     */
+    public static function maintenance(array $asset, float $currentMeter, array $maintenances): array
     {
-        $last = $maintenanceReadings ? max(array_map('floatval', $maintenanceReadings)) : (float) $asset['initial_meter'];
-        $since = round(max(0.0, $currentMeter - $last), 1);
-        $interval = (int) $asset['maintenance_interval'];
-        $level = $since >= $interval ? 'DUE' : ($since >= (int) $asset['maintenance_warning'] ? 'SOON' : 'OK');
-        return ['lastMeter' => $last, 'since' => $since, 'nextMeter' => round($last + $interval, 1), 'remaining' => round($last + $interval - $currentMeter, 1), 'level' => $level, 'hasRecord' => (bool) $maintenanceReadings];
+        $last = (float) $asset['initial_meter'];
+        $next = null;
+        $source = 'INITIAL';
+        foreach ($maintenances as $m) {
+            if ($source === 'INITIAL' || (float) $m['reading'] >= $last) {
+                $last = (float) $m['reading'];
+                $next = $m['next'] ?? null;
+                $source = 'RECORD';
+            }
+        }
+        $plan = $asset['maintenance_last_meter'] ?? null;
+        if ($plan !== null && ($source === 'INITIAL' || (float) $plan >= $last)) {
+            $last = (float) $plan;
+            $next = $asset['maintenance_next_meter'] ?? null;
+            $source = 'PLAN';
+        }
+        $planned = $next !== null;
+        $next = $planned ? (float) $next : $last + (int) $asset['maintenance_interval'];
+        $span = max(1.0, $next - $last);
+        $warnAt = $last + $span * self::MAINTENANCE_WARNING_SHARE;
+        return [
+            'lastMeter' => $last, 'since' => round(max(0.0, $currentMeter - $last), 1), 'nextMeter' => round($next, 1), 'warnMeter' => round($warnAt, 1), 'remaining' => round($next - $currentMeter, 1),
+            'consumedPercent' => round(max(0.0, ($currentMeter - $last) / $span * 100), 1),
+            'level' => $currentMeter >= $next ? 'DUE' : ($currentMeter >= $warnAt ? 'SOON' : 'OK'),
+            'source' => $source, 'planned' => $planned, 'hasRecord' => (bool) $maintenances,
+        ];
     }
 
     /** Assurance en cours : la police dont l'échéance est la plus lointaine. NONE | EXPIRED | SOON (≤ 30 jours) | OK. */
@@ -194,9 +224,9 @@ class FleetMetrics
         $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 1, ',', ' '), '0'), ',');
         $a = [];
         if ($maintenance['level'] === 'DUE') {
-            $a[] = ['level' => 'danger', 'code' => 'MAINTENANCE', 'text' => 'Entretien dû : ' . $fmt($maintenance['since']) . " $unit depuis le dernier entretien (échéance tous les {$asset['maintenance_interval']} $unit)."];
+            $a[] = ['level' => 'danger', 'code' => 'MAINTENANCE', 'text' => 'Entretien dû : prévu à ' . $fmt($maintenance['nextMeter']) . " $unit, dépassé de " . $fmt(-$maintenance['remaining']) . " $unit."];
         } elseif ($maintenance['level'] === 'SOON') {
-            $a[] = ['level' => 'warning', 'code' => 'MAINTENANCE', 'text' => 'Entretien à prévoir dans ' . $fmt($maintenance['remaining']) . " $unit."];
+            $a[] = ['level' => 'warning', 'code' => 'MAINTENANCE', 'text' => 'Entretien prévu à ' . $fmt($maintenance['nextMeter']) . " $unit : il reste " . $fmt($maintenance['remaining']) . " $unit (" . $fmt($maintenance['consumedPercent']) . ' % du parcours consommé).'];
         }
         if ($asset['fuel_alert_level'] !== null && $fuelLevel !== null && $fuelLevel <= (float) $asset['fuel_alert_level']) {
             $a[] = ['level' => 'danger', 'code' => 'FUEL', 'text' => 'Réservoir bas : environ ' . $fmt($fuelLevel) . ' L estimés (alerte à ' . $fmt($asset['fuel_alert_level']) . ' L). Lancez la réquisition de carburant.'];
