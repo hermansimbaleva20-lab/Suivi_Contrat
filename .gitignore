@@ -1,0 +1,54 @@
+# ===============================
+# LARAVEL - ENVIRONNEMENT
+# ===============================
+.env
+.env.*
+!.env.example
+
+# ===============================
+# DEPENDANCES
+# ===============================
+/backend/vendor/
+/frontend/node_modules/
+/frontend/dist/
+/node_modules/
+
+# ===============================
+# FICHIERS TEMPORAIRES
+# ===============================
+*.log
+*.tmp
+*.cache
+.DS_Store
+Thumbs.db
+
+# ===============================
+# BASES DE DONNEES
+# ===============================
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# ===============================
+# DOCUMENTS ET FICHIERS CONFIDENTIELS
+# ===============================
+/backend/storage/app/private/
+/backend/storage/app/public/
+/backend/storage/logs/
+/backend/bootstrap/cache/
+
+# ===============================
+# CLES ET CERTIFICATS
+# ===============================
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ===============================
+# SAUVEGARDES
+# ===============================
+*.bak
+*.backup
+*.old
