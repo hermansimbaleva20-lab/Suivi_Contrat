@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
 
   ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->alias([
             'project' => \App\Http\Middleware\ProjectContext::class,
             'permission' => \App\Http\Middleware\EnsureProjectPermission::class,

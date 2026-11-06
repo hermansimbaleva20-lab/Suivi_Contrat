@@ -97,6 +97,8 @@ class UserController extends Controller
         abort_if($u->id === Ctx::user()->id || $u->is_super_admin, 422, 'Ce compte ne peut pas être désactivé depuis cet écran.');
         $u->is_active = !$u->is_active;
         $u->save();
+        // Désactivé : ses sessions ouvertes sont fermées tout de suite (ProjectContext refuse aussi ses requêtes suivantes).
+        if (!$u->is_active) $u->tokens()->delete();
         Ctx::audit($u->is_active ? 'REACTIVATION' : 'DESACTIVATION', 'User', $id, "Compte {$u->email}.");
         return ['message' => $u->is_active ? 'Compte réactivé.' : 'Compte désactivé.'];
     }
@@ -150,6 +152,7 @@ class UserController extends Controller
         for ($i = 0; $i < 12; $i++) $temp .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         $u->password = Hash::make($temp); $u->password_hash = null; $u->password_salt = null; $u->failed_login_count = 0; $u->lockout_end = null;
         $u->save();
+        $u->tokens()->delete();
         Ctx::audit('REINITIALISATION_ADMIN', 'User', $id, "Mot de passe temporaire généré pour {$u->email}.");
         return ['message' => 'Mot de passe temporaire généré. Il n’est affiché qu’une seule fois.', 'user' => $u->full_name, 'temporaryPassword' => $temp];
     }

@@ -93,7 +93,11 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const info = loc.state?.message;
+  const [info] = useState(() => {
+    let reason = null;
+    try { reason = sessionStorage.getItem('prise_login_info'); sessionStorage.removeItem('prise_login_info'); } catch { /* stockage indisponible */ }
+    return loc.state?.message || reason;
+  });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -208,7 +212,7 @@ export function Register() {
               </div>
             ) : text('Poste dans le projet', 'project_position')}
           </div>
-          <PasswordField label="Mot de passe (8 caractères minimum)" value={f.password} onChange={set('password')} autoComplete="new-password" />
+          <PasswordField label="Mot de passe (10 caractères minimum, avec lettres et chiffres)" value={f.password} onChange={set('password')} autoComplete="new-password" />
           <PasswordField label="Confirmation" value={f.password_confirmation} onChange={set('password_confirmation')} autoComplete="new-password" />
           <button type="submit" className="btn btn-primary w-100" disabled={busy}>{busy ? <><span className="spinner-border spinner-border-sm" aria-hidden="true" />ENVOI…</> : 'ENVOYER MA DEMANDE'}</button>
         </form>
@@ -291,7 +295,7 @@ export function ResetPassword() {
     <div className="login-page">
       <Hero code={project} title="Nouveau mot de passe" />
       <section className="login-card">
-        <div className="text-center mb-4"><h2 className="mt-2 mb-1">Définir mon mot de passe</h2><div className="text-secondary">8 caractères minimum. Ce lien ne peut être utilisé qu’une seule fois.</div></div>
+        <div className="text-center mb-4"><h2 className="mt-2 mb-1">Définir mon mot de passe</h2><div className="text-secondary">10 caractères minimum, avec lettres et chiffres. Ce lien ne peut être utilisé qu’une seule fois.</div></div>
         {valid === false ? (
           <>
             <div className="alert alert-danger"><strong>Lien invalide ou expiré.</strong><div className="small mt-1">Les liens sont valables 30 minutes et ne servent qu’une fois.</div></div>

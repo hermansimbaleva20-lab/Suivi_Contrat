@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Détermine le projet (en-tête X-Project) et la phase active (en-tête X-Phase) de la requête.
  * Un utilisateur ne peut pas changer de projet en modifiant l'en-tête ; une phase archivée exige l'habilitation « archives ».
+ * Un compte désactivé (ou remis en attente) perd l'accès à la requête suivante, sans attendre l'expiration de son jeton.
  */
 class ProjectContext {
  public function handle(Request $request, Closure $next): Response {
@@ -18,6 +19,11 @@ class ProjectContext {
   abort_unless($project,400,'Projet introuvable : exécutez les migrations et le seeder.');
   $user=$request->user();
   if($user){
+   if(!$user->is_active||$user->is_pending){
+    $token=$user->currentAccessToken();
+    if($token instanceof \Laravel\Sanctum\PersonalAccessToken)$token->delete();
+    abort(401,'Votre compte est désactivé. Contactez l’administrateur du projet.');
+   }
    abort_unless((int)$user->project_id===(int)$project->id||(bool)$user->is_super_admin,403,'Votre compte n’est pas autorisé à accéder à ce projet.');
   }
   $request->attributes->set('projectCode',$code);

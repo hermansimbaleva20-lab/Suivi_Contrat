@@ -17,6 +17,9 @@ api.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401 && localStorage.getItem('prise_token')) {
       localStorage.removeItem('prise_token');
+      // Compte désactivé par l'administrateur : la page de connexion en donne la raison.
+      const reason = error.response.data?.message;
+      if (reason && reason !== 'Unauthenticated.') { try { sessionStorage.setItem('prise_login_info', reason); } catch { /* stockage indisponible */ } }
       if (!location.pathname.startsWith('/login')) location.href = '/login';
     } else if (!error?.config?.silent && !location.pathname.startsWith('/error') && !['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname) && (!error?.response || error.response.status >= 500)) {
       const type = error?.response ? 'server' : 'connection';

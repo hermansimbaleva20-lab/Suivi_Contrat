@@ -105,7 +105,7 @@ class OrganizationApiTest extends TestCase
     {
         $pool = $this->pool($this->prise, 'P1');
         $poste = \App\Models\Position::create(['project_id' => $this->prise->id, 'name' => 'Logisticien', 'is_active' => true]);
-        $base = ['project' => 'PRISE', 'name' => 'Nouvel agent', 'email' => 'nouveau@example.test', 'password' => 'secret123', 'password_confirmation' => 'secret123'];
+        $base = ['project' => 'PRISE', 'name' => 'Nouvel agent', 'email' => 'nouveau@example.test', 'password' => 'Secret-2026', 'password_confirmation' => 'Secret-2026'];
 
         $this->postJson('/api/auth/register', $base)->assertStatus(422);
         $this->getJson('/api/auth/registration-options?project=PRISE')->assertOk()->assertJsonCount(1, 'units')->assertJsonPath('units.0.name', 'Pool P1');

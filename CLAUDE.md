@@ -22,6 +22,7 @@ php artisan serve                        # API sur http://127.0.0.1:8000
 php artisan prise:create-super-admin     # crée/promeut le super-admin et affiche un lien de définition du mot de passe
 php artisan prise:reset-structure        # recrée vides les tables métier, conserve users + config (taper RESET ; --no-backup si mysqldump absent)
 php artisan prise:import-legacy-users fichier.csv   # reprise des comptes de l'application C# (voir backend/docs/MIGRATION_UTILISATEURS_LEGACY.md)
+php artisan prise:verifier-securite      # avant une mise en ligne : échoue tant que la configuration est dangereuse (voir backend/docs/DEPLOIEMENT_SECURISE.md)
 php vendor/phpunit/phpunit/phpunit                          # tous les tests (Composer absent : pas de vendor/bin)
 php vendor/phpunit/phpunit/phpunit --filter test_statuts    # un seul test
 php vendor/laravel/pint/builds/pint                         # formatage PHP
@@ -59,7 +60,17 @@ Les habilitations sont des colonnes booléennes `can_*` sur `users` (liste dans 
 - contrôleurs : `Ctx::need('can_...')` ; c'est le cas des contrats, avancements et paiements, dont la consultation est ouverte à tous ;
 - frontend : `can()` de `AuthContext` et `<Guard any={[...]}>` dans [App.jsx](frontend/src/App.jsx).
 
-Seul le super-admin peut lancer ou télécharger une sauvegarde SQL. Les opérations sensibles sont journalisées avec `Ctx::audit(...)`, ou avec `Ctx::auditChange(..., $avant, $apres)` pour conserver les valeurs avant et après (TDR §12). L'audit ne doit jamais faire échouer l'opération.
+Seul le super-admin peut lancer ou télécharger une sauvegarde SQL.
+
+### Sécurité (décision du 06/11/2026, avant mise en ligne)
+- **Sessions** : un jeton Sanctum (14 jours) par connexion. `ProjectContext` refuse en 401 et supprime le jeton d'un compte désactivé ou en attente, à chaque requête. Désactivation (`UserController::toggle`), réinitialisation du mot de passe et mot de passe temporaire (`adminReset`) suppriment tous les jetons du compte : tout nouvel événement de ce type doit faire de même (`$u->tokens()->delete()`).
+- **Connexion** (`AuthController::login`) : un seul message d'échec (`generic()`), y compris pour un compte bloqué, et un hachage factice (`DUMMY_HASH`) quand le compte n'existe pas : ni l'existence d'un compte, ni son blocage, ni la justesse d'un mot de passe pendant le blocage ne se devinent.
+- **Limites de débit** (`AppServiceProvider::rateLimits`, réponses 429 en français) : `connexion`, `inscription`, `mot-de-passe-oublie`, `lien-mot-de-passe` par adresse IP sur les routes publiques, `api` (600 par minute) par compte. Toute nouvelle route publique doit en recevoir une.
+- **Mots de passe** choisis par l'utilisateur : [PasswordPolicy](backend/app/Support/PasswordPolicy.php) (10 caractères, lettres et chiffres), avec ses messages.
+- **En-têtes** : [SecurityHeaders](backend/app/Http/Middleware/SecurityHeaders.php) sur toutes les réponses de l'API ; pour le frontend, [public/.htaccess](frontend/public/.htaccess) (CSP, `X-Frame-Options`, HSTS en HTTPS), dont `vite.config.js` complète la CSP avec l'origine de `VITE_API_URL` à la compilation. Une nouvelle ressource externe (police, carte, service) doit être ajoutée à cette CSP, sinon le navigateur la bloque sans message ; contrôlez sans violation dans la console, sur l'application compilée servie avec ces en-têtes.
+- **CORS** : [config/cors.php](backend/config/cors.php), origines de `CORS_ALLOWED_ORIGINS` (à défaut `FRONTEND_URL`), plus les serveurs Vite en local ; jamais `*`.
+- **Import Excel** : `Xlsx::READ_LIMIT` borne la taille décompressée de chaque partie lue.
+- **Production** : modèle [backend/.env.example](backend/.env.example) et procédure [backend/docs/DEPLOIEMENT_SECURISE.md](backend/docs/DEPLOIEMENT_SECURISE.md). Le `.env` de développement (débogage, `root` sans mot de passe) ne doit jamais partir en production. Les opérations sensibles sont journalisées avec `Ctx::audit(...)`, ou avec `Ctx::auditChange(..., $avant, $apres)` pour conserver les valeurs avant et après (TDR §12). L'audit ne doit jamais faire échouer l'opération.
 
 ### Socle organisationnel (TDR §5)
 Chaque projet comporte des unités (`organizational_units` : une `COORDINATION` nationale et des `POOL`) et des postes (`positions`), gérés dans Administration > Organisation ([OrganizationController](backend/app/Http/Controllers/OrganizationController.php)). Ces listes ne sont jamais codées en dur. Un élément utilisé par des comptes est désactivé, pas supprimé. Chaque compte a un `organizational_unit_id` et un `position_id`, choisis à l'inscription et modifiables dans Utilisateurs.

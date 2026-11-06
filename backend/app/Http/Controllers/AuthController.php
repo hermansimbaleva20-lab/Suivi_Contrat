@@ -11,6 +11,7 @@ use App\Support\Ctx;
 use App\Support\Dates;
 use App\Support\Loader;
 use App\Support\MailService;
+use App\Support\PasswordPolicy;
 use App\Support\Metrics;
 use App\Support\Views;
 use Illuminate\Http\Request;
@@ -19,7 +20,18 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    private const GENERIC = 'Projet, e-mail ou mot de passe incorrect, ou compte désactivé.';
+    /** Comparé quand le compte n'existe pas : la réponse prend le même temps, qu'il existe ou non. */
+    private const DUMMY_HASH = '$2y$12$2Nparf51ln8xJdgi3rHnauMLDHV4qku1OK4ZUeDAm7gYLZf7QqV5W';
+
+    /**
+     * Seul message d'échec de connexion : compte inconnu, mot de passe faux, compte désactivé ou bloqué. Un message propre au
+     * blocage révélerait qu'un compte existe ; pendant le blocage, il dirait même si le mot de passe essayé est le bon.
+     */
+    private static function generic(): string
+    {
+        return 'Projet, e-mail ou mot de passe incorrect, ou compte désactivé. Après ' . (int) config('prise.max_failed_logins', 5)
+            . ' essais infructueux, le compte est bloqué ' . (int) config('prise.lockout_minutes', 15) . ' minutes.';
+    }
 
     public function login(Request $r)
     {
@@ -27,10 +39,10 @@ class AuthController extends Controller
         $project = Project::where('code', $d['project'])->first();
         abort_unless($project, 422, 'Projet introuvable.');
         $u = User::whereRaw('LOWER(email) = ?', [strtolower(trim($d['email']))])->where('project_id', $project->id)->first();
-        if (!$u) abort(422, self::GENERIC);
-        if ($u->lockout_end && $u->lockout_end->isFuture()) abort(422, 'Trop de tentatives échouées. Réessayez après ' . $u->lockout_end->format('H:i') . '.');
+        $valid = Hash::check($d['password'], $u?->password ?: self::DUMMY_HASH);
+        // Compte inconnu ou bloqué : même réponse, sans compter l'essai (le blocage court jusqu'à son terme).
+        if (!$u || ($u->lockout_end && $u->lockout_end->isFuture())) abort(422, self::generic());
 
-        $valid = Hash::check($d['password'], $u->password);
         // Comptes migrés depuis l'application C# : PBKDF2-SHA256, 120 000 itérations (re-hachés au premier login réussi).
         if (!$valid && $u->password_hash && $u->password_salt) {
             try {
@@ -47,15 +59,16 @@ class AuthController extends Controller
             $u->failed_login_count = $failed >= $max ? 0 : $failed;
             if ($failed >= $max) $u->lockout_end = now()->addMinutes((int) config('prise.lockout_minutes', 15));
             $u->save();
-            abort(422, self::GENERIC);
+            abort(422, self::generic());
         }
         if ($u->is_pending) abort(422, 'Votre compte est en attente de validation par l’administrateur du projet.');
-        if (!$u->is_active) abort(422, self::GENERIC);
+        if (!$u->is_active) abort(422, self::generic());
 
         $u->failed_login_count = 0;
         $u->lockout_end = null;
         $u->last_login_at = now();
         $u->save();
+        $u->tokens()->where('expires_at', '<', now())->delete();
         $token = $u->createToken('prise-web', ['*'], now()->addDays(14))->plainTextToken;
         Ctx::audit('CONNEXION', 'User', $u->id, 'Ouverture de session web dans le projet ' . $project->code . '.', (int) $project->id, (int) $u->id);
         return ['token' => $token, 'user' => Views::user($u), 'project' => $project->code];
@@ -65,9 +78,9 @@ class AuthController extends Controller
     {
         $d = $r->validate([
             'project' => 'required|in:PRISE,PREDIRE', 'name' => 'required|string|max:200', 'email' => 'required|email|max:320',
-            'project_position' => 'nullable|string|max:200', 'password' => 'required|string|min:8|confirmed',
+            'project_position' => 'nullable|string|max:200', 'password' => PasswordPolicy::rules(),
             'organizational_unit_id' => 'nullable|integer', 'position_id' => 'nullable|integer',
-        ]);
+        ], PasswordPolicy::messages());
         $project = Project::where('code', $d['project'])->first();
         abort_unless($project, 422, 'Projet introuvable.');
         // Unité et poste choisis dans les listes gérées par l'administration (TDR §5), obligatoires dès qu'elles existent.
@@ -140,7 +153,7 @@ class AuthController extends Controller
 
     public function resetPassword(Request $r)
     {
-        $d = $r->validate(['project' => 'required|in:PRISE,PREDIRE', 'token' => 'required|string', 'password' => 'required|string|min:8|confirmed']);
+        $d = $r->validate(['project' => 'required|in:PRISE,PREDIRE', 'token' => 'required|string', 'password' => PasswordPolicy::rules()], PasswordPolicy::messages());
         $t = $this->findToken($d['project'], $d['token']);
         abort_unless($t, 422, 'Lien invalide ou expiré. Demandez un nouveau lien.');
         // Le jeton n'est consommé que s'il est encore libre : une seule validation peut réussir.
@@ -150,8 +163,10 @@ class AuthController extends Controller
         $u->password = Hash::make($d['password']);
         $u->password_hash = null; $u->password_salt = null; $u->failed_login_count = 0; $u->lockout_end = null;
         $u->save();
+        // Le mot de passe a peut-être fui : toutes les sessions ouvertes sont fermées.
+        $u->tokens()->delete();
         Ctx::audit('REINITIALISATION_MOT_DE_PASSE', 'User', $u->id, 'Mot de passe défini à l’aide d’un lien de réinitialisation à usage unique.', (int) $u->project_id, (int) $u->id);
-        return ['message' => 'Votre mot de passe a été modifié. Vous pouvez vous connecter.'];
+        return ['message' => 'Votre mot de passe a été modifié et vos sessions ouvertes ont été fermées. Vous pouvez vous connecter.'];
     }
 
     public function me(Request $r)

@@ -3,15 +3,16 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,NotificationController};
 
 // ---- Public (le projet est transmis par l'en-tête X-Project)
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::get('/auth/reset-check', [AuthController::class, 'resetCheck']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+// Routes publiques : limites de débit par adresse IP (AppServiceProvider::rateLimits).
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:connexion');
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:inscription');
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:mot-de-passe-oublie');
+Route::get('/auth/reset-check', [AuthController::class, 'resetCheck'])->middleware('throttle:lien-mot-de-passe');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:lien-mot-de-passe');
 Route::get('/auth/registration-options', [OrganizationController::class, 'registrationOptions'])->middleware('throttle:30,1');
 
 // ---- Authentifié : projet + phase active
-Route::middleware(['auth:sanctum', 'project'])->group(function () {
+Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/notifications', [NotificationController::class, 'index']);

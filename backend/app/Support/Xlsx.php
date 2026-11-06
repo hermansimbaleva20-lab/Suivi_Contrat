@@ -11,6 +11,9 @@ use ZipArchive;
  */
 class Xlsx
 {
+    /** Taille maximale d'une partie du classeur lue à l'import, une fois décompressée. */
+    public const READ_LIMIT = 20 * 1024 * 1024;
+
     public const NORMAL = 0, HEADER = 1, BOLD = 2, MONEY = 3, PCT = 4, DATE = 5, TEXT = 6, TITLE = 7;
 
     public static function col($i)
@@ -123,18 +126,25 @@ class Xlsx
     {
         $zip = new ZipArchive();
         if ($zip->open($path) !== true) throw new \RuntimeException('Fichier Excel illisible.');
+        // Un classeur de 2 Mo peut cacher des centaines de Mo une fois décompressé : la taille annoncée est vérifiée avant lecture.
+        $entry = function (string $name) use ($zip) {
+            $stat = $zip->statName($name);
+            if ($stat === false) return false;
+            if ($stat['size'] > self::READ_LIMIT) throw new \RuntimeException('Fichier Excel trop volumineux une fois décompressé.');
+            return $zip->getFromName($name, self::READ_LIMIT);
+        };
         $shared = [];
-        if (($xml = $zip->getFromName('xl/sharedStrings.xml')) !== false) {
+        if (($xml = $entry('xl/sharedStrings.xml')) !== false) {
             foreach (simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NONET)->si as $si) {
                 $text = isset($si->t) ? (string) $si->t : '';
                 foreach ($si->r ?? [] as $run) $text .= (string) $run->t;
                 $shared[] = $text;
             }
         }
-        $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
-        for ($i = 0; $sheet === false && $i < $zip->numFiles; $i++) {
+        $sheet = $entry('xl/worksheets/sheet1.xml');
+        for ($i = 0; $sheet === false && $i < min($zip->numFiles, 200); $i++) {
             $name = $zip->getNameIndex($i);
-            if (preg_match('#^xl/worksheets/[^/]+\.xml$#', $name)) $sheet = $zip->getFromName($name);
+            if (preg_match('#^xl/worksheets/[^/]+\.xml$#', $name)) $sheet = $entry($name);
         }
         $zip->close();
         if ($sheet === false) throw new \RuntimeException('Le classeur ne contient aucune feuille.');
