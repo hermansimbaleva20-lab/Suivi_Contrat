@@ -134,7 +134,8 @@ class Structure
             $t->string('mime_type', 150)->nullable();
             $t->unsignedBigInteger('file_size')->default(0);
             $t->unsignedBigInteger('uploaded_by')->nullable();
-            $t->timestamps();
+            $t->timestamps();            $t->index('contract_id', 'contract_documents_contract_id_index');
+            $t->index(['contract_id', 'created_at'], 'contract_documents_contract_id_created_at_index');
         });
 
         Schema::create('performance_guarantees', function (Blueprint $t) {
