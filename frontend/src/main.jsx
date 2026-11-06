@@ -9,10 +9,13 @@ import './styles/prise-v19.css';
 import './styles/prise-react.css';
 import './styles/prise-design.css';
 import './styles/tailwind.css';
+import './styles/theme-sombre.css';
 import App from './App.jsx';
 import { installPressFeedback } from './lib/pressFeedback.js';
+import { installTheme } from './lib/theme.js';
 import { AuthProvider } from './context/AuthContext.jsx';
 
+installTheme();
 installPressFeedback();
 
 createRoot(document.getElementById('root')).render(

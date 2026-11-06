@@ -2,9 +2,30 @@ import React, { useEffect, useRef } from 'react';
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Legend, Tooltip } from 'chart.js';
 import { Empty } from './ui.jsx';
 import { COLORS, paymentColor } from '../lib/chartColors.js';
+import { THEME_EVENT, chartInk } from '../lib/theme.js';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
+Chart.defaults.font.family = '"Public Sans", "Segoe UI", Arial, sans-serif';
 
+
+// Graphiques affichés : recolorés sans être reconstruits quand le thème change, et en couleurs claires pour l'impression.
+const live = new Set();
+const paint = (chart, ink) => {
+  const o = chart.options;
+  o.priseValueColor = ink.value;
+  o.scales.x.grid.color = ink.grid;
+  o.scales.x.ticks.color = ink.tick;
+  o.scales.y.border.color = ink.axis;
+  o.scales.y.ticks.color = ink.label;
+  o.plugins.legend.labels.color = ink.legend;
+  o.plugins.tooltip.backgroundColor = ink.tooltip;
+  chart.update('none');
+};
+if (typeof window !== 'undefined') {
+  window.addEventListener(THEME_EVENT, () => live.forEach((c) => paint(c, chartInk())));
+  window.addEventListener('beforeprint', () => live.forEach((c) => paint(c, chartInk(true))));
+  window.addEventListener('afterprint', () => live.forEach((c) => paint(c, chartInk())));
+}
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -14,7 +35,7 @@ const valueLabels = {
   afterDatasetsDraw(chart) {
     const ctx = chart.ctx;
     ctx.save();
-    ctx.font = '600 11px Inter, Arial, sans-serif';
+    ctx.font = '600 11px "Public Sans", Arial, sans-serif';
     ctx.textBaseline = 'middle';
     chart.data.datasets.forEach((ds, i) => {
       const meta = chart.getDatasetMeta(i);
@@ -30,7 +51,7 @@ const valueLabels = {
         // Barre presque pleine : l'étiquette passe dans la barre, en blanc.
         const inside = bar.x + ctx.measureText(text).width + 10 > chart.chartArea.right;
         ctx.textAlign = inside ? 'right' : 'left';
-        ctx.fillStyle = inside ? '#fff' : color === COLORS.overpaid ? COLORS.overpaid : '#35524a';
+        ctx.fillStyle = inside ? '#fff' : color === COLORS.overpaid ? COLORS.overpaid : chart.options.priseValueColor;
         ctx.fillText(text, inside ? bar.x - 7 : bar.x + 6, bar.y);
       });
     });
@@ -48,6 +69,7 @@ export function HBarChart({ labels, datasets, legend = true }) {
   const box = useRef(null);
   useEffect(() => {
     if (!ref.current || !labels?.length) return undefined;
+    const ink = chartInk();
     const perLabel = Math.max(26, datasets.length * 17 + 16);
     if (box.current) box.current.style.height = `${Math.max(legend ? 250 : 200, labels.length * perLabel + (legend ? 74 : 40))}px`;
     let chart = null;
@@ -63,6 +85,7 @@ export function HBarChart({ labels, datasets, legend = true }) {
           })),
         },
         options: {
+          priseValueColor: ink.value,
           animation: reducedMotion() ? false : {
             duration: 900,
             easing: 'easeOutQuart',
@@ -75,15 +98,15 @@ export function HBarChart({ labels, datasets, legend = true }) {
           maintainAspectRatio: false,
           layout: { padding: { right: 34 } },
           scales: {
-            x: { min: 0, max: 100, grid: { color: '#e6eee9' }, border: { display: false }, ticks: { color: '#5f7468', callback: (v) => `${v}%` } },
-            y: { grid: { display: false }, border: { color: '#dce7e0' }, ticks: { color: '#12261d', font: { weight: '600' } } },
+            x: { min: 0, max: 100, grid: { color: ink.grid }, border: { display: false }, ticks: { color: ink.tick, callback: (v) => `${v}%` } },
+            y: { grid: { display: false }, border: { color: ink.axis }, ticks: { color: ink.label, font: { weight: '600' } } },
           },
           plugins: {
             legend: {
               display: legend,
               position: 'top',
               labels: {
-                usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, color: '#4b6357',
+                usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, color: ink.legend,
                 generateLabels: (c) => Chart.defaults.plugins.legend.labels.generateLabels(c).map((l) => {
                   const ds = c.data.datasets[l.datasetIndex];
                   const fill = ds.legendColor || (Array.isArray(ds.backgroundColor) ? ds.backgroundColor[0] : ds.backgroundColor);
@@ -92,13 +115,14 @@ export function HBarChart({ labels, datasets, legend = true }) {
               },
             },
             tooltip: {
-              backgroundColor: '#12261d', padding: 10, cornerRadius: 8, titleFont: { weight: '600' },
+              backgroundColor: ink.tooltip, padding: 10, cornerRadius: 8, titleFont: { weight: '600' },
               callbacks: { label: (c) => ` ${c.dataset.label} : ${Number(c.parsed.x).toFixed(1)} %` },
             },
           },
         },
         plugins: [valueLabels],
       });
+      live.add(chart);
     };
     // Construit à l'entrée dans la page visible : l'animation est vue au lieu de se jouer hors de l'écran.
     const io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
@@ -106,7 +130,7 @@ export function HBarChart({ labels, datasets, legend = true }) {
     }, { threshold: 0, rootMargin: '0px 0px -12% 0px' }) : null;
 
     if (io) io.observe(box.current); else build();
-    return () => { io?.disconnect(); chart?.destroy(); };
+    return () => { io?.disconnect(); if (chart) { live.delete(chart); chart.destroy(); } };
   }, [JSON.stringify(labels), JSON.stringify(datasets), legend]);
 
   if (!labels?.length) return <Empty text="Aucune donnée à afficher pour le moment." />;
@@ -181,11 +205,11 @@ export function Pie3DChart({ items = [] }) {
     <div className="pie3d-layout">
       <div className="pie3d-visual">
         <svg viewBox="0 0 320 220" role="img" aria-label="Répartition des contrats par statut en secteurs 3D">
-          <ellipse cx="160" cy="174" rx="92" ry="22" fill="#163e2d" opacity=".10" />
+          <ellipse cx="160" cy="174" rx="92" ry="22" style={{ fill: 'var(--pie-shadow, #163e2d)' }} opacity=".10" />
           {slices.map((slice, i) => <path key={`side-${i}`} d={sectorPath(160, 94 + 16, 92, 59, slice.start, slice.end)} fill={slice.color} opacity=".72" />)}
-          {slices.map((slice, i) => <path key={`top-${i}`} d={sectorPath(160, 94, 92, 59, slice.start, slice.end)} fill={slice.color} stroke="#fff" strokeWidth="2" />)}
-          <circle cx="160" cy="94" r="2" fill="#fff" />
-          <text x="160" y="194" textAnchor="middle" fontSize="11" fill="#62756b">Total : {total}</text>
+          {slices.map((slice, i) => <path key={`top-${i}`} d={sectorPath(160, 94, 92, 59, slice.start, slice.end)} fill={slice.color} style={{ stroke: 'var(--pie-gap, #fff)' }} strokeWidth="2" />)}
+          <circle cx="160" cy="94" r="2" style={{ fill: 'var(--pie-gap, #fff)' }} />
+          <text x="160" y="194" textAnchor="middle" fontSize="11" style={{ fill: 'var(--chart-tick, #62756b)' }}>Total : {total}</text>
         </svg>
       </div>
       <div className="pie3d-legend">

@@ -110,7 +110,7 @@ a { text-underline-offset: .18em; }
 .ol-wave-2 { stroke: rgba(103, 232, 249, .28); animation-duration: 3.4s; }
 
 .ol-scale line { stroke: rgba(167, 243, 208, .45); stroke-width: 1; }
-.ol-scale text { fill: rgba(209, 250, 229, .62); font: 600 8px 'Inter', Arial, sans-serif; letter-spacing: .02em; }
+.ol-scale text { fill: rgba(209, 250, 229, .62); font: 600 8px var(--ff-text); letter-spacing: .02em; }
 
 .ol-line { fill: none; stroke: url(#ol-holo); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
   stroke-dasharray: 260; stroke-dashoffset: 260; animation: olDraw 1.05s var(--ease-out) forwards; filter: drop-shadow(0 0 3px rgba(94, 234, 212, .45)); }
@@ -157,7 +157,7 @@ a { text-underline-offset: .18em; }
   border: 1px solid rgba(167, 243, 208, .22);
   border-radius: 8px;
   background: rgba(2, 18, 11, .55);
-  font: 600 10px 'Inter', Arial, sans-serif;
+  font: 600 10px var(--ff-text);
   color: rgba(209, 250, 229, .7);
   letter-spacing: .02em;
 }
@@ -165,7 +165,7 @@ a { text-underline-offset: .18em; }
   animation: olDepth 3s cubic-bezier(.45, .05, .55, .95) 1.05s forwards; }
 .ol-depth-value::after { content: counter(d); }
 
-.ol-brand { font-family: 'Montserrat', Arial, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: .05em; color: #fff; }
+.ol-brand { font-family: var(--ff-title); font-size: 24px; font-weight: 700; letter-spacing: .05em; color: #fff; }
 .ol-brand span { color: var(--holo-gold); margin: 0 4px; }
 .ol-caption { margin-top: 6px; font-size: 13.5px; color: rgba(209, 250, 229, .72); }
 .ol-track { position: relative; height: 3px; margin: 20px 0 12px; overflow: hidden; border-radius: 99px; background: rgba(167, 243, 208, .14); }
@@ -246,16 +246,16 @@ body .sidebar {
 }
 @media (min-width: 851px) {
   body .sidebar .brand { display: flex !important; flex-direction: column; gap: 3px; padding: 4px 10px 14px !important; }
-  body .sidebar .brand-code { display: block !important; order: -1; font-family: 'Montserrat', Arial, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: .07em; line-height: 1.1; color: #fff; }
-  body .sidebar .brand-title { font-family: 'Inter', Arial, sans-serif !important; font-size: 11.5px !important; font-weight: 500 !important; letter-spacing: 0 !important; line-height: 1.35 !important; color: rgba(209, 250, 229, .78) !important; }
+  body .sidebar .brand-code { display: block !important; order: -1; font-family: var(--ff-title); font-size: 24px; font-weight: 700; letter-spacing: .07em; line-height: 1.1; color: #fff; }
+  body .sidebar .brand-title { font-family: var(--ff-text) !important; font-size: 11.5px !important; font-weight: 500 !important; letter-spacing: 0 !important; line-height: 1.35 !important; color: rgba(209, 250, 229, .78) !important; }
   body .sidebar .brand-sub { display: none !important; }
 }
 
 /* En-tête de page : le titre porte seul la hiérarchie */
 body .page-head { margin-bottom: 20px; }
-body .page-head h1 { font-family: 'Montserrat', Arial, sans-serif !important; font-weight: 700; font-size: 27px; letter-spacing: -.015em; line-height: 1.15; text-wrap: balance; }
+body .page-head h1 { font-family: var(--ff-title) !important; font-weight: 700; font-size: 27px; letter-spacing: -.015em; line-height: 1.15; text-wrap: balance; }
 body .page-desc { max-width: 72ch; margin-top: 6px; color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
-body .section-title { font-family: 'Montserrat', Arial, sans-serif !important; font-weight: 700 !important; letter-spacing: -.005em; }
+body .section-title { font-family: var(--ff-title) !important; font-weight: 700 !important; letter-spacing: -.005em; }
 
 /* Cartes : surface pleine, filet fin, ombre douce décalée */
 body .cardx { background: var(--surface); border: 1px solid var(--line) !important; border-radius: 16px !important; box-shadow: var(--shadow-card) !important; }
@@ -274,18 +274,18 @@ body .kpi::before {
   background: linear-gradient(90deg, #5eead4, #e8c873, #34c27a);
   opacity: .55;
 }
-body .kpi .label { display: flex; align-items: center; gap: 7px; font-family: 'Inter', Arial, sans-serif !important; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; color: var(--ink-soft); }
+body .kpi .label { display: flex; align-items: center; gap: 7px; font-family: var(--ff-text) !important; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; color: var(--ink-soft); }
 body .kpi .label::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 2px; background: #0b2f4f; }
 body .kpi.green .label::before { background: #16844a; }
 body .kpi.orange .label::before { background: #d98200; }
 body .kpi.red .label::before { background: #c62828; }
-body .kpi .value { font-family: 'Inter', Arial, sans-serif !important; font-weight: 700; font-size: 30px; letter-spacing: -.025em; line-height: 1.1; margin-top: 10px; }
+body .kpi .value { font-family: var(--ff-text) !important; font-weight: 700; font-size: 30px; letter-spacing: -.025em; line-height: 1.1; margin-top: 10px; }
 body .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-raise) !important; border-color: #c6e0d1 !important; }
 
 /* Tableaux : en-tête sobre, lignes aérées, chiffres alignés */
 body .table-wrap { border: 1px solid var(--line) !important; border-radius: 12px; background: var(--surface); }
 body .table { --bs-table-hover-bg: transparent; font-variant-numeric: tabular-nums; }
-body .table thead th { background: var(--surface-sunk) !important; color: var(--ink-soft) !important; font-family: 'Inter', Arial, sans-serif !important; font-size: 10.5px !important; font-weight: 600 !important; letter-spacing: .07em; text-transform: uppercase; padding: 11px 14px !important; border-bottom: 1px solid var(--line) !important; }
+body .table thead th { background: var(--surface-sunk) !important; color: var(--ink-soft) !important; font-family: var(--ff-text) !important; font-size: 10.5px !important; font-weight: 600 !important; letter-spacing: .07em; text-transform: uppercase; padding: 11px 14px !important; border-bottom: 1px solid var(--line) !important; }
 body .table tbody td { padding: 12px 14px; color: var(--ink); border-color: var(--line-soft) !important; }
 body .table tbody tr:last-child > td { border-bottom-width: 0; }
 body .table tbody tr { transition: background-color .15s ease; }
@@ -352,7 +352,7 @@ body .modal-footer { border-top-color: var(--line-soft); }
 body .empty-state { color: var(--ink-soft); }
 
 /* Menu : libellés lisibles, ni écrasés ni trop gras */
-body .sidebar .side-nav .nav-link { font-family: 'Inter', Arial, sans-serif !important; font-weight: 600 !important; letter-spacing: -.005em; color: rgba(236, 253, 245, .9) !important; }
+body .sidebar .side-nav .nav-link { font-family: var(--ff-text) !important; font-weight: 600 !important; letter-spacing: -.005em; color: rgba(236, 253, 245, .9) !important; }
 body .sidebar .side-nav .nav-link:hover { background: rgba(255, 255, 255, .07) !important; color: #fff !important; }
 body .sidebar .side-nav .nav-link.active { background: rgba(255, 255, 255, .14) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(167, 243, 208, .22) !important; }
 body .sidebar .side-nav .nav-link.nav-sub { font-weight: 500 !important; }
@@ -368,7 +368,7 @@ body .sidebar .phase-select {
   border-radius: 9px;
   background: rgba(255, 255, 255, .06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23d1fae5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 10px center !important;
   color: #fff !important;
-  font: 600 13px 'Inter', Arial, sans-serif;
+  font: 600 13px var(--ff-text);
   appearance: none;
   cursor: pointer;
 }
@@ -537,3 +537,9 @@ body .alert-chip-logistics .chip-badge { --beacon: 47, 109, 179; background: #2f
   .logi-blink { display: inline; margin: 0; padding: 0; animation: none; background: none; box-shadow: none; }
   .logi-blink::before { display: none; }
 }
+
+/* Connexion : le nom du projet et la mention en Barlow, comme les titres de l'application */
+.login-hero .prise-word { font-family: var(--ff-title); font-weight: 800; font-size: 84px; letter-spacing: .03em; line-height: 1; }
+.login-hero h2 { font-family: var(--ff-title); }
+.login-hero .eyebrow { font-family: var(--ff-title); font-weight: 700; letter-spacing: .05em; }
+@media (max-width: 1100px) { .login-hero .prise-word { font-size: 66px; } }

@@ -24,16 +24,16 @@
 
 /* Polices recommandées : tailles existantes conservées. */
 html, body, #root, button, input, select, textarea {
-  font-family: 'Roboto', Arial, sans-serif;
+  font-family: var(--ff-text);
 }
 h1, h2, h3, h4, h5, h6,
 .page-head h1, .section-title, .page-kicker, .form-section {
-  font-family: 'Montserrat', Arial, sans-serif;
+  font-family: var(--ff-title);
   font-weight: 700;
 }
 pre, code, kbd, samp, .technical-box, .tech-box, .info-grid,
 .badge-soft, .status, .kpi .label, .dashboard-pager {
-  font-family: 'Inter', Arial, sans-serif;
+  font-family: var(--ff-text);
   font-weight: 500;
 }
 
@@ -85,7 +85,7 @@ pre, code, kbd, samp, .technical-box, .tech-box, .info-grid,
   color: #64796d;
   font-size: 12px;
 }
-.dashboard-pager .btn { font-family: 'Inter', Arial, sans-serif; font-weight: 500; }
+.dashboard-pager .btn { font-family: var(--ff-text); font-weight: 500; }
 
 /* Synthèse sectorielle 3D du rapport. */
 .pie3d-layout { display: grid; grid-template-columns: minmax(240px, .9fr) minmax(240px, 1.1fr); gap: 22px; align-items: center; }
@@ -124,7 +124,7 @@ pre, code, kbd, samp, .technical-box, .tech-box, .info-grid,
 
 /* Répartition des contrats par province : une ligne de titre par province */
 .province-table thead th { white-space: normal; vertical-align: bottom; }
-.province-table .province-row > td { background: var(--prise-green-soft, #e8f5ee); color: var(--prise-green, #087a3f); font-family: 'Montserrat', Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.province-table .province-row > td { background: var(--prise-green-soft, #e8f5ee); color: var(--prise-green, #087a3f); font-family: var(--ff-title); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 
 /* Menu : option principale avec sous-options (Logistique > Stock, Charroi, Groupes électrogènes) */
 body .sidebar .side-nav .nav-link .nav-caret { width: auto !important; margin-left: auto !important; font-size: 11px; opacity: .75; }
@@ -149,7 +149,7 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 @media print {
   body.has-print-doc > :not(.print-doc) { display: none !important; }
   html:has(> body.has-print-doc), body.has-print-doc { background: #fff !important; margin: 0; }
-  body.has-print-doc .print-doc { display: block; color: #1d2c25; font-family: 'Roboto', Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.has-print-doc .print-doc { display: block; color: #1d2c25; font-family: var(--ff-text); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-doc[data-orientation='paysage'] { page: paysage; padding: 10mm 9mm; }
   .print-doc[data-orientation='portrait'] { page: portrait; padding: 12mm 10mm; }
   .print-doc { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
@@ -157,11 +157,11 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 .pdoc-letterhead { display: block; height: 22mm; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; }
 .pdoc-rule { height: 0; border: 0; border-top: 1.2pt solid #064d25; margin: 2.5mm 0 3mm; }
 .pdoc-project { margin: 0 auto; max-width: 190mm; text-align: center; color: #087a3f; font-size: 10.5pt; line-height: 1.35; }
-.pdoc-project strong { display: block; margin-top: 1mm; font-family: 'Montserrat', Arial, sans-serif; font-size: 11.5pt; text-decoration: underline; text-underline-offset: 2pt; }
-.pdoc-title { display: table; margin: 4mm auto 4mm; padding: 1.6mm 6mm; border: 1.2pt solid #064d25; color: #064d25; font-family: 'Montserrat', Arial, sans-serif; font-size: 12pt; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; text-align: center; }
+.pdoc-project strong { display: block; margin-top: 1mm; font-family: var(--ff-title); font-size: 11.5pt; text-decoration: underline; text-underline-offset: 2pt; }
+.pdoc-title { display: table; margin: 4mm auto 4mm; padding: 1.6mm 6mm; border: 1.2pt solid #064d25; color: #064d25; font-family: var(--ff-title); font-size: 12pt; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; text-align: center; }
 .pdoc-table { width: 100%; border-collapse: collapse; font-size: 7.6pt; font-variant-numeric: tabular-nums; }
 .pdoc-table th, .pdoc-table td { border: .6pt solid #9fb7aa; padding: 1.4mm 1.5mm; vertical-align: middle; }
-.pdoc-table thead th { background: #064d25; color: #fff; font-family: 'Montserrat', Arial, sans-serif; font-size: 6.8pt; font-weight: 700; text-transform: uppercase; text-align: center; line-height: 1.2; }
+.pdoc-table thead th { background: #064d25; color: #fff; font-family: var(--ff-title); font-size: 6.8pt; font-weight: 700; text-transform: uppercase; text-align: center; line-height: 1.2; }
 .pdoc-table thead { display: table-header-group; }
 .pdoc-table tr { break-inside: avoid; }
 .pdoc-table td { text-align: right; white-space: nowrap; }
@@ -175,7 +175,7 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 .pdoc-table.pdoc-provinces { font-size: 9pt; }
 .pdoc-table.pdoc-provinces thead th { font-size: 7.6pt; }
 .pdoc-table tr.province-row { break-after: avoid; }
-.pdoc-table tr.province-row td { background: #d9efe2; color: #064d25; font-family: 'Montserrat', Arial, sans-serif; font-weight: 700; text-align: left; }
+.pdoc-table tr.province-row td { background: #d9efe2; color: #064d25; font-family: var(--ff-title); font-weight: 700; text-align: left; }
 /* Fiche de stock : modèle papier, lignes hautes et visas en bas de page. */
 .pdoc-table.pdoc-card { font-size: 9pt; }
 .pdoc-table.pdoc-card thead th { font-size: 8pt; }
@@ -186,13 +186,13 @@ body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; }
 /* Total validé : une seule fois, en fin de tableau (pas répété en bas de chaque page) */
 .pdoc-table tfoot { display: table-row-group; }
 .pdoc-table tr.pdoc-total th, .pdoc-table tr.pdoc-total td { background: #d4eedd; color: #064d25; font-weight: 800; border-top: 1.2pt solid #064d25; }
-.pdoc-table tr.pdoc-total th { text-align: left; font-family: 'Montserrat', Arial, sans-serif; font-size: 7.6pt; text-transform: uppercase; }
+.pdoc-table tr.pdoc-total th { text-align: left; font-family: var(--ff-title); font-size: 7.6pt; text-transform: uppercase; }
 
 /* Titres de catégories du menu (Suivi, Analyse, Opérations, Administration), toujours visibles sur ordinateur */
 @media (min-width: 851px) {
   body .sidebar .side-nav .nav-section { display: flex !important; align-items: center; gap: 10px; height: auto; margin: 16px 12px 6px !important; padding: 0 !important; background: none; }
   body .sidebar .side-nav .nav-section:first-child { margin-top: 4px !important; }
-  body .sidebar .side-nav .nav-section span { display: block !important; padding: 0 !important; font-family: 'Inter', Arial, sans-serif; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; color: rgba(214, 240, 223, .66) !important; }
+  body .sidebar .side-nav .nav-section span { display: block !important; padding: 0 !important; font-family: var(--ff-text); font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; color: rgba(214, 240, 223, .66) !important; }
   body .sidebar .side-nav .nav-section::after { content: ''; flex: 1; height: 1px; background: rgba(255, 255, 255, .14); }
 }
 @media (min-width: 851px) and (max-height: 800px) {

@@ -1,0 +1,398 @@
+/*
+ * PRISE — thème sombre (au choix de l'utilisateur : en-tête, lib/theme.js). Chargé en dernier.
+ * Même monde que le thème clair (relevé de terrain, vert PRISE), de nuit : gris teintés de vert, surfaces pleines sous les
+ * données, verts éclaircis pour rester lisibles sur fond sombre. Écran seulement : l'impression reste toujours claire.
+ * Les documents à imprimer (synthèse, PrintDocument) gardent leur papier blanc à l'écran.
+ */
+@media screen {
+  html[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Jetons du thème */
+    --canvas: #0d1512;
+    --surface: #141f1a;
+    --surface-sunk: #18241e;
+    --surface-hover: #1b2a22;
+    --field: #101a15;
+    --line: #26362e;
+    --line-soft: #1f2d26;
+    --line-strong: #34493d;
+    --ink: #e2ebe5;
+    --ink-soft: #a3b6ab;
+    --accent: #5ccb93;
+    --accent-strong: #84dcae;
+    --tint-green: #14301f;
+    --tint-green-strong: #1a3d28;
+    --tint-amber: #2e2412;
+    --tint-red: #351a1a;
+    --tint-blue: #152539;
+    --tint-violet: #241d36;
+    --tint-neutral: #1c2823;
+    --text-green: #6fd3a0;
+    --text-amber: #f0bd66;
+    --text-red: #f39a91;
+    --text-blue: #9cc4f2;
+    --text-neutral: #b6c6bd;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, .35), 0 12px 28px -16px rgba(0, 0, 0, .7);
+    --shadow-raise: 0 2px 4px rgba(0, 0, 0, .4), 0 20px 38px -16px rgba(0, 0, 0, .75);
+    --shadow: var(--shadow-card);
+
+    --prise-bg: var(--canvas);
+    --prise-surface: var(--surface);
+    --prise-border: var(--line);
+    --prise-text: var(--ink);
+    --prise-muted: #8fa699;
+    --prise-blue: #dce8f2;
+    --prise-green-soft: var(--tint-green);
+
+    /* Bootstrap */
+    --bs-body-bg: var(--surface);
+    --bs-body-bg-rgb: 20, 31, 26;
+    --bs-body-color: var(--ink);
+    --bs-body-color-rgb: 226, 235, 229;
+    --bs-emphasis-color: #f4f8f5;
+    --bs-emphasis-color-rgb: 244, 248, 245;
+    --bs-secondary-color: var(--ink-soft);
+    --bs-secondary-color-rgb: 163, 182, 171;
+    --bs-secondary-bg: var(--surface-sunk);
+    --bs-secondary-bg-rgb: 24, 36, 30;
+    --bs-tertiary-bg: var(--surface-sunk);
+    --bs-tertiary-bg-rgb: 24, 36, 30;
+    --bs-tertiary-color: var(--ink-soft);
+    --bs-heading-color: inherit;
+    --bs-border-color: var(--line);
+    --bs-border-color-translucent: rgba(226, 235, 229, .12);
+    --bs-link-color: var(--accent);
+    --bs-link-color-rgb: 92, 203, 147;
+    --bs-link-hover-color: var(--accent-strong);
+    --bs-link-hover-color-rgb: 132, 220, 174;
+    --bs-light-rgb: 28, 40, 35;
+    --bs-dark-rgb: 226, 235, 229;
+    --bs-secondary-rgb: 163, 182, 171;
+    --bs-success-rgb: 111, 211, 160;
+    --bs-danger-rgb: 243, 154, 145;
+    --bs-warning-rgb: 240, 189, 102;
+    --bs-info-rgb: 156, 196, 242;
+    --bs-primary-rgb: 156, 196, 242;
+    --bs-success-bg-subtle: var(--tint-green);
+    --bs-success-border-subtle: #285f40;
+    --bs-success-text-emphasis: var(--text-green);
+    --bs-danger-bg-subtle: var(--tint-red);
+    --bs-danger-border-subtle: #6b3330;
+    --bs-danger-text-emphasis: var(--text-red);
+    --bs-warning-bg-subtle: var(--tint-amber);
+    --bs-warning-border-subtle: #6a5221;
+    --bs-warning-text-emphasis: var(--text-amber);
+    --bs-info-bg-subtle: var(--tint-blue);
+    --bs-info-border-subtle: #2f4c70;
+    --bs-info-text-emphasis: var(--text-blue);
+    --bs-primary-bg-subtle: var(--tint-blue);
+    --bs-primary-border-subtle: #2f4c70;
+    --bs-primary-text-emphasis: var(--text-blue);
+    --bs-secondary-bg-subtle: var(--tint-neutral);
+    --bs-secondary-border-subtle: var(--line-strong);
+    --bs-secondary-text-emphasis: var(--text-neutral);
+    --bs-light-bg-subtle: var(--tint-neutral);
+    --bs-light-border-subtle: var(--line);
+    --bs-light-text-emphasis: var(--ink);
+
+    /* Tailwind (classes tw:) */
+    --tw-color-prise-bg: var(--canvas);
+    --tw-color-prise-border: var(--line);
+    --tw-color-prise-text: var(--ink);
+    --tw-color-prise-muted: #8fa699;
+    --tw-color-prise-blue: #dce8f2;
+    --tw-color-prise-green-soft: var(--tint-green);
+    --tw-color-amber-50: var(--tint-amber);
+    --tw-color-amber-800: var(--text-amber);
+    --tw-color-amber-900: #f6d08e;
+    --tw-color-red-50: var(--tint-red);
+    --tw-color-sky-50: var(--tint-blue);
+    --tw-color-sky-800: var(--text-blue);
+    --tw-color-slate-100: var(--tint-neutral);
+    --tw-color-slate-600: #b1c0b8;
+    --tw-color-slate-700: #c6d2cb;
+
+    /* Graphiques (lib/theme.js, chartInk) */
+    --chart-grid: #22322a;
+    --chart-axis: #2c3d34;
+    --chart-tick: #93a99c;
+    --chart-label: #dbe6df;
+    --chart-legend: #a9bcb1;
+    --chart-value: #c3d2c9;
+    --chart-tooltip: #050b08;
+    --pie-gap: var(--surface);
+    --pie-shadow: #000;
+  }
+
+  /* ---------------------------------------------------------------- Surfaces du navigateur */
+  html[data-theme="dark"] ::selection { background: #1f5c3c; color: #f1faf4; }
+  html[data-theme="dark"], html[data-theme="dark"] body { caret-color: var(--accent); }
+  html[data-theme="dark"] * { scrollbar-color: #3a5045 transparent; }
+  html[data-theme="dark"] *::-webkit-scrollbar-thumb { background: #3a5045; }
+  html[data-theme="dark"] *::-webkit-scrollbar-thumb:hover { background: #4d685a; }
+  html[data-theme="dark"] :focus-visible { outline-color: var(--accent); }
+  html[data-theme="dark"] body { color: var(--ink); }
+
+  /* ---------------------------------------------------------------- Coquille de l'application */
+  html[data-theme="dark"] body .content {
+    background-image:
+      radial-gradient(52rem 32rem at 100% 0%, rgba(94, 234, 212, .055), transparent 70%),
+      radial-gradient(44rem 30rem at 0% 100%, rgba(232, 200, 115, .045), transparent 70%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='560' viewBox='0 0 760 560' fill='none' stroke='%2384dcae' stroke-opacity='.05' stroke-width='1'%3E%3Cpath d='M520 120c90-20 190 30 205 120s-55 170-150 185-205-20-230-110 85-175 175-195z'/%3E%3Cpath d='M528 158c66-14 138 22 150 88s-40 124-110 135-150-15-168-80 62-128 128-143z'/%3E%3Cpath d='M536 196c44-9 90 15 98 58s-26 82-72 89-98-10-110-53 40-84 84-94z'/%3E%3Cpath d='M545 232c24-5 50 8 54 32s-14 44-39 48-54-5-60-29 22-46 45-51z'/%3E%3Cpath d='M60 420c80-40 210-30 270 30s30 120-60 130-260-10-280-80 -10-60 70-80z'/%3E%3Cpath d='M90 450c55-26 145-20 186 20s20 82-42 89-178-7-192-55 -7-40 48-54z'/%3E%3Cpath d='M122 478c30-14 82-11 104 11s11 46-24 50-98-4-106-31 -3-21 26-30z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 0 0, 0 0, right -120px bottom -60px;
+  }
+  html[data-theme="dark"] body .topbar,
+  html[data-theme="dark"] body .mobile-utility-strip { background: rgba(17, 27, 22, .95) !important; border-bottom-color: var(--line) !important; box-shadow: 0 8px 20px -14px rgba(0, 0, 0, .8) !important; }
+  html[data-theme="dark"] body .topbar::after { opacity: .35; }
+  /* Logos du projet dessinés pour un fond blanc : posés sur une plaque claire */
+  html[data-theme="dark"] .topbar-logo,
+  html[data-theme="dark"] .mobile-logo { background: #f4f7f5; border-radius: 8px; padding: 3px 8px; }
+  html[data-theme="dark"] .topbar-right { color: var(--ink-soft); }
+  html[data-theme="dark"] .topbar-title { color: var(--ink); }
+  html[data-theme="dark"] body .sidebar {
+    background:
+      radial-gradient(130% 34% at 0% 0%, rgba(94, 234, 212, .08), transparent 62%),
+      linear-gradient(rgba(167, 243, 208, .025) 1px, transparent 1px) 0 0 / 100% 28px,
+      linear-gradient(180deg, #06180f 0%, #082115 52%, #0a2819 100%) !important;
+    box-shadow: inset -1px 0 0 rgba(167, 243, 208, .1), 8px 0 28px -18px rgba(0, 0, 0, .7) !important;
+  }
+  html[data-theme="dark"] body .sidebar-user { background: rgba(167, 243, 208, .06); border-color: rgba(167, 243, 208, .14); }
+  html[data-theme="dark"] body .prise-mobile-nav { background-color: #082115; }
+
+  /* ---------------------------------------------------------------- Pastilles de l'en-tête (alertes, notifications, thème, phase) */
+  html[data-theme="dark"] .alert-chip { color: var(--ink-soft); background: var(--tint-neutral); border-color: var(--line); }
+  html[data-theme="dark"] .alert-chip:hover { color: var(--ink); background: var(--surface-hover); }
+  html[data-theme="dark"] .alert-chip.has-alert.alert-chip-contract { color: var(--text-red); background: var(--tint-red); border-color: #6b3330; }
+  html[data-theme="dark"] .alert-chip.has-alert.alert-chip-guarantee { color: var(--text-amber); background: var(--tint-amber); border-color: #6a5221; }
+  html[data-theme="dark"] .alert-chip.has-alert.alert-chip-security,
+  html[data-theme="dark"] body .alert-chip.has-alert.alert-chip-logistics { color: var(--text-blue); background: var(--tint-blue); border-color: #2f4c70; }
+  html[data-theme="dark"] .alert-chip.has-alert.alert-chip-notif { color: var(--text-green); background: var(--tint-green); border-color: #285f40; }
+  html[data-theme="dark"] .chip-badge,
+  html[data-theme="dark"] body .mobile-utility-strip .chip-badge { border-color: var(--surface); }
+  html[data-theme="dark"] .phase-pill-icon,
+  html[data-theme="dark"] body .mobile-utility-strip .phase-pill-icon { color: var(--accent); }
+  html[data-theme="dark"] .phase-pill-select,
+  html[data-theme="dark"] body .mobile-utility-strip .mobile-phase-select { background-color: var(--tint-green); border-color: #285f40; color: var(--text-green) !important; }
+  html[data-theme="dark"] .phase-pill-select:hover { background-color: var(--tint-green-strong); }
+  html[data-theme="dark"] body .sidebar .phase-select option { color: var(--ink); background: var(--surface); }
+
+  /* ---------------------------------------------------------------- Titres, cartes, indicateurs */
+  html[data-theme="dark"] .form-section { color: var(--text-green); }
+  html[data-theme="dark"] body .kpi:hover { border-color: var(--line-strong) !important; }
+  html[data-theme="dark"] body .kpi::before { opacity: .4; }
+  html[data-theme="dark"] body .kpi .label::before { background: #7fb0e0; }
+  html[data-theme="dark"] body .kpi.green .label::before { background: var(--text-green); }
+  html[data-theme="dark"] body .kpi.orange .label::before { background: var(--text-amber); }
+  html[data-theme="dark"] body .kpi.red .label::before { background: var(--text-red); }
+  html[data-theme="dark"] .kpi.green .value { color: var(--text-green); }
+  html[data-theme="dark"] .kpi.red .value { color: var(--text-red); }
+  html[data-theme="dark"] .kpi.orange .value { color: var(--text-amber); }
+  html[data-theme="dark"] .general-situation > div,
+  html[data-theme="dark"] .mini-kpis > div,
+  html[data-theme="dark"] .guarantee-mini-kpis > div,
+  html[data-theme="dark"] .info-grid > div,
+  html[data-theme="dark"] .site-row,
+  html[data-theme="dark"] .selection-summary,
+  html[data-theme="dark"] .document-item,
+  html[data-theme="dark"] .permission-toggle,
+  html[data-theme="dark"] .work-mode,
+  html[data-theme="dark"] .check-card,
+  html[data-theme="dark"] .check-pill,
+  html[data-theme="dark"] .filterbar,
+  html[data-theme="dark"] .pie3d-legend-item { background: var(--surface-sunk); border-color: var(--line); }
+  html[data-theme="dark"] .work-mode:has(input:checked),
+  html[data-theme="dark"] .check-card:has(input:checked) { background: var(--tint-green); border-color: #285f40; }
+  html[data-theme="dark"] .info-item, html[data-theme="dark"] .info-list { border-color: var(--line-soft); }
+  html[data-theme="dark"] .info-item .label,
+  html[data-theme="dark"] .info-grid span,
+  html[data-theme="dark"] .guarantee-mini-kpis span,
+  html[data-theme="dark"] .meter-line,
+  html[data-theme="dark"] .gm-legend,
+  html[data-theme="dark"] .dashboard-pager,
+  html[data-theme="dark"] .pie3d-label,
+  html[data-theme="dark"] .pie3d-legend-item small { color: var(--ink-soft); }
+  html[data-theme="dark"] .info-item .value,
+  html[data-theme="dark"] .guarantee-mini-kpis strong,
+  html[data-theme="dark"] .pie3d-legend-item strong { color: var(--ink); }
+  html[data-theme="dark"] .guarantee-mini-kpis .warn strong { color: var(--text-amber); }
+  html[data-theme="dark"] .guarantee-mini-kpis .bad strong { color: var(--text-red); }
+  html[data-theme="dark"] .dashboard-pager { border-color: var(--line); }
+  html[data-theme="dark"] .progress-bar-prise,
+  html[data-theme="dark"] .progress-kpi,
+  html[data-theme="dark"] .progress { background: #22322a; }
+  html[data-theme="dark"] .contract-link { color: var(--accent); }
+
+  /* ---------------------------------------------------------------- Tableaux */
+  html[data-theme="dark"] .table { --bs-table-striped-bg: rgba(226, 235, 229, .03); --bs-table-active-bg: rgba(226, 235, 229, .06); --bs-table-hover-bg: transparent; }
+  html[data-theme="dark"] .table-light { --bs-table-color: var(--ink); --bs-table-bg: var(--surface-sunk); --bs-table-border-color: var(--line); }
+  html[data-theme="dark"] body .table tbody tr:hover > td,
+  html[data-theme="dark"] .table tbody tr:hover,
+  html[data-theme="dark"] .alert-table tbody tr.alert-tr:hover td,
+  html[data-theme="dark"] .alert-history-table tbody tr:hover td { background: var(--surface-hover); }
+  html[data-theme="dark"] .alert-table thead th { color: var(--ink-soft); }
+  html[data-theme="dark"] .alert-table tbody td { background: var(--surface); border-color: var(--line) !important; }
+  html[data-theme="dark"] .alert-table tbody tr.sev-critical td,
+  html[data-theme="dark"] .alert-tr.sev-critical > td { background: #1c1716; }
+  html[data-theme="dark"] .alert-table tbody tr.sev-warning td { background: #1b1a13; }
+  html[data-theme="dark"] .province-table .province-row > td { background: var(--tint-green); color: var(--text-green); }
+
+  /* ---------------------------------------------------------------- Boutons */
+  html[data-theme="dark"] body .btn-outline-primary { color: var(--accent); border-color: #2f6b4b; background: transparent; }
+  html[data-theme="dark"] body .btn-outline-primary:hover { background: var(--tint-green); color: var(--accent-strong); border-color: var(--accent); }
+  html[data-theme="dark"] body .btn-light { background: var(--tint-neutral); border-color: var(--line); color: var(--ink); --bs-btn-active-bg: #26362e; --bs-btn-active-border-color: var(--line-strong); }
+  html[data-theme="dark"] body .btn-light:hover { background: var(--surface-hover); color: var(--ink); }
+  html[data-theme="dark"] .btn-outline-secondary { --bs-btn-color: var(--text-neutral); --bs-btn-border-color: var(--line-strong); --bs-btn-hover-bg: var(--surface-hover); --bs-btn-hover-color: var(--ink); --bs-btn-hover-border-color: #4d685a; --bs-btn-active-bg: #26362e; --bs-btn-active-color: var(--ink); }
+  html[data-theme="dark"] .btn-outline-danger { --bs-btn-color: var(--text-red); --bs-btn-border-color: #6b3330; --bs-btn-hover-bg: #8f2a24; --bs-btn-hover-border-color: #8f2a24; --bs-btn-hover-color: #fff; }
+  html[data-theme="dark"] .btn-outline-success { --bs-btn-color: var(--text-green); --bs-btn-border-color: #285f40; --bs-btn-hover-bg: #087a3f; --bs-btn-hover-border-color: #087a3f; --bs-btn-hover-color: #fff; }
+  html[data-theme="dark"] .btn-close { filter: invert(1) grayscale(1) brightness(1.6); }
+  html[data-theme="dark"] .password-toggle { color: var(--ink-soft); }
+  html[data-theme="dark"] .password-toggle:hover { background: var(--surface-hover); color: var(--accent); }
+
+  /* ---------------------------------------------------------------- Champs */
+  html[data-theme="dark"] body .form-control,
+  html[data-theme="dark"] body .form-select { background-color: var(--field); border-color: var(--line-strong); color: var(--ink); }
+  html[data-theme="dark"] body .form-control:disabled,
+  html[data-theme="dark"] body .form-select:disabled,
+  html[data-theme="dark"] body .form-control[readonly] { background-color: var(--surface-sunk); color: var(--ink-soft); }
+  html[data-theme="dark"] .form-select { --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a3b6ab' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e"); }
+  html[data-theme="dark"] .form-label { color: var(--ink-soft); }
+  html[data-theme="dark"] .form-control::placeholder { color: #6f877a; }
+  html[data-theme="dark"] .input-group-text { background: var(--surface-sunk); border-color: var(--line-strong); color: var(--ink-soft); }
+  html[data-theme="dark"] .form-check-input { background-color: var(--field); border-color: #4d685a; }
+  html[data-theme="dark"] .form-check-input:checked { background-color: #087a3f; border-color: #087a3f; }
+
+  /* ---------------------------------------------------------------- Statuts, pastilles, étiquettes */
+  html[data-theme="dark"] .status-normal,
+  html[data-theme="dark"] .sev-pill.sev-info,
+  html[data-theme="dark"] .kind-chip.kind-site,
+  html[data-theme="dark"] .kind-chip.kind-contrat,
+  html[data-theme="dark"] .super-badge,
+  html[data-theme="dark"] .readonly-badge,
+  html[data-theme="dark"] .permission-chips span,
+  html[data-theme="dark"] .chip,
+  html[data-theme="dark"] .gm-ok { background: var(--tint-green); color: var(--text-green); border-color: #285f40; }
+  html[data-theme="dark"] .status-vigilance,
+  html[data-theme="dark"] .status-pending,
+  html[data-theme="dark"] .sev-pill.sev-warning,
+  html[data-theme="dark"] .kind-chip.kind-garantie,
+  html[data-theme="dark"] .kind-chip.kind-vigilance,
+  html[data-theme="dark"] .gm-warn { background: var(--tint-amber); color: var(--text-amber); }
+  html[data-theme="dark"] .status-retard,
+  html[data-theme="dark"] .sev-pill.sev-critical,
+  html[data-theme="dark"] .kind-chip.kind-retard,
+  html[data-theme="dark"] .gm-bad { background: var(--tint-red); color: var(--text-red); }
+  html[data-theme="dark"] .status-termine,
+  html[data-theme="dark"] .badge-soft,
+  html[data-theme="dark"] .kind-chip,
+  html[data-theme="dark"] .gm-chip,
+  html[data-theme="dark"] .gm-future { background: var(--tint-neutral); color: var(--text-neutral); border-color: var(--line); }
+  html[data-theme="dark"] .gm-none { background: #18221d; }
+  html[data-theme="dark"] .gm-cell { border-left-color: var(--surface); }
+  html[data-theme="dark"] .alert-filter { background: var(--surface-sunk); border-color: var(--line); color: var(--ink-soft); }
+  html[data-theme="dark"] .alert-filter b { background: var(--tint-green); color: var(--text-green); }
+  html[data-theme="dark"] .alert-filter:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+
+  /* ---------------------------------------------------------------- Messages et encadrés */
+  html[data-theme="dark"] .alert-item { background: var(--surface-sunk); border-color: var(--line); }
+  html[data-theme="dark"] .alert-item:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+  html[data-theme="dark"] .alert-item-icon.danger,
+  html[data-theme="dark"] .alert-item .alert-item-icon,
+  html[data-theme="dark"] .confirm-icon { background: var(--tint-red); color: var(--text-red); }
+  html[data-theme="dark"] .alert-item-icon.success,
+  html[data-theme="dark"] .alert-item .alert-item-icon.success { background: var(--tint-green); color: var(--text-green); }
+  html[data-theme="dark"] .alert-item-icon.warning,
+  html[data-theme="dark"] .alert-icon.warning { background: var(--tint-amber); color: var(--text-amber); }
+  html[data-theme="dark"] .satisfaction-alert,
+  html[data-theme="dark"] .temp-password-card { background: var(--tint-green); border-color: #285f40; color: var(--text-green); }
+  html[data-theme="dark"] .temp-password-card code { background: var(--field); color: var(--text-green); }
+  html[data-theme="dark"] .pending-banner { background: var(--tint-amber); border-color: #6a5221; color: var(--text-amber); }
+  html[data-theme="dark"] .danger-zone { background: #1a1414; border-color: #6b3330; }
+  html[data-theme="dark"] .document-item .file-icon { color: var(--text-red); }
+  html[data-theme="dark"] .modal-content { background: var(--surface); border-color: var(--line); }
+  html[data-theme="dark"] .modal-backdrop.show { opacity: .7; }
+
+  /* ---------------------------------------------------------------- Notifications */
+  html[data-theme="dark"] .notif-icon { background: var(--tint-neutral); color: var(--ink-soft); }
+  html[data-theme="dark"] .notif-icon.is-unread { background: var(--tint-green); color: var(--text-green); }
+  html[data-theme="dark"] .notif-toast { background: var(--surface); border-color: var(--line-strong); }
+  html[data-theme="dark"] .notif-toast-body strong { color: var(--ink); }
+  html[data-theme="dark"] .notif-toast-text { color: var(--ink-soft); }
+  html[data-theme="dark"] .notif-toast-meta { color: var(--accent); }
+  html[data-theme="dark"] .notif-toast-close { color: var(--ink-soft); }
+  html[data-theme="dark"] .notif-toast-close:hover { background: var(--surface-hover); color: var(--ink); }
+
+  /* ---------------------------------------------------------------- Classes Tailwind à valeur fixe */
+  html[data-theme="dark"] .tw\:bg-white,
+  html[data-theme="dark"] .tw\:hover\:bg-white:hover { background-color: var(--surface); }
+  html[data-theme="dark"] .tw\:bg-\[\#f3faf6\] { background-color: var(--tint-green); }
+  html[data-theme="dark"] .tw\:text-prise-green,
+  html[data-theme="dark"] .tw\:text-prise-green-2,
+  html[data-theme="dark"] .tw\:hover\:text-prise-green-2:hover,
+  html[data-theme="dark"] .tw\:text-prise-success { color: var(--text-green); }
+  html[data-theme="dark"] .tw\:text-prise-danger,
+  html[data-theme="dark"] .tw\:hover\:text-prise-danger:hover { color: var(--text-red); }
+  html[data-theme="dark"] .tw\:text-prise-warning { color: var(--text-amber); }
+  html[data-theme="dark"] .tw\:hover\:border-prise-green-2:hover,
+  html[data-theme="dark"] .tw\:focus\:border-prise-green-2:focus { border-color: var(--accent); }
+
+  /* ---------------------------------------------------------------- Bootstrap, utilitaires à valeur fixe */
+  html[data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+  html[data-theme="dark"] .text-dark { color: var(--ink) !important; }
+  html[data-theme="dark"] .card { --bs-card-bg: var(--surface); --bs-card-border-color: var(--line); --bs-card-cap-bg: var(--surface-sunk); }
+  html[data-theme="dark"] .dropdown-menu { --bs-dropdown-bg: var(--surface); --bs-dropdown-border-color: var(--line); --bs-dropdown-link-color: var(--ink); --bs-dropdown-link-hover-bg: var(--surface-hover); --bs-dropdown-link-hover-color: var(--ink); }
+  html[data-theme="dark"] .list-group { --bs-list-group-bg: var(--surface); --bs-list-group-border-color: var(--line); --bs-list-group-color: var(--ink); }
+
+  /* ---------------------------------------------------------------- Connexion et page d'erreur */
+  html[data-theme="dark"] .login-card { background: rgba(20, 31, 26, .96); border-color: rgba(167, 243, 208, .14); }
+  html[data-theme="dark"] .login-card h2 { color: var(--ink); }
+  html[data-theme="dark"] .app-error-page { background: var(--canvas); }
+  html[data-theme="dark"] .app-error-card { background: var(--surface); border-color: var(--line); }
+  html[data-theme="dark"] .app-error-card h1 { color: var(--ink); }
+  html[data-theme="dark"] .app-error-card p, html[data-theme="dark"] .app-error-foot { color: var(--ink-soft); }
+  html[data-theme="dark"] .app-error-details { background: var(--surface-sunk); color: var(--ink-soft); }
+  html[data-theme="dark"] .app-error-mark { background: var(--tint-amber); color: var(--text-amber); }
+
+  /* ---------------------------------------------------------------- Carte des provinces */
+  html[data-theme="dark"] .leaflet-container { background: #0f1814; }
+  html[data-theme="dark"] .leaflet-tile-pane { filter: brightness(.72) saturate(.75) contrast(1.05); }
+  html[data-theme="dark"] .province-name-label span { color: #e2ebe5; text-shadow: -1px -1px 0 #0d1512, 1px -1px 0 #0d1512, -1px 1px 0 #0d1512, 1px 1px 0 #0d1512, 0 0 3px #0d1512; }
+
+  /* ---------------------------------------------------------------- Menu du thème */
+  html[data-theme="dark"] .theme-option.is-active { color: var(--text-green); }
+}
+
+/* Sceau de la connexion : image sur fond blanc, posée sur un disque clair au lieu d'être fondue dans la carte */
+@media screen {
+  html[data-theme="dark"] .login-seal { mix-blend-mode: normal; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(167, 243, 208, .16); }
+  html[data-theme="dark"] .topbar-logo,
+  html[data-theme="dark"] .mobile-logo { background: #eef2ef; }
+}
+
+/* Carte : provinces sans contrat en gris-vert sombre, limites fines ; la légende suit */
+@media screen {
+  html[data-theme="dark"] .prise-map path[fill="#DCE4EC"] { fill: #2a3a32; }
+  html[data-theme="dark"] .prise-map path.leaflet-interactive { stroke: #0d1512; }
+  html[data-theme="dark"] .province-legend .province-dot[style*="217, 226, 220"] { background: #2a3a32 !important; box-shadow: 0 0 0 1px #4d685a; }
+  html[data-theme="dark"] .leaflet-bar a { background: var(--surface); color: var(--ink); border-color: var(--line); }
+  html[data-theme="dark"] .leaflet-control-attribution { background: rgba(13, 21, 18, .8) !important; color: var(--ink-soft); }
+  html[data-theme="dark"] .leaflet-popup-content-wrapper, html[data-theme="dark"] .leaflet-popup-tip { background: var(--surface); color: var(--ink); }
+}
+
+/* Matrice des garanties (Rapports) : ses couleurs d'origine sont en !important */
+@media screen {
+  html[data-theme="dark"] .gm-ok { background: var(--tint-green-strong) !important; color: var(--text-green); }
+  html[data-theme="dark"] .gm-warn { background: #3a2d14 !important; color: var(--text-amber); }
+  html[data-theme="dark"] .gm-bad { background: #43201e !important; color: var(--text-red); }
+  html[data-theme="dark"] .gm-future { background: var(--tint-neutral) !important; color: var(--text-neutral); }
+  html[data-theme="dark"] .gm-none { background: #18221d !important; color: #6f877a; }
+  html[data-theme="dark"] .gm-cell { border-left-color: var(--surface) !important; }
+}
+@media screen {
+  html[data-theme="dark"] .gm-dot.gm-ok { box-shadow: inset 0 0 0 1.5px var(--text-green); }
+  html[data-theme="dark"] .gm-dot.gm-warn { box-shadow: inset 0 0 0 1.5px var(--text-amber); }
+  html[data-theme="dark"] .gm-dot.gm-bad { box-shadow: inset 0 0 0 1.5px var(--text-red); }
+  html[data-theme="dark"] .gm-dot.gm-future { box-shadow: inset 0 0 0 1.5px var(--text-neutral); }
+  html[data-theme="dark"] .gm-dot.gm-none { box-shadow: inset 0 0 0 1.5px #4d685a; }
+}

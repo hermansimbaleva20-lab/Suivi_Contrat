@@ -22,9 +22,9 @@
   --color-prise-warning: #d98200;
   --color-prise-success: #16844a;
 
-  --font-display: 'Montserrat', Arial, sans-serif;
-  --font-body: 'Roboto', Arial, sans-serif;
-  --font-tech: 'Inter', Arial, sans-serif;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "Public Sans", "Segoe UI", Arial, sans-serif;
+  --font-tech: "Public Sans", "Segoe UI", Arial, sans-serif;
 
   --radius-card: 14px;
   --shadow-card: 0 10px 28px rgba(8, 42, 28, 0.08);

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../context/AuthContext.jsx';
 import { Modal } from './ui.jsx';
 import NotificationBell, { NotificationToast } from './NotificationBell.jsx';
+import ThemeSwitch from './ThemeSwitch.jsx';
 import { useNotifications } from '../lib/notifications.js';
 import { FINANCE } from '../lib/navigation.js';
 
@@ -165,6 +166,7 @@ export default function Layout() {
             <img src={logo} className={`topbar-logo project-logo-${code.toLowerCase()}`} alt={code} />
             <div className="topbar-actions">
               <div className="topbar-alerts" role="group" aria-label="Notifications et alertes"><NotificationBell data={notifications} /><AlertChips summary={alerts} perms={perms} /></div>
+              <ThemeSwitch />
               <form className="phase-pill-form" onSubmit={(e) => e.preventDefault()}>
                 <i className="bi bi-layers-fill phase-pill-icon" />
                 <PhaseSelect className="phase-pill-select" phases={phases} phaseId={phaseId} onChange={selectPhase} />
@@ -178,7 +180,7 @@ export default function Layout() {
                 <PhaseSelect className="mobile-phase-select" phases={phases} phaseId={phaseId} onChange={selectPhase} />
               </form>
             </div>
-            <div className="mobile-utility-right"><NotificationBell data={notifications} /><AlertChips summary={alerts} perms={perms} /></div>
+            <div className="mobile-utility-right"><NotificationBell data={notifications} /><AlertChips summary={alerts} perms={perms} /><ThemeSwitch /></div>
           </div>
           <section className="content"><Outlet /></section>
           <NotificationToast data={notifications} />
