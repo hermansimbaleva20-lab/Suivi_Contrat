@@ -93,6 +93,28 @@ class FleetApiTest extends TestCase
         $this->as($kga)->postJson('/api/fleet/assets', ['name' => 'Autre', 'fuel_alert_level' => '150'] + $asset)->assertStatus(422)->assertJsonValidationErrors('fuel_alert_level');
     }
 
+    /** Décision du 08/11/2026 : un engin se modifie toujours, mais ne se supprime pas s'il a un historique (sa consommation resterait sinon hors des totaux). */
+    public function test_un_engin_avec_historique_se_modifie_mais_ne_se_supprime_pas(): void
+    {
+        $agent = $this->logisticien($this->kananga);
+        $v = $this->vehicle($this->kananga);
+        $this->trip($agent, $v, 42700, 42727)->assertOk();
+        $row = collect($this->as($agent)->getJson('/api/fleet')->json('assets'))->firstWhere('id', $v);
+        $this->assertSame(['logs' => 1, 'maintenances' => 0, 'insurances' => 0], $row['history']);
+
+        $this->as($agent)->putJson("/api/fleet/assets/{$v}", ['kind' => 'VEHICULE', 'name' => 'Fortuner corrigé', 'organizational_unit_id' => $this->kananga->id,
+            'tank_capacity' => '120', 'fuel_price' => '1,37', 'maintenance_interval' => 3000])->assertOk();
+        $this->as($agent)->deleteJson("/api/fleet/assets/{$v}", ['reason' => 'Doublon du parc'])->assertStatus(422);
+        $this->assertSame(1, DB::table('fleet_logs')->where('fleet_asset_id', $v)->count());
+
+        // Sans historique, il se supprime ; le motif éventuel est journalisé.
+        $vide = $this->vehicle($this->kananga);
+        $this->as($this->logisticien($this->mbujiMayi))->deleteJson("/api/fleet/assets/{$vide}")->assertForbidden();
+        $this->as($agent)->deleteJson("/api/fleet/assets/{$vide}", ['reason' => 'Saisi en double'])->assertOk()->assertJsonPath('message', 'Engin supprimé.');
+        $this->assertDatabaseMissing('fleet_assets', ['id' => $vide]);
+        $this->assertStringContainsString('Motif : Saisi en double', DB::table('audit_logs')->where('entity_name', 'FleetAsset')->where('entity_id', (string) $vide)->value('details'));
+    }
+
     public function test_carnet_de_bord_calculs_et_controle_du_compteur(): void
     {
         $agent = $this->logisticien($this->kananga);

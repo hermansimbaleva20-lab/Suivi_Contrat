@@ -13,6 +13,7 @@ import { PrintLetterhead } from '../shared/PrintLetterhead.jsx';
 import { STOCK } from '../shared/logisticsNav.js';
 import { td, tdNum, th } from './stockUi.jsx';
 import { cardNo, packLabel, qty } from './stockFormat.js';
+import { DeleteDialog } from '../fleet/FleetRecords.jsx';
 
 /*
  * Logistique > Stock. Deux rubriques, sur le modèle des documents du projet :
@@ -52,24 +53,23 @@ function ArticleForm({ initial, onSubmit, onCancel, busy, errors }) {
   );
 }
 
+/** Modifier et supprimer sont toujours proposés (décision du 08/11/2026), même pour un article qui a des mouvements. */
 function CatalogActions({ a, busy, onEdit, onToggle, onDelete }) {
-  const [confirm, setConfirm] = useState(false);
-  if (confirm) {
-    return (
-      <div className="tw:flex tw:items-center tw:justify-end tw:gap-2">
-        <span className="tw:text-xs tw:text-prise-danger">Supprimer ?</span>
-        <button type="button" className={btnGhost} onClick={() => setConfirm(false)}>Non</button>
-        <button type="button" className={`${btn} tw:bg-prise-danger tw:text-white tw:hover:bg-red-800`} disabled={busy} onClick={onDelete}>Supprimer</button>
-      </div>
-    );
-  }
   return (
     <div className="tw:flex tw:items-center tw:justify-end tw:gap-1">
       <button type="button" className={btnGhost} onClick={onEdit} aria-label={`Modifier ${a.designation}`} title="Modifier"><i className="bi bi-pencil" aria-hidden="true" /></button>
       <button type="button" className={btnGhost} disabled={busy} onClick={onToggle}>{a.isActive ? 'Désactiver' : 'Réactiver'}</button>
-      {!a.hasMovements && <button type="button" className={btnDanger} onClick={() => setConfirm(true)} aria-label={`Supprimer ${a.designation}`} title="Supprimer"><i className="bi bi-trash" aria-hidden="true" /></button>}
+      <button type="button" className={btnDanger} onClick={onDelete} aria-label={`Supprimer ${a.designation}`} title="Supprimer"><i className="bi bi-trash" aria-hidden="true" /></button>
     </div>
   );
+}
+
+const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+
+function deleteArticleText(a) {
+  if (!a.movementCount) return `« ${a.designation} » n’a aucun mouvement de stock : il sera retiré du catalogue.`;
+  return `« ${a.designation} » sera supprimé avec ${plural(a.movementCount, 'mouvement de stock', 'mouvements de stock')} (annulés compris) : sa fiche de stock disparaîtra. `
+    + 'Tout reste consultable dans le journal d’audit. Pour conserver l’historique, désactivez plutôt l’article.';
 }
 
 /** Sortie de stock (consommation) : un ou plusieurs articles remis à un poste de l'unité du compte. */
@@ -419,6 +419,7 @@ export default function StockPage({ view }) {
   const [onlyLow, setOnlyLow] = useState(false);
   const [flash, setFlash] = useState({ type: 'success', text: '' });
   const [editing, setEditing] = useState(null); // id d'article | 'new' | 'delivery' | 'import'
+  const [deleting, setDeleting] = useState(null); // article à supprimer
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -594,7 +595,7 @@ export default function StockPage({ view }) {
                     {data.canManageCatalog && (
                       <td className={`${td} tw:print:hidden`}>
                         {a.canEdit
-                          ? <CatalogActions a={a} busy={busy} onEdit={() => openForm(a.id)} onToggle={() => call(() => api.put(`/stock/articles/${a.id}/toggle`))} onDelete={() => call(() => api.delete(`/stock/articles/${a.id}`))} />
+                          ? <CatalogActions a={a} busy={busy} onEdit={() => openForm(a.id)} onToggle={() => call(() => api.put(`/stock/articles/${a.id}/toggle`))} onDelete={() => setDeleting(a)} />
                           : <span className="tw:text-[11px] tw:text-prise-muted" title="Tenu par la coordination nationale ou par une autre unité">Lecture seule</span>}
                       </td>
                     )}
@@ -610,6 +611,10 @@ export default function StockPage({ view }) {
             </p>
           )}
         </section>
+      )}
+      {deleting && (
+        <DeleteDialog title="Supprimer l’article" text={deleteArticleText(deleting)} url={`/stock/articles/${deleting.id}`}
+          onDone={(text) => { setDeleting(null); done(text); }} onClose={() => setDeleting(null)} />
       )}
     </>
   );

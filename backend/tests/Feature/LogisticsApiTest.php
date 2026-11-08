@@ -152,10 +152,13 @@ class LogisticsApiTest extends TestCase
         $this->as($admin)->postJson('/api/organization/positions', ['name' => 'Logisticien', 'organizational_unit_id' => $this->kananga->id])->assertCreated();
         $this->as($admin)->postJson('/api/organization/positions', ['name' => 'Logisticien', 'organizational_unit_id' => $this->mbujiMayi->id])->assertCreated();
         $this->as($admin)->postJson('/api/organization/positions', ['name' => 'Logisticien', 'organizational_unit_id' => $this->kananga->id])->assertStatus(422)->assertJsonValidationErrors('name');
-        $raf = Position::create(['project_id' => $this->prise->id, 'organizational_unit_id' => $this->cn->id, 'name' => 'RAF', 'is_active' => true]);
+        $raf = Position::create(['project_id' => $this->prise->id, 'organizational_unit_id' => $this->cn->id, 'name' => 'RAF', 'description' => ' Responsable administratif et financier ', 'is_active' => true]);
 
         $opts = $this->getJson('/api/auth/registration-options?project=PRISE')->assertOk()->json('positions');
         $this->assertSame($this->kananga->id, collect($opts)->firstWhere('name', 'Logisticien')['unitId']);
+        // La description du poste, affichée au survol dans le formulaire de demande d'accès.
+        $this->assertSame('Responsable administratif et financier', collect($opts)->firstWhere('name', 'RAF')['description']);
+        $this->assertNull(collect($opts)->firstWhere('name', 'Logisticien')['description']);
 
         $form = ['project' => 'PRISE', 'name' => 'Jean Agent', 'email' => 'jean@example.test', 'password' => 'Secret-2026', 'password_confirmation' => 'Secret-2026',
             'organizational_unit_id' => $this->kananga->id, 'position_id' => $raf->id];

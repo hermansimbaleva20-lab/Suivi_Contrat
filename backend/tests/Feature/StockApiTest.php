@@ -379,13 +379,38 @@ class StockApiTest extends TestCase
         $this->as($cn)->postJson('/api/stock/articles', $data)->assertStatus(422)->assertJsonValidationErrors('designation');
         $this->as($cn)->postJson('/api/stock/articles', ['designation' => 'Binder 25', 'unit' => 'Pqt', 'unit_price' => '-1'])->assertStatus(422)->assertJsonValidationErrors('unit_price');
 
-        // Un article qui a des mouvements se désactive, il ne se supprime pas.
+        // Un article désactivé n'accepte plus de mouvement.
         $this->move($this->admin(), $a, $this->cn, 'ENTREE', 3)->assertOk();
-        $this->as($cn)->deleteJson("/api/stock/articles/{$id}")->assertStatus(422);
         $this->as($cn)->putJson("/api/stock/articles/{$id}/toggle")->assertOk();
         $this->move($this->admin(), $a->fresh(), $this->kananga, 'ENTREE', 3)->assertStatus(422);
 
         $vide = $this->as($cn)->postJson('/api/stock/articles', ['designation' => 'Binder 30', 'unit' => 'Pqt', 'unit_price' => '20'])->json('id');
         $this->as($cn)->deleteJson("/api/stock/articles/{$vide}")->assertOk();
+    }
+
+    /** Décision du 08/11/2026 : un article se supprime toujours ; avec des mouvements, sur motif, et tout reste dans l'audit. */
+    public function test_supprimer_un_article_qui_a_des_mouvements(): void
+    {
+        $cn = $this->logisticien($this->cn);
+        $id = $this->as($cn)->postJson('/api/stock/articles', ['designation' => 'Ramette A4', 'unit' => 'Rame', 'unit_price' => '5'])->assertOk()->json('id');
+        $a = StockArticle::find($id);
+        $this->move($this->admin(), $a, $this->cn, 'ENTREE', 10)->assertOk();
+        $this->move($this->admin(), $a, $this->cn, 'SORTIE', 4)->assertOk();
+        $this->assertSame(2, collect($this->as($cn)->getJson('/api/stock')->json('articles'))->firstWhere('id', $id)['movementCount']);
+
+        // Le motif est obligatoire ; une autre unité ne peut pas le supprimer.
+        $this->as($cn)->deleteJson("/api/stock/articles/{$id}")->assertStatus(422)->assertJsonValidationErrors('reason');
+        $this->as($this->logisticien($this->kananga))->deleteJson("/api/stock/articles/{$id}", ['reason' => 'Article créé par erreur'])->assertStatus(404);
+
+        $this->as($cn)->deleteJson("/api/stock/articles/{$id}", ['reason' => 'Article créé par erreur'])->assertOk()
+            ->assertJsonPath('message', fn ($m) => str_contains($m, '2 mouvement(s)'));
+        $this->assertNull(StockArticle::find($id));
+        $this->assertSame(0, DB::table('stock_movements')->where('stock_article_id', $id)->count());
+        $audit = DB::table('audit_logs')->where('action', 'SUPPRESSION')->where('entity_name', 'StockArticle')->where('entity_id', (string) $id)->first();
+        $this->assertStringContainsString('Motif : Article créé par erreur', $audit->details);
+        $this->assertCount(2, json_decode($audit->old_values, true)['mouvements']);
+
+        // La désignation est de nouveau libre.
+        $this->as($cn)->postJson('/api/stock/articles', ['designation' => 'Ramette A4', 'unit' => 'Rame', 'unit_price' => '5'])->assertOk();
     }
 }

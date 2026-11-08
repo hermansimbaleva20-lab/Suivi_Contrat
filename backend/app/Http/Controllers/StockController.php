@@ -8,6 +8,7 @@ use App\Models\StockArticle;
 use App\Models\StockMovement;
 use App\Support\Ctx;
 use App\Support\Dates;
+use App\Support\DeletionReason;
 use App\Support\GoodsProcedure;
 use App\Support\StockImport;
 use App\Support\StockLedger;
@@ -158,7 +159,8 @@ class StockController extends Controller
             ->groupBy('stock_article_id')
             ->selectRaw("stock_article_id, SUM(CASE WHEN type = 'ENTREE' THEN quantity ELSE -quantity END) AS stock, SUM(CASE WHEN type = 'ENTREE' THEN quantity ELSE 0 END) AS entries, SUM(CASE WHEN type = 'ENTREE' THEN 0 ELSE quantity END) AS exits, MAX(movement_date) AS last_date, COUNT(*) AS moves")
             ->get()->keyBy('stock_article_id');
-        $used = DB::table('stock_movements')->where('project_id', $pid)->distinct()->pluck('stock_article_id')->flip();
+        // Toutes les lignes, annulées comprises : ce sont elles que la suppression de l'article efface.
+        $used = DB::table('stock_movements')->where('project_id', $pid)->groupBy('stock_article_id')->selectRaw('stock_article_id, COUNT(*) AS n')->pluck('n', 'stock_article_id');
 
         // Stock de l'unité du compte : c'est lui qui limite les sorties, quelle que soit l'unité consultée.
         $ownId = in_array((int) Ctx::user()->organizational_unit_id, $this->writableUnitIds($units, 'can_manage_stock'), true) ? (int) Ctx::user()->organizational_unit_id : null;
@@ -175,7 +177,7 @@ class StockController extends Controller
             return self::articleView($a) + [
                 'stock' => $qty, 'ownStock' => round((float) ($ownStocks[$a->id] ?? 0), 2), 'entries' => $s ? round((float) $s->entries, 2) : 0.0, 'exits' => $s ? round((float) $s->exits, 2) : 0.0, 'contractId' => $a->contract_id ? (int) $a->contract_id : null,
                 'value' => round($qty * (float) $a->unit_price, 2), 'lastMovementDate' => $s ? Dates::part($s->last_date) : null,
-                'level' => self::level($a, $qty, $s ? (int) $s->moves : 0), 'hasMovements' => isset($used[$a->id]),
+                'level' => self::level($a, $qty, $s ? (int) $s->moves : 0), 'hasMovements' => isset($used[$a->id]), 'movementCount' => (int) ($used[$a->id] ?? 0),
                 'ownerUnitId' => $a->organizational_unit_id ? (int) $a->organizational_unit_id : null,
                 'ownerUnit' => $a->organizational_unit_id ? ($unitNames[$a->organizational_unit_id] ?? null) : null,
                 'contractNumber' => $a->contract_id ? ($contractNumbers[$a->contract_id] ?? null) : null,
@@ -662,15 +664,28 @@ class StockController extends Controller
         return ['message' => $a->is_active ? 'Article réactivé.' : 'Article désactivé : il reste visible dans l’historique mais n’accepte plus de mouvement.'];
     }
 
-    public function destroyArticle(int $id)
+    /**
+     * Un article se supprime toujours (décision du 08/11/2026). S'il a des mouvements, ils sont supprimés avec lui, sur motif
+     * obligatoire ; l'article et toutes ses lignes restent dans le journal d'audit (valeurs « avant »).
+     */
+    public function destroyArticle(Request $r, int $id)
     {
         $a = $this->articleOr404($id);
         $this->needEdit($a);
-        abort_if(StockMovement::where
-('stock_article_id', $a->id)->exists(), 422, 'Cet article a déjà des mouvements de stock : désactivez-le au lieu de le supprimer.');
-        $before = self::snapshot($a);
-        $a->delete();
-        Ctx::auditChange('SUPPRESSION', 'StockArticle', $id, "Article « {$before['designation']} » supprimé du catalogue.", $before, null);
-        return ['message' => 'Article supprimé.'];
+        $reason = DeletionReason::from($r, StockMovement::where('stock_article_id', $a->id)->exists());
+
+        return DB::transaction(function () use ($a, $id, $reason) {
+            $a = StockArticle::where('id', $a->id)->lockForUpdate()->first();
+            $moves = StockMovement::where('stock_article_id', $id)->orderBy('organizational_unit_id')->orderBy('operation_no')->get();
+            abort_if($moves->isNotEmpty() && $reason === null, 422, 'Des mouvements viennent d’être enregistrés sur cet article : indiquez le motif de la suppression.');
+            $before = self::snapshot($a) + ['mouvements' => $moves->map(fn ($m) => collect($m->getAttributes())->except(['updated_at'])->all())->all()];
+            StockMovement::where('stock_article_id', $id)->delete();
+            $a->delete();
+            $n = $moves->count();
+            $what = $n ? " avec ses {$n} mouvement(s) de stock" : '';
+            Ctx::auditChange('SUPPRESSION', 'StockArticle', $id, "Article « {$before['designation']} » supprimé du catalogue{$what}." . ($reason ? " Motif : {$reason}" : ''), $before, null);
+
+            return ['message' => $n ? "Article supprimé avec ses {$n} mouvement(s) de stock. Ils restent consultables dans le journal d’audit." : 'Article supprimé.'];
+        });
     }
 }

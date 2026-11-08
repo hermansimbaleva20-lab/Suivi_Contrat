@@ -72,8 +72,9 @@ class OrganizationController extends Controller
             'units' => OrganizationalUnit::where('project_id', $project->id)->where('is_active', true)->orderByRaw("CASE WHEN type = 'COORDINATION' THEN 0 ELSE 1 END")->orderBy('name')
                 ->get(['id', 'type', 'name'])->values(),
             // Chaque poste porte son unité : le formulaire ne propose que les postes de l'unité choisie (et les postes communs).
-            'positions' => Position::where('project_id', $project->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'organizational_unit_id'])
-                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'unitId' => $p->organizational_unit_id ? (int) $p->organizational_unit_id : null])->values(),
+            // La description s'affiche au survol de l'intitulé, pour aider le demandeur à choisir son poste.
+            'positions' => Position::where('project_id', $project->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'description', 'organizational_unit_id'])
+                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'description' => trim((string) $p->description) ?: null, 'unitId' => $p->organizational_unit_id ? (int) $p->organizational_unit_id : null])->values(),
         ];
     }
 

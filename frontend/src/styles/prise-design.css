@@ -544,5 +544,31 @@ body .alert-chip-logistics .chip-badge { --beacon: 47, 109, 179; background: #2f
 .login-hero .eyebrow { font-family: var(--ff-title); font-weight: 700; letter-spacing: .05em; }
 @media (max-width: 1100px) { .login-hero .prise-word { font-size: 66px; } }
 
+/* Demande d'accès : choix du poste, avec la description du poste survolé (PositionPicker.jsx). Jetons du thème : clair et sombre. */
+.pos-picker { position: relative; }
+/* Les blocs du formulaire sont animés (login-motion.css) : chacun forme son propre plan, et le suivant recouvrirait la liste. */
+form > *:has(.pos-picker-panel) { position: relative; z-index: 40; }
+.pos-picker-button { display: block; width: 100%; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pos-picker-placeholder { color: var(--prise-muted); }
+.pos-picker-panel {
+  /* Alignée sur le bord droit du champ : dans la colonne de droite, elle s'élargit vers l'intérieur de la carte. */
+  position: absolute; z-index: 30; right: 0; top: calc(100% + 6px); width: max(100%, min(340px, calc(100vw - 32px)));
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-raise); overflow: hidden;
+  animation: posPickerIn .16s var(--ease-out) both;
+}
+@keyframes posPickerIn { from { opacity: 0; translate: 0 -4px; } }
+.pos-picker-list { max-height: 216px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; }
+.pos-picker-option { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; color: var(--ink); font-size: 14.5px; cursor: pointer; }
+.pos-picker-option > span { flex: 1; min-width: 0; }
+.pos-picker-option > .bi-info-circle { color: var(--prise-muted); font-size: 13px; }
+.pos-picker-option.is-active { background: var(--tint-green, #e7f5ec); }
+.pos-picker-option[aria-selected="true"] { font-weight: 650; }
+.pos-picker-check { color: var(--text-green, #087a3f); }
+.pos-picker-desc { display: grid; gap: 2px; min-height: 64px; padding: 10px 14px 12px; border-top: 1px solid var(--line); background: var(--surface-sunk); font-size: 13px; line-height: 1.45; color: var(--ink); }
+.pos-picker-desc strong { font-family: var(--ff-title); font-size: 14px; font-weight: 700; color: var(--text-green, #087a3f); }
+.pos-picker-empty { color: var(--prise-muted); font-style: italic; }
+.pos-picker-chosen { margin: 6px 2px 0; font-size: 12.5px; line-height: 1.4; color: var(--prise-muted); }
+@media (prefers-reduced-motion: reduce) { .pos-picker-panel { animation: none; } }
+
 /* Bloc session : le bouton « mot de passe » prend la teinte verte au survol (la déconnexion garde le rouge) */
 body .sidebar .sidebar-user .password-btn:hover { background: rgba(167, 243, 208, .14); border-color: rgba(167, 243, 208, .5); }

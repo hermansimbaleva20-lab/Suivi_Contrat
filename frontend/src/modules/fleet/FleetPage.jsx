@@ -9,11 +9,12 @@ import { Loading, Notice } from '../../components/ui.jsx';
 import { ModuleHeader } from '../shared/ModuleHeader.jsx';
 import { ReadOnlyNote } from '../shared/ReadOnlyNote.jsx';
 import { fleetNav, logbookPath } from '../shared/logisticsNav.js';
-import { btn, btnDanger, btnGhost, btnPrimary, FieldError, input, label, panel } from '../shared/tw.jsx';
+import { btnDanger, btnGhost, btnPrimary, FieldError, input, label, panel } from '../shared/tw.jsx';
 import { td, tdNum, th } from '../stock/stockUi.jsx';
 import { Facts, InsurancePill, MaintenancePill, Pill, UnitPicker } from './fleetUi.jsx';
 import { levelLabel, meterUnit, q } from './fleetFormat.js';
 import { useMutation, useParam } from './fleetHooks.js';
+import { DeleteDialog } from './FleetRecords.jsx';
 
 /*
  * Charroi > Parc & alertes : situation de chaque véhicule et groupe (compteur, réservoir estimé, entretien, assurance,
@@ -65,24 +66,23 @@ function AssetForm({ initial, units, onSubmit, onCancel, busy, errors }) {
   );
 }
 
+const hasHistory = (a) => Object.values(a.history || {}).some((n) => n > 0);
+
+/**
+ * Modifier est toujours proposé. Supprimer seulement sans historique (décision du 08/11/2026) : supprimer les saisies
+ * retirerait la consommation de l'engin des totaux et des rapports ; il se désactive à la place.
+ */
 function AssetActions({ a, busy, onEdit, onToggle, onDelete }) {
-  const [confirm, setConfirm] = useState(false);
-  if (confirm) {
-    return (
-      <div className="tw:flex tw:items-center tw:justify-end tw:gap-2">
-        <span className="tw:text-xs tw:text-prise-danger">Supprimer ?</span>
-        <button type="button" className={btnGhost} onClick={() => setConfirm(false)}>Non</button>
-        <button type="button" className={`${btn} tw:bg-prise-danger tw:text-white tw:hover:bg-red-800`} disabled={busy} onClick={onDelete}>Supprimer</button>
-      </div>
-    );
-  }
+  const locked = hasHistory(a);
+  const why = 'Historique enregistré (carnet, entretiens ou assurances) : désactivez l’engin pour garder sa consommation dans les totaux et les rapports.';
   return (
     <div className="tw:flex tw:items-center tw:justify-end tw:gap-1">
       <button type="button" className={btnGhost} onClick={onEdit} aria-label={`Modifier ${a.name}`} title="Modifier"><i className="bi bi-pencil" aria-hidden="true" /></button>
       <button type="button" className={btnGhost} disabled={busy} onClick={onToggle}>{a.isActive ? 'Désactiver' : 'Réactiver'}</button>
-      {!a.lastLogDate && !a.maintenance.hasRecord && (
-        <button type="button" className={btnDanger} onClick={() => setConfirm(true)} aria-label={`Supprimer ${a.name}`} title="Supprimer"><i className="bi bi-trash" aria-hidden="true" /></button>
-      )}
+      <span title={locked ? why : 'Supprimer'}>
+        <button type="button" className={`${btnDanger} tw:disabled:cursor-not-allowed tw:disabled:opacity-40`} onClick={onDelete} disabled={locked}
+          aria-label={locked ? `Suppression impossible : ${why}` : `Supprimer ${a.name}`}><i className="bi bi-trash" aria-hidden="true" /></button>
+      </span>
     </div>
   );
 }
@@ -94,6 +94,7 @@ export default function FleetPage({ kind }) {
   const { data, loading, error, reload } = useLoad('/fleet', unitParam ? { unit_id: unitParam } : {});
   const { flash, setFlash, errors, setErrors, busy, call } = useMutation(reload);
   const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null); // engin à supprimer
 
   if (loading && !data) return <Loading />;
   if (!data) return <Notice>{error}</Notice>;
@@ -175,7 +176,7 @@ export default function FleetPage({ kind }) {
                       {data.writableUnitIds.includes(a.unitId) && (
                         <AssetActions a={a} busy={busy} onEdit={() => open(a.id)}
                           onToggle={() => call(() => api.put(`/fleet/assets/${a.id}/toggle`))}
-                          onDelete={() => call(() => api.delete(`/fleet/assets/${a.id}`))} />
+                          onDelete={() => setDeleting(a)} />
                       )}
                     </td>
                   )}
@@ -239,6 +240,10 @@ export default function FleetPage({ kind }) {
       </section>
 
       {table(kind, isVehicle ? 'Véhicules' : 'Groupes électrogènes')}
+      {deleting && (
+        <DeleteDialog title={deleting.kind === 'GROUPE' ? 'Supprimer le groupe électrogène' : 'Supprimer le véhicule'} text={`« ${deleting.name} » n’a aucun historique : il sera retiré du parc.`} url={`/fleet/assets/${deleting.id}`}
+          onDone={(text) => { setDeleting(null); setEditing(null); setFlash({ type: 'success', text }); reload(); }} onClose={() => setDeleting(null)} />
+      )}
     </>
   );
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\UnitScope;
 use App\Support\Ctx;
 use App\Support\Dates;
+use App\Support\DeletionReason;
 use App\Support\FleetMetrics;
 use App\Support\Notifier;
 use App\Support\Xlsx;
@@ -223,7 +224,8 @@ class FleetController extends Controller
         $alerts = [];
         foreach ($assets as $a) {
             $s = self::status($a, $logs[$a['id']], $maint[$a['id']], $ins[$a['id']], $today);
-            $rows[] = self::assetView($a) + $s;
+            // Lignes que la suppression de l'engin effacerait avec lui (saisies annulées comprises).
+            $rows[] = self::assetView($a) + $s + ['history' => ['logs' => count($logs[$a['id']]), 'maintenances' => count($maint[$a['id']]), 'insurances' => count($ins[$a['id']])]];
             foreach ($s['alerts'] as $al) $alerts[] = $al + ['assetId' => $a['id'], 'assetName' => $a['name'], 'registration' => $a['registration'], 'kind' => $a['kind'], 'unitName' => $a['unit_name']];
         }
         usort($alerts, fn ($x, $y) => ($x['level'] === 'danger' ? 0 : 1) <=> ($y['level'] === 'danger' ? 0 : 1));
@@ -302,15 +304,25 @@ class FleetController extends Controller
         return ['message' => $a['is_active'] ? 'Engin désactivé : son historique reste consultable.' : 'Engin remis en service.'];
     }
 
-    public function destroyAsset(int $id)
+    /** Historique d'un engin : sa présence interdit la suppression. */
+    private const HISTORY = ['fleet_logs' => 'saisie(s) du carnet', 'fleet_maintenances' => 'entretien(s)', 'fleet_insurances' => 'assurance(s)'];
+
+    /**
+     * Un engin ne se supprime que s'il n'a aucun historique (décision du 08/11/2026) : supprimer ses saisies retirerait sa
+     * consommation de carburant des totaux et des rapports non figés. Avec un historique, il se désactive.
+     */
+    public function destroyAsset(Request $r, int $id)
     {
         $a = $this->assetOr404($id);
         $this->needAssets($a['unit_id']);
-        foreach (['fleet_logs', 'fleet_maintenances', 'fleet_insurances'] as $t) {
-            abort_if(DB::table($t)->where('fleet_asset_id', $id)->exists(), 422, 'Cet engin a déjà un historique : désactivez-le au lieu de le supprimer.');
+        foreach (array_keys(self::HISTORY) as $t) {
+            abort_if(DB::table($t)->where('fleet_asset_id', $id)->exists(), 422, 'Cet engin a déjà un historique (carnet, entretiens ou assurances) : désactivez-le au lieu de le supprimer, pour que sa consommation reste dans les totaux et les rapports.');
         }
+        $reason = DeletionReason::from($r, false);
         DB::table('fleet_assets')->where('id', $id)->delete();
-        Ctx::auditChange('SUPPRESSION', 'FleetAsset', $id, "Engin « {$a['name']} » supprimé du parc.", $a, null);
+        $kind = $a['kind'] === FleetMetrics::VEHICULE ? 'Véhicule' : 'Groupe électrogène';
+        Ctx::auditChange('SUPPRESSION', 'FleetAsset', $id, "{$kind} « {$a['name']} » supprimé du parc." . ($reason ? " Motif : {$reason}" : ''), $a, null);
+
         return ['message' => 'Engin supprimé.'];
     }
 

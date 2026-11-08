@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { api, apiError } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from '../components/ui.jsx';
+import { PositionPicker } from '../components/PositionPicker.jsx';
 import '../styles/login-motion.css';
 
 const PROJECTS = {
@@ -163,8 +164,14 @@ export function Register() {
     return () => { alive = false; };
   }, [f.project]);
 
+  const unitPositions = options.positions.filter((p) => !p.unitId || String(p.unitId) === String(f.organizational_unit_id));
+  const [missingPosition, setMissingPosition] = useState(false);
+
   const submit = async (e) => {
     e.preventDefault();
+    // Le choix du poste n'est pas une liste native : son caractère obligatoire est contrôlé ici.
+    if (options.positions.length > 0 && !f.position_id) { setMissingPosition(true); setError('Choisissez votre poste dans le projet.'); return; }
+    setMissingPosition(false);
     if (f.password !== f.password_confirmation) { setError('Les deux mots de passe ne correspondent pas.'); return; }
     setBusy(true);
     setError('');
@@ -207,12 +214,12 @@ export function Register() {
             )}
             {options.positions.length > 0 ? (
               <div className="col-md-6">
-                <label className="form-label" htmlFor="reg-position">Poste dans le projet</label>
-                {/* Seuls les postes prévus pour l'unité choisie (et les postes communs à toutes les unités) sont proposés. */}
-                <select id="reg-position" className="form-select" value={f.position_id} onChange={(e) => set('position_id')(e.target.value)} required disabled={options.units.length > 0 && !f.organizational_unit_id}>
-                  <option value="">{options.units.length > 0 && !f.organizational_unit_id ? 'Choisissez d’abord votre unité' : 'Choisissez votre poste…'}</option>
-                  {options.positions.filter((p) => !p.unitId || String(p.unitId) === String(f.organizational_unit_id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <span className="form-label d-block" id="reg-position-label">Poste dans le projet</span>
+                {/* Seuls les postes prévus pour l'unité choisie (et les postes communs à toutes les unités) sont proposés ;
+                    leur description s'affiche au survol de l'intitulé. */}
+                <PositionPicker positions={unitPositions} value={f.position_id} onChange={(v) => { set('position_id')(v); if (missingPosition) { setMissingPosition(false); setError(''); } }} invalid={missingPosition}
+                  disabled={options.units.length > 0 && !f.organizational_unit_id}
+                  placeholder={options.units.length > 0 && !f.organizational_unit_id ? 'Choisissez d’abord votre unité' : 'Choisissez votre poste…'} />
               </div>
             ) : text('Poste dans le projet', 'project_position')}
           </div>
