@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Modal } from './ui.jsx';
 import NotificationBell, { NotificationToast } from './NotificationBell.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
+import ChangePasswordDialog from './ChangePasswordDialog.jsx';
 import { useNotifications } from '../lib/notifications.js';
 import { FINANCE } from '../lib/navigation.js';
 
@@ -24,7 +25,8 @@ const NAV = [
     ['États figés & comparaisons', '/reports/snapshots', 'clock-history', reports],
   ]],
   ['Analyse', 'Alertes', 'Alertes', '/alerts', 'bell-fill', (c) => c('canViewAlertsContracts') || c('canViewAlertsGuarantees') || c('canViewAlertsLogistics')],
-  ['Analyse', 'Archives', 'Archives', '/archives', 'archive-fill', (c) => c('canViewArchives')],
+  // Visible de tous : la page propose de demander l'accès au super-administrateur (phases archivées réservées).
+  ['Analyse', 'Archives', 'Archives', '/archives', 'archive-fill', () => true],
   // Une seule option « Logistique » (tableau de bord), avec ses sous-options : [libellé, chemin, icône, visibilité].
   ['Opérations', 'Logistique', 'Logistique', '/logistique', 'boxes', (c) => stock(c) || fleet(c), true, [
     ['Stock', '/stock', 'box-seam', stock],
@@ -85,6 +87,7 @@ export default function Layout() {
   const loc = useLocation();
   const [menu, setMenu] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   useEffect(() => { setMenu(false); }, [loc.pathname]);
 
@@ -153,6 +156,9 @@ export default function Layout() {
                 <div className="meta">{userLine}</div>
                 {user.unit && <div className="meta meta-unit"><i className="bi bi-geo-alt-fill" aria-hidden="true" /> {user.unit.name}</div>}
               </div>
+              <button type="button" className="logout-btn password-btn" onClick={() => setPasswordOpen(true)} title="Modifier mon mot de passe" aria-label="Modifier mon mot de passe">
+                <i className="bi bi-key" /><span>Mot de passe</span>
+              </button>
               <button type="button" className="logout-btn" onClick={() => setLogoutOpen(true)} title="Déconnexion" aria-label="Déconnexion">
                 <i className="bi bi-box-arrow-right" /><span>Déconnexion</span>
               </button>
@@ -223,12 +229,16 @@ export default function Layout() {
               ))}
             </React.Fragment>
           ))}
-          <button className="btn btn-outline-light w-100 mt-3" onClick={() => { setMenu(false); setLogoutOpen(true); }}>
+          <button className="btn btn-outline-light w-100 mt-3" onClick={() => { setMenu(false); setPasswordOpen(true); }}>
+            <i className="bi bi-key me-1" /> Modifier mon mot de passe
+          </button>
+          <button className="btn btn-outline-light w-100 mt-2" onClick={() => { setMenu(false); setLogoutOpen(true); }}>
             <i className="bi bi-box-arrow-right me-1" /> Déconnexion
           </button>
         </div>
       </div>
 
+      {passwordOpen && <ChangePasswordDialog onClose={() => setPasswordOpen(false)} />}
       {logoutOpen && (
         <Modal
           title="Déconnexion"

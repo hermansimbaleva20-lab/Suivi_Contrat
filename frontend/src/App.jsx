@@ -114,7 +114,7 @@ export default function App() {
         <Route path="/reports/synthese" element={<Guard any={['canViewReports', 'canViewSituation']}><SynthesisPage /></Guard>} />
         <Route path="/reports/snapshots" element={<Guard any={['canViewReports', 'canViewSituation']}><ReportSnapshotsPage /></Guard>} />
         <Route path="/alerts" element={<Guard any={['canViewAlertsContracts', 'canViewAlertsGuarantees', 'canViewAlertsLogistics']}><Alerts /></Guard>} />
-        <Route path="/archives" element={<Guard any={['canViewArchives']}><Archives /></Guard>} />
+        <Route path="/archives" element={<Archives />} />
         <Route path="/companies" element={<Guard any={['canManageCompanies']}><Companies /></Guard>} />
         <Route path="/users" element={<Guard any={['canManageUsers']}><Users /></Guard>} />
         <Route path="/decomptes" element={<Guard any={['canManagePayments', 'canValidateDecomptes', 'canViewSituation']}><DecomptesPage /></Guard>} />

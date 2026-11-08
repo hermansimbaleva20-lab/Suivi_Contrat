@@ -33,7 +33,8 @@ class ProjectContext {
   if($requested>0){
    $phase=ProjectPhase::where('project_id',$project->id)->where('id',$requested)->first();
    if($phase&&$phase->is_archived){
-    $allowed=$user&&((bool)$user->is_super_admin||(bool)$user->can_view_archives||in_array(strtoupper((string)$user->role),['ADMIN','ADMINISTRATEUR','SUPER-ADMIN','SUPER_ADMIN'],true));
+    // Phase archivée : super-administrateur et comptes qu'il autorise seulement ; sinon, retour à la phase courante.
+    $allowed=\App\Support\Ctx::canViewArchives($user);
     if(!$allowed)$phase=null;
    }
   }

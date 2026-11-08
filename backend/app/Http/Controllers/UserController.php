@@ -2,7 +2,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\AccessMail;
 use App\Support\Ctx;
+use App\Support\Notifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -74,8 +76,13 @@ class UserController extends Controller
         abort_unless($u->is_pending, 404, 'Aucune demande en attente pour ce compte.');
         $u->is_pending = false; $u->is_active = true; $u->can_view_reports = true; $u->can_view_alerts_contracts = true; $u->can_view_alerts_guarantees = true; $u->can_view_situation = true;
         $u->save();
-        Ctx::audit('APPROBATION_COMPTE', 'User', $id, "Compte {$u->email} approuvé (lecture seule). Ajustez les habilitations si nécessaire.");
-        return ['message' => "Compte de {$u->full_name} approuvé en lecture seule. Ajustez ses habilitations si nécessaire."];
+        Notifier::resolve('User', $id, 'DEMANDE_ACCES');
+        // Le demandeur est prévenu par e-mail, avec le lien de la page de connexion (décision du 08/11/2026).
+        $mail = AccessMail::approved($u, Ctx::project());
+        Ctx::audit('APPROBATION_COMPTE', 'User', $id, "Compte {$u->email} approuvé (lecture seule). Ajustez les habilitations si nécessaire. "
+            . ($mail['success'] ? 'Utilisateur prévenu par e-mail.' : 'E-mail non envoyé : ' . $mail['message']));
+        return ['message' => "Compte de {$u->full_name} approuvé en lecture seule. Ajustez ses habilitations si nécessaire. "
+            . ($mail['success'] ? 'Un e-mail avec le lien de connexion lui a été envoyé.' : 'L’e-mail de confirmation n’a pas pu partir : prévenez-le directement.')];
     }
 
     public function reject(int $id)
@@ -85,6 +92,7 @@ class UserController extends Controller
         abort_unless($u->is_pending, 404, 'Aucune demande en attente pour ce compte.');
         $email = $u->email;
         $u->delete();
+        Notifier::resolve('User', $id, 'DEMANDE_ACCES');
         Ctx::audit('REFUS_COMPTE', 'User', $id, "Demande d’inscription de {$email} refusée.");
         return ['message' => 'Demande d’inscription refusée.'];
     }
@@ -136,6 +144,11 @@ class UserController extends Controller
         $u->can_view_pools = (bool) $r->input('can_view_pools', false);
         $u->role = $r->input('role');
         $u->save();
+        // Accès aux archives accordé : la demande est close et le compte en est notifié.
+        if ($u->can_view_archives && !$before['can_view_archives']) {
+            Notifier::resolve('User', $id, 'DEMANDE_ARCHIVES');
+            Notifier::send([$u->id], 'ACCES_ARCHIVES', 'Accès aux phases archivées accordé', 'Les phases archivées sont désormais consultables depuis le menu Archives.', '/archives', 'User', $u->id);
+        }
         Ctx::auditChange('HABILITATIONS', 'User', $id, "Habilitations de {$u->email} mises à jour (" . ($u->role === 'ADMINISTRATEUR' ? 'administrateur' : 'utilisateur simple')
             . ($u->can_view_pools ? ', consultation des pools au niveau national' : '') . ').', $before, $u->only($keys));
         return ['message' => 'Habilitations enregistrées.'];

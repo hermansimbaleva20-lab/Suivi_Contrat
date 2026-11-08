@@ -15,6 +15,7 @@ Route::get('/auth/registration-options', [OrganizationController::class, 'regist
 Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:changement-mot-de-passe');
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/read-all', [NotificationController::class, 'readAll']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'read'])->whereNumber('id');
@@ -184,10 +185,14 @@ Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function (
         Route::get('/audit/export', [AuditController::class, 'export']);
     });
 
-    Route::get('/archives', [PhaseController::class, 'archives'])->middleware('permission:can_view_archives');
+    // Archives : le contrôleur réserve la consultation au super-admin et aux comptes qu'il autorise ; les autres peuvent la demander.
+    Route::get('/archives', [PhaseController::class, 'archives']);
+    Route::get('/archives/access', [PhaseController::class, 'archiveAccess']);
+    Route::post('/archives/request', [PhaseController::class, 'requestArchives']);
     Route::middleware('permission:can_manage_settings')->group(function () {
         Route::get('/phases', [PhaseController::class, 'index']);
         Route::post('/phases', [PhaseController::class, 'store']);
+        Route::put('/phases/{id}', [PhaseController::class, 'update'])->whereNumber('id');
         Route::put('/phases/{id}/current', [PhaseController::class, 'current'])->whereNumber('id');
         Route::put('/phases/{id}/archive', [PhaseController::class, 'archive'])->whereNumber('id');
         Route::put('/phases/{id}/restore', [PhaseController::class, 'restore'])->whereNumber('id');

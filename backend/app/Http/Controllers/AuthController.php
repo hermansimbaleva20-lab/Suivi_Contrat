@@ -6,6 +6,7 @@ use App\Models\Position;
 use App\Models\Project;
 use App\Models\ProjectPhase;
 use App\Models\User;
+use App\Support\AccessMail;
 use App\Support\AlertEngine;
 use App\Support\Ctx;
 use App\Support\Dates;
@@ -13,6 +14,7 @@ use App\Support\Loader;
 use App\Support\MailService;
 use App\Support\PasswordPolicy;
 use App\Support\Metrics;
+use App\Support\Notifier;
 use App\Support\Views;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -104,6 +106,15 @@ class AuthController extends Controller
             'can_view_reports' => false, 'can_view_alerts_contracts' => false, 'can_view_alerts_guarantees' => false, 'can_view_alerts_logistics' => false, 'can_view_situation' => false,
         ]);
         Ctx::audit('DEMANDE_INSCRIPTION', 'User', $u->id, 'Demande d’inscription de ' . $email . ', en attente de validation.', (int) $project->id, (int) $u->id);
+
+        // Le super-administrateur est prévenu dans son espace et par e-mail, même s'il n'est pas connecté (décision du 08/11/2026).
+        $unitName = $unitId ? (string) OrganizationalUnit::find($unitId)?->name : '';
+        $superAdmins = User::where('project_id', $project->id)->where('is_super_admin', true)->where('is_active', true)->pluck('id')->all();
+        Notifier::send($superAdmins, 'DEMANDE_ACCES', 'Demande d’accès de ' . $u->full_name,
+            trim($u->email . ' · ' . $positionName . ($unitName ? ' · ' . $unitName : '')), '/users', 'User', $u->id, (int) $project->id);
+        $mail = AccessMail::newRequest($u, $project, $unitName, $positionName);
+        Ctx::audit('DEMANDE_INSCRIPTION_EMAIL', 'User', $u->id, $mail['success'] ? 'Super-administrateur prévenu par e-mail de la demande de ' . $email . '.'
+            : 'E-mail au super-administrateur non envoyé : ' . $mail['message'], (int) $project->id, (int) $u->id);
         return response()->json(['message' => 'Demande enregistrée. Votre compte ' . $project->code . ' sera activé après validation par l’administrateur du projet.', 'user_id' => $u->id], 201);
     }
 
@@ -173,7 +184,7 @@ class AuthController extends Controller
     {
         $u = $r->user();
         $project = Ctx::project();
-        $canArchives = Ctx::can('can_view_archives');
+        $canArchives = Ctx::canViewArchives();
         $phases = ProjectPhase::where('project_id', $project->id)->orderBy('number')->get()
             ->filter(fn ($p) => !$p->is_archived || $canArchives)->values()
             ->map(fn ($p) => ['id' => $p->id, 'number' => $p->number, 'name' => $p->name, 'isCurrent' => (bool) $p->is_current, 'isArchived' => (bool) $p->is_archived]);
@@ -203,6 +214,25 @@ class AuthController extends Controller
                 + (int) DB::table('users')->where('project_id', Ctx::projectId())->where('is_pending', true)->count();
         }
         return $out;
+    }
+
+    /**
+     * Changement du mot de passe dans sa session (décision du 08/11/2026) : l'ancien mot de passe est exigé, et toutes les
+     * sessions du compte sont fermées, celle-ci comprise, comme pour toute réinitialisation.
+     */
+    public function changePassword(Request $r)
+    {
+        $d = $r->validate(['current_password' => 'required|string', 'password' => PasswordPolicy::rules()],
+            ['current_password.required' => 'Saisissez votre mot de passe actuel.'] + PasswordPolicy::messages());
+        $u = $r->user();
+        abort_unless(Hash::check($d['current_password'], (string) $u->password), 422, 'Le mot de passe actuel est incorrect.');
+        abort_if(Hash::check($d['password'], (string) $u->password), 422, 'Choisissez un mot de passe différent de l’actuel.');
+        $u->password = Hash::make($d['password']);
+        $u->password_hash = null; $u->password_salt = null; $u->failed_login_count = 0; $u->lockout_end = null;
+        $u->save();
+        $u->tokens()->delete();
+        Ctx::audit('CHANGEMENT_MOT_DE_PASSE', 'User', $u->id, 'Mot de passe modifié par l’utilisateur dans sa session ; toutes ses sessions ont été fermées.');
+        return ['message' => 'Votre mot de passe a été modifié. Reconnectez-vous avec le nouveau mot de passe.'];
     }
 
     public function logout(Request $r)

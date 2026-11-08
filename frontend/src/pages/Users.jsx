@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 const PERMS = [
   ['canManageSettings', 'Paramètres'], ['canManageUsers', 'Utilisateurs'], ['canDeleteContracts', 'Supprimer contrats'], ['canManageContracts', 'Gérer contrats'],
   ['canManageCompanies', 'Gérer entreprises'], ['canManageProgress', 'Gérer avancements'], ['canManagePayments', 'Gérer paiements'], ['canViewReports', 'Voir rapports'],
-  ['canViewAlertsContracts', 'Alertes des contrats'], ['canViewAlertsGuarantees', 'Alertes de bonne exécution'], ['canViewSituation', 'Voir situation'], ['canViewArchives', 'Accéder aux archives'], ['canManageGuarantees', 'Gérer garanties'],
+  ['canViewAlertsContracts', 'Alertes des contrats'], ['canViewAlertsGuarantees', 'Alertes de bonne exécution'], ['canViewSituation', 'Voir situation'], ['canViewArchives', 'Accéder aux phases archivées'], ['canManageGuarantees', 'Gérer garanties'],
   ['canViewAlertsLogistics', 'Alertes logistiques (stock, charroi, groupes électrogènes)'],
   ['canViewStock', 'Consulter le stock'], ['canManageStock', 'Gérer le stock'],
   ['canViewFleet', 'Consulter le charroi et les groupes électrogènes'], ['canManageFleet', 'Gérer le charroi et les groupes électrogènes'],
@@ -18,7 +18,8 @@ const PERMS = [
   ['canViewAlertHistory', 'Voir modèles et historique des alertes'],
 ];
 // Accordées une à une, y compris à un administrateur : le rôle ne les donne pas.
-const EXPLICIT = ['canFollowNewContracts', 'canViewAlertHistory'];
+// Habilitations accordées une à une par le super-admin : être administrateur ne les donne pas.
+const EXPLICIT = ['canFollowNewContracts', 'canViewAlertHistory', 'canViewArchives'];
 // Logistique : chaque unité (coordination nationale, antennes) la gère de manière autonome, dans son seul périmètre.
 const LOGISTICS = ['canViewAlertsLogistics', 'canViewStock', 'canManageStock', 'canViewFleet', 'canManageFleet'];
 // Autorisation des demandes logistiques : une case par poste, selon l'unité du compte (une seule qualité à la fois).
@@ -28,7 +29,7 @@ const AUTHORITIES = {
 };
 const AUTHORITY_LABEL = { CA: 'Autorise : C.A', HRAF: 'Autorise : HRAF', COMPTABLE: 'Autorise : comptable' };
 const snake = (k) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-const chips = { canManageContracts: 'Contrats', canManageProgress: 'Avancement', canManagePayments: 'Paiements', canManageGuarantees: 'Garanties', canViewReports: 'Rapports', canViewAlertsContracts: 'Alertes contrats', canViewAlertsGuarantees: 'Alertes garanties', canViewAlertsLogistics: 'Alertes logistique', canViewSituation: 'Situation', canManageStock: 'Stocks', canManageFleet: 'Charroi', canAuthorizeFleet: 'Visa charroi', canViewAlertHistory: 'Modèles et historique' };
+const chips = { canManageContracts: 'Contrats', canManageProgress: 'Avancement', canManagePayments: 'Paiements', canManageGuarantees: 'Garanties', canViewReports: 'Rapports', canViewAlertsContracts: 'Alertes contrats', canViewAlertsGuarantees: 'Alertes garanties', canViewAlertsLogistics: 'Alertes logistique', canViewSituation: 'Situation', canManageStock: 'Stocks', canManageFleet: 'Charroi', canAuthorizeFleet: 'Visa charroi', canViewAlertHistory: 'Modèles et historique', canViewArchives: 'Archives' };
 
 const ROLES = [
   ['UTILISATEUR', 'Utilisateur simple', 'Seulement les habilitations cochées ci-dessous.'],

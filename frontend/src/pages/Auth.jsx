@@ -88,7 +88,11 @@ export function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
-  const [project, setProject] = useState(localStorage.getItem('prise_project') || 'PRISE');
+  // Lien de l'e-mail d'approbation : /login?project=PRISE préselectionne le projet du compte.
+  const [project, setProject] = useState(() => {
+    const fromLink = new URLSearchParams(loc.search).get('project')?.toUpperCase();
+    return PROJECTS[fromLink] ? fromLink : localStorage.getItem('prise_project') || 'PRISE';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

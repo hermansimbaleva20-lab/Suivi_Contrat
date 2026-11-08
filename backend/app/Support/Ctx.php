@@ -52,6 +52,16 @@ class Ctx
         return $user && ($user->is_super_admin || $user->can_view_alert_history);
     }
 
+    /**
+     * Phases archivées : le super-administrateur et les comptes à qui il accorde l'accès (can_view_archives), sur demande.
+     * Être administrateur ne suffit pas (décision du 08/11/2026).
+     */
+    public static function canViewArchives($user = null): bool
+    {
+        $user = $user ?: self::user();
+        return $user && ((bool) $user->is_super_admin || (bool) $user->can_view_archives);
+    }
+
     public static function need(string $permission): void
     {
         abort_unless(self::can($permission), 403, 'Vous ne disposez pas de l’habilitation nécessaire pour cette opération.');

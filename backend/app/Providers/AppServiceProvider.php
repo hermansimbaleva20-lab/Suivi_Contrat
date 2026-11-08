@@ -41,6 +41,8 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinutes(15, 5)->by('oubli|'.$r->ip())->response($tooMany($wait)),
             Limit::perHour(5)->by('oubli-compte|'.strtolower(trim((string) $r->input('email'))))->response($tooMany($wait)),
         ]);
+        // Changement du mot de passe en session : limite les essais sur le mot de passe actuel d'une session ouverte.
+        RateLimiter::for('changement-mot-de-passe', fn (Request $r) => Limit::perMinutes(15, 5)->by('changement|'.($r->user()?->id ?: $r->ip()))->response($tooMany($wait)));
         RateLimiter::for('lien-mot-de-passe', fn (Request $r) => Limit::perMinutes(10, 30)->by('lien|'.$r->ip())->response($tooMany($wait)));
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(600)->by('api|'.($r->user()?->id ?: $r->ip()))
             ->response($tooMany('Trop de requêtes en peu de temps. Patientez une minute.')));

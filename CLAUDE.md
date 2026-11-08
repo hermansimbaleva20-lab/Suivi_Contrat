@@ -50,7 +50,7 @@ Le frontend n'a pas de tests. Pour vérifier un changement d'interface, lancez l
 ### Contexte projet / phase (transversal)
 Chaque requête porte les en-têtes `X-Project` (`PRISE` | `PREDIRE`) et `X-Phase`. L'intercepteur de [frontend/src/api.js](frontend/src/api.js) les remplit depuis `localStorage` (`prise_token`, `prise_project`, `prise_phase`). Côté serveur, le middleware `project` ([ProjectContext.php](backend/app/Http/Middleware/ProjectContext.php)) :
 - vérifie que l'utilisateur appartient au projet, sauf s'il est super-admin ;
-- résout la phase demandée et retombe sur la phase courante si elle est absente, ou si elle est archivée sans l'habilitation `can_view_archives`.
+- résout la phase demandée et retombe sur la phase courante si elle est absente, ou si elle est archivée et que `Ctx::canViewArchives()` est faux.
 
 Les contrôleurs lisent ce contexte via `App\Support\Ctx` (`Ctx::projectId()`, `Ctx::phaseId()`). Toute requête métier doit être filtrée par projet et, sauf exception, par phase.
 
@@ -62,8 +62,10 @@ Les habilitations sont des colonnes booléennes `can_*` sur `users` (liste dans 
 
 Seul le super-admin peut lancer ou télécharger une sauvegarde SQL.
 
+Phases archivées (décision du 08/11/2026) : seuls le super-admin et les comptes à qui il accorde `can_view_archives` les consultent. Être administrateur ne suffit pas : utilisez `Ctx::canViewArchives()`, jamais `Ctx::can('can_view_archives')`. La case reste modifiable pour un administrateur (`EXPLICIT` de `Users.jsx`). Le menu Archives est visible de tous : sans l'accès, la page propose de le demander (`POST /archives/request`, avec un motif facultatif). La demande notifie le super-admin (`DEMANDE_ARCHIVES`) dans l'application et par e-mail, et reste unique tant qu'elle est en cours. Quand l'accès est accordé dans Utilisateurs, la demande est close et le compte reçoit la notification `ACCES_ARCHIVES`. Seul le super-admin restaure une phase archivée. Une phase se modifie (numéro, nom, description) avec `PUT /phases/{id}`.
+
 ### Sécurité (décision du 06/11/2026, avant mise en ligne)
-- **Sessions** : un jeton Sanctum (14 jours) par connexion. `ProjectContext` refuse en 401 et supprime le jeton d'un compte désactivé ou en attente, à chaque requête. Désactivation (`UserController::toggle`), réinitialisation du mot de passe et mot de passe temporaire (`adminReset`) suppriment tous les jetons du compte : tout nouvel événement de ce type doit faire de même (`$u->tokens()->delete()`).
+- **Sessions** : un jeton Sanctum (14 jours) par connexion. `ProjectContext` refuse en 401 et supprime le jeton d'un compte désactivé ou en attente, à chaque requête. Désactivation (`UserController::toggle`), réinitialisation du mot de passe et mot de passe temporaire (`adminReset`) suppriment tous les jetons du compte : tout nouvel événement de ce type doit faire de même (`$u->tokens()->delete()`). C'est aussi le cas du changement de mot de passe dans sa session (`POST /auth/password`, décision du 08/11/2026). Il exige le mot de passe actuel, est limité par `changement-mot-de-passe` (5 essais en 15 minutes par compte), et ramène à la connexion. Il se fait depuis le bouton clé du bloc session (`ChangePasswordDialog`).
 - **Connexion** (`AuthController::login`) : un seul message d'échec (`generic()`), y compris pour un compte bloqué, et un hachage factice (`DUMMY_HASH`) quand le compte n'existe pas : ni l'existence d'un compte, ni son blocage, ni la justesse d'un mot de passe pendant le blocage ne se devinent.
 - **Limites de débit** (`AppServiceProvider::rateLimits`, réponses 429 en français) : `connexion`, `inscription`, `mot-de-passe-oublie`, `lien-mot-de-passe` par adresse IP sur les routes publiques, `api` (600 par minute) par compte. Toute nouvelle route publique doit en recevoir une.
 - **Mots de passe** choisis par l'utilisateur : [PasswordPolicy](backend/app/Support/PasswordPolicy.php) (10 caractères, lettres et chiffres), avec ses messages.
@@ -105,6 +107,11 @@ Le trait [Concerns\UnitScope](backend/app/Http/Controllers/Concerns/UnitScope.ph
 
 ### Notifications
 `user_notifications` + [Notifier](backend/app/Support/Notifier.php) (`send`, `resolve`, `holders`) et `NotificationController` (`/notifications`) ; cloche de l'en-tête ([NotificationBell](frontend/src/components/NotificationBell.jsx), données de `lib/notifications.js`, requêtes `silent` qui ne redirigent jamais vers `/error`). Un décompte transmis notifie les comptes `can_validate_decomptes`, soit le chef de cellule infrastructures (à défaut le super-admin, dans l'application seulement) ; une course notifie la personne désignée ; chaque décision notifie l'auteur, et clôt les notifications « à traiter » de l'élément. Un nouveau contrat notifie les comptes `can_follow_new_contracts` (`NOUVEAU_CONTRAT`, décision du 05/11/2026 : le chef de cellule infrastructures et le personnel de sa cellule, cochés par le super-admin dans Utilisateurs ; à défaut le super-admin), sauf les fournitures de bureau, suivies par le stock seul. Comme l'audit, une notification ne fait jamais échouer l'opération.
+
+Demandes d'accès (décision du 08/11/2026), [AccessMail](backend/app/Support/AccessMail.php) :
+- chaque inscription notifie les super-admins dans l'application (`DEMANDE_ACCES`, close à l'approbation ou au refus) et leur écrit (`superAdminEmails`, à défaut `SUPER_ADMIN_EMAIL`), même s'ils ne sont pas connectés ;
+- l'approbation écrit au demandeur, avec le lien `/login?project=CODE`, qui présélectionne le projet sur la page de connexion ;
+- les e-mails passent par le SMTP du projet. Un envoi impossible ne bloque jamais l'opération : il est journalisé dans l'audit et signalé dans le message d'approbation.
 
 ### Charroi et groupes électrogènes (TDR §7, §8)
 [FleetController](backend/app/Http/Controllers/FleetController.php). Habilitations : `can_view_fleet` (consultation), `can_manage_fleet` (parc et saisies de la logistique dans son unité), `can_authorize_fleet` (C.A en antenne, HRAF ou comptable à la coordination).

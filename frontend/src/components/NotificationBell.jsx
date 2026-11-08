@@ -4,6 +4,9 @@ import { api } from '../api.js';
 import { frDateTime } from '../lib/format.js';
 
 const ICONS = {
+  DEMANDE_ACCES: 'person-plus',
+  DEMANDE_ARCHIVES: 'archive',
+  ACCES_ARCHIVES: 'unlock',
   NOUVEAU_CONTRAT: 'file-earmark-plus',
   DECOMPTE_A_VALIDER: 'receipt-cutoff',
   DECOMPTE_DECISION: 'check2-square',

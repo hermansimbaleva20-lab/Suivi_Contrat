@@ -109,6 +109,7 @@ class Views
             $perms[lcfirst(str_replace('_', '', ucwords($k, '_')))] = Ctx::can($k, $u);
         }
         $perms['canViewAlertHistory'] = Ctx::canViewAlertHistory($u);
+        $perms['canViewArchives'] = Ctx::canViewArchives($u);
         return [
             'id' => $u->id, 'name' => $u->full_name ?: $u->name, 'email' => $u->email, 'title' => Ctx::title($u), 'position' => (string) $u->project_position,
             'role' => $u->role, 'isSuperAdmin' => (bool) $u->is_super_admin, 'isAdmin' => Ctx::isAdmin($u), 'projectId' => (int) $u->project_id, 'permissions' => $perms,
