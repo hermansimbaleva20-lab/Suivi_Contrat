@@ -28,9 +28,58 @@ class Metrics
         return self::clamp($sum, 0, 100);
     }
 
-    /** Avancement du contrat = moyenne, sur tous ses sites, du cumul de chaque site (un site sans saisie compte pour 0 %). */
+    /**
+     * L'installation de chantier et les travaux préparatoires ne concernent que les contrats de TRAVAUX (décision du
+     * 10/11/2026) : ni coût, ni taux, ni terme dans la formule pour un contrat de BIENS ou de SERVICE.
+     */
+    public static function hasInstallation(array $c): bool
+    {
+        return mb_strtoupper(trim((string) ($c['category'] ?? ''))) === 'TRAVAUX';
+    }
+
+    /** Avancement cumulé de l'installation de chantier et des travaux préparatoires (100 % maximum). */
+    public static function installationProgress(array $c, ?string $asOf = null): float
+    {
+        $sum = 0.0;
+        foreach ($c['entries'] ?? [] as $e) {
+            if (!empty($e['installation']) && ($asOf === null || $e['date'] <= $asOf)) $sum += (float) $e['progress'];
+        }
+        return self::clamp($sum, 0, 100);
+    }
+
+    /**
+     * Pondération de l'avancement par les montants (décision du 10/11/2026) : base = coût de l'installation de chantier et
+     * des travaux préparatoires + montants prévus des sites, c'est-à-dire le montant du contrat hors renouvellements.
+     * null quand un site n'a pas de montant (contrat enregistré avant cette décision) : moyenne simple des sites.
+     *
+     * @return array{installation: float, sites: float, base: float}|null
+     */
+    public static function weighting(array $c): ?array
+    {
+        if (empty($c['sites'])) return null;
+        $sites = 0.0;
+        foreach ($c['sites'] as $s) {
+            if (!isset($s['amount'])) return null;
+            $sites += max(0.0, (float) $s['amount']);
+        }
+        $installation = self::hasInstallation($c) ? max(0.0, (float) ($c['installation_cost'] ?? 0)) : 0.0;
+        $base = $installation + $sites;
+        return $base > 0 ? ['installation' => $installation, 'sites' => $sites, 'base' => $base] : null;
+    }
+
+    /**
+     * Avancement physique du contrat.
+     *  - Pondéré (sites avec montant) : (taux installation × coût installation + Σ taux du site × montant du site) ÷ base.
+     *  - Ancien contrat : moyenne, sur tous ses sites, du cumul de chaque site (un site sans saisie compte pour 0 %).
+     */
     public static function progress(array $c, ?string $asOf = null): float
     {
+        $w = self::weighting($c);
+        if ($w) {
+            $sum = $w['installation'] * self::installationProgress($c, $asOf);
+            foreach ($c['sites'] as $s) $sum += max(0.0, (float) $s['amount']) * self::siteProgress($s, $asOf);
+            return self::clamp($sum / $w['base'], 0, 100);
+        }
         if (!empty($c['sites'])) {
             $sum = 0.0;
             foreach ($c['sites'] as $s) $sum += self::siteProgress($s, $asOf);
@@ -38,11 +87,38 @@ class Metrics
         }
         $vals = [];
         foreach ($c['entries'] as $e) {
-            if (!empty($e['site_id'])) continue;
+            if (!empty($e['site_id']) || !empty($e['installation'])) continue;
             if ($asOf !== null && $e['date'] > $asOf) continue;
             $vals[] = self::clamp((float) $e['progress'], 0, 100);
         }
         return $vals ? self::clamp(array_sum($vals) / count($vals), 0, 100) : 0.0;
+    }
+
+    /**
+     * Détail du calcul, dans l'ordre de la formule du projet : d'abord l'installation de chantier et les travaux
+     * préparatoires (tout le contrat), puis chaque site. Pour chaque terme : montant, taux d'exécution et résultat
+     * (taux × montant ÷ montant du contrat) ; la somme des résultats est l'avancement physique.
+     * Sans montant par site (contrat enregistré avant la décision), la formule ne s'applique pas : ni poids ni résultat.
+     *
+     * @return array{weighted: bool, base: float|null, rows: array<int,array>}
+     */
+    public static function progressBreakdown(array $c, ?string $asOf = null): array
+    {
+        $w = self::weighting($c);
+        $term = fn (?float $amount, float $p) => $w ? ['weight' => $amount / $w['base'] * 100, 'contribution' => $p * $amount / $w['base']] : ['weight' => null, 'contribution' => null];
+        $rows = [];
+        // Contrat de TRAVAUX seulement : l'installation de chantier, premier terme de la formule.
+        if (self::hasInstallation($c)) {
+            $installation = $w ? $w['installation'] : (isset($c['installation_cost']) ? max(0.0, (float) $c['installation_cost']) : null);
+            $p = self::installationProgress($c, $asOf);
+            $rows[] = ['kind' => 'INSTALLATION', 'site_id' => null, 'name' => 'Installation de chantier et travaux préparatoires', 'amount' => $installation, 'progress' => $p] + $term($installation ?? 0.0, $p);
+        }
+        foreach ($c['sites'] ?? [] as $s) {
+            $amount = isset($s['amount']) ? max(0.0, (float) $s['amount']) : null;
+            $p = self::siteProgress($s, $asOf);
+            $rows[] = ['kind' => 'SITE', 'site_id' => $s['id'], 'name' => $s['name'], 'amount' => $amount, 'progress' => $p] + $term($amount ?? 0.0, $p);
+        }
+        return ['weighted' => $w !== null, 'base' => $w ? $w['base'] : null, 'rows' => $rows];
     }
 
     public static function elapsed(array $c, string $asOf): float
@@ -149,11 +225,14 @@ class Metrics
         if (!empty($c['sites'])) {
             $sites = $c['sites'];
             usort($sites, fn ($a, $b) => strcmp((string) $a['name'], (string) $b['name']));
-            return array_map(fn ($s) => [
+            $rows = array_map(fn ($s) => [
                 'name' => trim((string) $s['name']) === '' ? 'Site' : $s['name'],
                 'previous' => self::pct(self::siteProgress($s, $previous)),
                 'current' => self::pct(self::siteProgress($s, $current)),
             ], $sites);
+            // L'installation de chantier concerne tout le contrat de TRAVAUX : elle figure en premier.
+            if (self::hasInstallation($c)) array_unshift($rows, ['name' => 'Installation de chantier', 'previous' => self::pct(self::installationProgress($c, $previous)), 'current' => self::pct(self::installationProgress($c, $current))]);
+            return $rows;
         }
         return [['name' => 'Contrat', 'previous' => self::pct(self::progress($c, $previous)), 'current' => self::pct(self::progress($c, $current))]];
     }

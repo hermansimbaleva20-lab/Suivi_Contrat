@@ -1,6 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,NotificationController};
+use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,NotificationController,ComponentController};
 
 // ---- Public (le projet est transmis par l'en-tête X-Project)
 // Routes publiques : limites de débit par adresse IP (AppServiceProvider::rateLimits).
@@ -70,6 +70,8 @@ Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function (
         Route::get('/reports', [ReportController::class, 'index']);
         Route::get('/reports/export', [ReportController::class, 'export']);
         Route::get('/reports/synthesis', [ReportController::class, 'synthesis']);
+        Route::get('/reports/execution', [ReportController::class, 'execution']);
+        Route::get('/reports/execution/export', [ReportController::class, 'executionExport']);
         // Historisation : aperçu d'une période, états figés, comparaisons, export avec choix des colonnes
         Route::get('/report-snapshots', [ReportSnapshotController::class, 'index']);
         Route::get('/report-snapshots/preview', [ReportSnapshotController::class, 'preview']);
@@ -110,6 +112,12 @@ Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function (
     // Socle organisationnel (TDR §5) : consultation pour l'affectation des comptes, administration réservée aux paramètres
     Route::middleware('permission:can_manage_settings|can_manage_users')->get('/organization', [OrganizationController::class, 'index']);
     Route::middleware('permission:can_manage_settings')->group(function () {
+        // Composantes du projet (matrice d'exécution) : coordination nationale ou super-admin (ComponentController::need).
+        Route::get('/components', [ComponentController::class, 'index']);
+        Route::post('/components', [ComponentController::class, 'store']);
+        Route::put('/components/{id}', [ComponentController::class, 'update'])->whereNumber('id');
+        Route::put('/components/{id}/toggle', [ComponentController::class, 'toggle'])->whereNumber('id');
+        Route::delete('/components/{id}', [ComponentController::class, 'destroy'])->whereNumber('id');
         Route::post('/organization/units', [OrganizationController::class, 'storeUnit']);
         Route::put('/organization/units/{id}', [OrganizationController::class, 'updateUnit'])->whereNumber('id');
         Route::put('/organization/units/{id}/toggle', [OrganizationController::class, 'toggleUnit'])->whereNumber('id');

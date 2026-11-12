@@ -3,22 +3,30 @@ import { Link } from 'react-router-dom';
 import { api, apiError, download } from '../api.js';
 import { useLoad } from '../lib/hooks.js';
 import { frDateTime } from '../lib/format.js';
-import { Field, Loading, Notice, PageHead } from '../components/ui.jsx';
+import { Field, Loading, Notice, PageHead, Pager } from '../components/ui.jsx';
 import ProjectRecipients from '../modules/alerts/ProjectRecipients.jsx';
 
-const mo = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.max(1, Math.round(b / 1024))} Ko`);
+const BACKUPS_PER_PAGE = 5;
+const mo =(b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.max(1, Math.round(b / 1024))} Ko`);
 
 export default function Settings() {
   const { data, loading, error, reload } = useLoad('/settings');
   const [f, setF] = useState(null);
   const [flash, setFlash] = useState({ type: 'success', text: '' });
   const [busy, setBusy] = useState('');
+  const [backupPage, setBackupPage] = useState(1);
   useEffect(() => { if (data) setF({ host: data.smtp.host, port: data.smtp.port, sender_email: data.smtp.senderEmail, password: '', use_ssl: data.smtp.useSsl }); }, [data]);
   if (loading && !data) return <Loading />;
   if (!data || !f) return <Notice>{error}</Notice>;
   const say = (text, type = 'success') => setFlash({ type, text });
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
-  const run = async (name, fn, refresh) => { setBusy(name); try { const r = await fn(); say(r.data.message); if (refresh) await reload(); } catch (e) { say(apiError(e), 'danger'); } finally { setBusy(''); } };
+  const run = async (name, fn, refresh) => { setBusy(name); try { const r = await fn(); say(r.data.message); if (refresh) await reload(); if (name === 'backup') setBackupPage(1); } catch (e) { say(apiError(e), 'danger'); } finally { setBusy(''); } };
+  // Historique des sauvegardes : 5 par page, les plus récentes d'abord.
+  const backups = [...(data.backups || [])].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const backupPages = Math.max(1, Math.ceil(backups.length / BACKUPS_PER_PAGE));
+  const page = Math.min(backupPage, backupPages);
+  const shownBackups = backups.slice((page - 1) * BACKUPS_PER_PAGE, page * BACKUPS_PER_PAGE);
+  const backupMeta = { page, pages: backupPages, total: backups.length, size: BACKUPS_PER_PAGE };
 
   return (
     <>
@@ -51,10 +59,13 @@ export default function Settings() {
               <>
                 <button className="btn btn-primary mb-3" disabled={!!busy} onClick={() => run('backup', () => api.post('/settings/backup'), true)}><i className="bi bi-database-down me-1" /> Lancer une sauvegarde maintenant</button>
                 {!data.backups.length ? <div className="small text-secondary">Aucune sauvegarde enregistrée.</div> : (
-                  <div className="table-wrap"><table className="table table-sm">
-                    <thead><tr><th>Fichier</th><th>Date</th><th>Taille</th><th /></tr></thead>
-                    <tbody>{data.backups.map((b) => <tr key={b.name}><td className="small">{b.name}</td><td className="small">{frDateTime(b.date)}</td><td className="small">{mo(b.size)}</td><td><button className="btn btn-sm btn-outline-primary" onClick={() => download(`/settings/backups/${b.name}`, undefined, b.name).catch((e) => say(apiError(e), 'danger'))}><i className="bi bi-download" /></button></td></tr>)}</tbody>
-                  </table></div>
+                  <>
+                    <div className="table-wrap"><table className="table table-sm">
+                      <thead><tr><th>Fichier</th><th>Date</th><th>Taille</th><th /></tr></thead>
+                      <tbody>{shownBackups.map((b) => <tr key={b.name}><td className="small">{b.name}</td><td className="small">{frDateTime(b.date)}</td><td className="small">{mo(b.size)}</td><td><button className="btn btn-sm btn-outline-primary" title="Télécharger" aria-label={`Télécharger ${b.name}`} onClick={() => download(`/settings/backups/${b.name}`, undefined, b.name).catch((e) => say(apiError(e), 'danger'))}><i className="bi bi-download" /></button></td></tr>)}</tbody>
+                    </table></div>
+                    <Pager meta={backupMeta} onPage={setBackupPage} />
+                  </>
                 )}
               </>
             ) : <div className="alert alert-secondary small mb-0"><i className="bi bi-lock-fill me-1" />La sauvegarde manuelle est réservée au super-administrateur : elle couvre les deux projets.</div>}

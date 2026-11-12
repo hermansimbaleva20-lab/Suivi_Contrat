@@ -570,5 +570,114 @@ form > *:has(.pos-picker-panel) { position: relative; z-index: 40; }
 .pos-picker-chosen { margin: 6px 2px 0; font-size: 12.5px; line-height: 1.4; color: var(--prise-muted); }
 @media (prefers-reduced-motion: reduce) { .pos-picker-panel { animation: none; } }
 
+/* ================================================================== Avancement physique pondéré (décision du 10/11/2026)
+   Formulaire du contrat (ContractForm), saisie des situations (Progress) et tableau du calcul (ProgressBreakdown).
+   Jetons du thème : clair et sombre. */
+.site-row.site-row-installation { border-style: dashed; background: var(--surface-sunk); }
+.contract-amount-sum { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 28px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.contract-amount-sum > div { display: flex; flex-direction: column; align-items: flex-end; }
+.contract-amount-sum dt { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--prise-muted); }
+.contract-amount-sum dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+.contract-amount-sum .is-total dd { font-family: var(--ff-title); font-size: 20px; font-weight: 700; color: var(--text-green, #087a3f); }
+.contract-amount-sum dd span, .progress-context dd span { font-size: .72em; font-weight: 600; color: var(--prise-muted); }
+
+/* Repères du contrat au-dessus de la saisie */
+.progress-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; margin: 0 0 14px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--line); }
+.progress-context > div { padding: 10px 14px; background: var(--surface-sunk); }
+.progress-context dt { font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--prise-muted); }
+.progress-context dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 700; color: var(--ink); }
+
+/* Composante choisie : repères et effet de la saisie sur l'avancement du contrat */
+.progress-preview { display: grid; grid-template-columns: minmax(0, .75fr) minmax(0, 1.6fr); gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.progress-preview-facts { padding: 12px 16px; background: var(--surface); }
+.progress-preview-name { margin-bottom: 8px; font-family: var(--ff-title); font-size: 16px; font-weight: 700; color: var(--ink); }
+.progress-preview-facts dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin: 0; }
+.progress-preview-facts dt { font-size: 11.5px; font-weight: 500; color: var(--prise-muted); }
+.progress-preview-facts dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--ink); }
+.progress-preview-after { display: grid; align-content: center; gap: 4px; padding: 12px 16px; border-left: 1px solid var(--line); background: var(--tint-green, #eef8f2); font-size: 13.5px; color: var(--ink); }
+.progress-preview-after.is-over { background: var(--tint-red, #fdecea); color: var(--text-red, #9b1c14); font-weight: 600; }
+.progress-preview-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-green, #087a3f); }
+.progress-preview-line { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.progress-preview-line > span:first-child { color: var(--prise-muted); }
+.progress-preview-line.is-total { margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--line); font-weight: 600; }
+.progress-preview-line.is-total > span:first-child { color: var(--ink); }
+.progress-preview-line strong { color: var(--text-green, #087a3f); }
+@media (max-width: 767px) {
+  .progress-preview { grid-template-columns: 1fr; }
+  .progress-preview-after { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+.progress-preview.is-single { grid-template-columns: 1fr; }
+.progress-preview.is-single .progress-preview-after { border-left: 0; }
+.progress-preview-line small { font-size: 11.5px; color: var(--prise-muted); }
+
+/* Installation de chantier dans la saisie : taux cumulé actuel et champ du taux de la période tant qu'elle est sous 100 % */
+.installation-entry { margin: 0 0 16px; padding: 12px 16px 14px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface-sunk); }
+.installation-entry-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; margin-bottom: 8px; }
+.installation-entry-title { font-family: var(--ff-title); font-size: 16px; font-weight: 700; color: var(--ink); }
+.installation-entry-rate { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.installation-entry-value { font-family: var(--ff-title); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-green, #087a3f); }
+.installation-entry.is-done { border-style: solid; }
+.installation-entry-scope { font-family: var(--ff-text); font-size: 13px; font-weight: 600; color: var(--prise-muted); }
+.installation-entry-ok { color: var(--text-green, #087a3f); }
+
+/* Tableau du calcul : la formule d'abord, puis chaque composante et la somme des contributions */
+.progress-calc-formula { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft); }
+.progress-calc-formula strong { color: var(--ink); }
+.progress-calc-table th[scope="row"] { font-weight: 600; }
+.progress-calc-table tbody tr.is-current > * { background: var(--tint-green, #eef8f2); }
+.progress-calc-table td.progress-calc-detail { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+.progress-calc-scope { font-weight: 500; color: var(--prise-muted); }
+.progress-calc-site { display: inline-block; min-width: 46px; margin-right: 4px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--prise-muted); }
+.progress-calc-missing { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--tint-amber, #fff4d6); color: var(--text-amber, #7a4d00); font-size: 13.5px; }
+.progress-calc-missing a { color: inherit; font-weight: 700; }
+/* .table td (prise-ui.css) impose une encre et une bordure claires avec !important : le pied suit les jetons du thème. */
+body .progress-calc-table tfoot > tr > * { border-top: 2px solid; border-top-color: var(--line) !important; border-bottom: 0; background: var(--surface-sunk); color: var(--ink); }
+/* Montant du contrat calculé (ContractForm) : lecture seule, et visiblement. */
+.form-control.amount-computed, .form-control.amount-computed:focus { background: var(--surface-sunk); color: var(--text-green, #087a3f); cursor: default; }
+.progress-calc-total { font-family: var(--ff-title); font-size: 19px; color: var(--text-green, #087a3f); }
+
+/* ================================================================== Pied de page (AppFooter.jsx) */
+.app-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 24px; font-size: 12.5px; line-height: 1.5; }
+.app-footer p { margin: 0; }
+.app-footer a { font-weight: 600; text-decoration: none; }
+.app-footer a:hover { text-decoration: underline; }
+
+/* Dans l'application : sous le contenu, poussé en bas de l'écran quand la page est courte. */
+@media screen {
+  body .content { display: flex !important; flex-direction: column; padding-bottom: 14px !important; }
+  body .content > .content-body { flex: 1 0 auto; min-width: 0; }
+}
+.app-footer--app { flex-shrink: 0; margin-top: 36px; padding: 14px 2px 0; border-top: 1px solid var(--line); color: var(--prise-muted); }
+.app-footer--app a { color: var(--text-green, #087a3f); }
+
+/* Pages de connexion : sur la photo, en bas de l'écran. */
+.login-bg { display: flex; flex-direction: column; }
+body .login-bg > .login-page { flex: 1 0 auto; min-height: 0 !important; }
+.app-footer--auth { position: relative; z-index: 1; padding: 14px 7vw 18px; color: rgba(255, 255, 255, .78); text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.app-footer--auth a { color: #fff; }
+
+@media (max-width: 850px) {
+  .app-footer { flex-direction: column; justify-content: center; text-align: center; }
+  .app-footer--auth { padding: 12px 16px 16px; }
+}
+@media print { .app-footer { display: none !important; } }
+
+/* ================================================================== En-tête sur ordinateur (décision du 08/11/2026)
+   Bandeau du projet plus grand et net ; pastilles d'alerte et de notification, thème et phase un peu plus petits, pour lui
+   laisser la place. Tablettes et téléphones gardent leur en-tête (prise-v19.css). */
+.topbar-picture { display: contents; } /* l'image reste l'élément flexible de l'en-tête */
+@media screen and (min-width: 1025px) {
+  :root { --tb-h: 92px; }
+  /* Largeur naturelle (et non 100 %) : la zone épouse l'image, et la plaque claire du thème sombre aussi. */
+  body header.topbar img.topbar-logo { flex: 0 1 auto !important; width: auto !important; height: 76px !important; max-width: 940px !important; }
+  body header.topbar img.topbar-logo.project-logo-predire { max-width: 980px !important; }
+  body .topbar .topbar-actions { gap: 10px; }
+  body .topbar .topbar-alerts { gap: 6px; }
+  body .topbar .alert-chip { width: 37px; height: 37px; border-radius: 11px; font-size: 16.5px; }
+  body .topbar .phase-pill-select { height: 37px; min-width: 168px; padding: 0 34px 0 33px; font-size: 13px; }
+  body .topbar .phase-pill-icon { left: 12px; font-size: 14px; }
+}
+
 /* Bloc session : le bouton « mot de passe » prend la teinte verte au survol (la déconnexion garde le rouge) */
 body .sidebar .sidebar-user .password-btn:hover { background: rgba(167, 243, 208, .14); border-color: rgba(167, 243, 208, .5); }

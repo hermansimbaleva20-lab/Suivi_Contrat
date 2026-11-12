@@ -249,7 +249,7 @@ class AlertEngine
                 $retard = $g['kind'] === GuaranteeAlerts::RETARD;
                 $messages[] = ['type' => $g['kind'], 'key' => $g['key'], 'subject' => $g['subject'], 'body' => $g['text'], 'sendNo' => $g['sendNo'],
                     'text' => ($retard ? 'alerte de retard, échue depuis le ' : 'alerte de vigilance, échéance le ') . Dates::fr($g['periodEnd'])
-                        . ' (' . number_format($g['consumed'], 1, ',', ' ') . " % de la période consommés, {$g['perWeek']} envoi(s) par semaine)."];
+                        . ' (' . GuaranteeAlerts::consumedLabel((float) $g['consumed']) . " de la période consommés, {$g['perWeek']} envoi(s) par semaine)."];
             }
             if ($g['satisfactionDue']) {
                 $messages[] = ['type' => 'SATISFACTION', 'key' => $g['prefix'] . 'S', 'subject' => $g['satisfactionSubject'], 'body' => $g['satisfactionText'], 'sendNo' => 1,

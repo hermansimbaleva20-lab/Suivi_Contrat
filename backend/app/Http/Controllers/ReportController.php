@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 use App\Support\ContractSynthesis;
 use App\Support\Ctx;
 use App\Support\Dates;
+use App\Support\ExecutionReport;
+use App\Support\GuaranteeAlerts;
 use App\Support\Loader;
 use App\Support\Metrics;
 use App\Support\ReportBuilder;
 use App\Support\Views;
 use App\Support\Xlsx;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -72,6 +75,105 @@ class ReportController extends Controller
             'rows' => $rows, 'summary' => $summary, 'lead' => ContractSynthesis::lead($rows, $summary, $asOf), 'findings' => array_map(fn ($f) => ['level' => $f[0], 'text' => $f[1]], ContractSynthesis::findings($rows, $summary)),
             'issuedBy' => ['name' => Ctx::user()->full_name, 'title' => Ctx::title(Ctx::user()), 'date' => $today],
         ];
+    }
+
+    // ------------------------------------------------------------------ État d'exécution (matrice du projet)
+
+    /** Date d'arrêt de la matrice : la date demandée, jamais dans le futur. */
+    private static function executionDate(Request $r): string
+    {
+        $today = Dates::today();
+        $d = Dates::valid($r->query('date')) ? Dates::part($r->query('date')) : $today;
+        return min($d, $today);
+    }
+
+    /** « 31 août 2026 », comme dans le titre de la matrice. */
+    private static function longDate(string $ymd): string
+    {
+        $months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+        return (int) substr($ymd, 8, 2) . ' ' . $months[(int) substr($ymd, 5, 2) - 1] . ' ' . substr($ymd, 0, 4);
+    }
+
+    private function executionData(string $asOf): array
+    {
+        // Contrats déjà signés ou démarrés à la date d'arrêt, de la phase consultée (sans les fournitures de bureau).
+        $contracts = array_values(array_filter(Loader::contracts(Ctx::projectId(), Ctx::phaseId()), fn ($c) => self::inScope($c, 'date', $asOf, null)));
+        return ExecutionReport::build($contracts, $asOf) + [
+            'project' => GuaranteeAlerts::projectLabel(Ctx::projectId()), 'longDate' => self::longDate($asOf),
+            'issuedBy' => ['name' => Ctx::user()->full_name, 'title' => Ctx::title(Ctx::user()), 'date' => Dates::today()],
+        ];
+    }
+
+    /** État d'exécution des travaux, activités et prestations à une date (décision du 10/11/2026). */
+    public function execution(Request $r)
+    {
+        return $this->executionData(self::executionDate($r));
+    }
+
+    /**
+     * La même matrice en Excel, colonne pour colonne comme le modèle du projet : une ligne par contrat, suivie d'une ligne
+     * par site ; « Composantes » et « Budget » fusionnées sur les contrats de la composante, les colonnes du contrat sur ses sites.
+     */
+    public function executionExport(Request $r)
+    {
+        $asOf = self::executionDate($r);
+        $d = $this->executionData($asOf);
+        [$H, $B, $M, $P, $T, $TITLE] = [1, 2, 3, 4, 6, 7];
+        $cols = ['Composantes', 'Budget en millions d’UC', 'Activités', 'Fournisseurs', 'Coût en USD', 'Conso. du délai contractuel', 'Réalisation physique au ' . Dates::fr($asOf),
+            'Performance env. et sociale', 'Taux de réalisation physique', 'Engagement', 'Paiement', 'Taux de paiement', 'Observations'];
+        $last = Xlsx::col(count($cols) - 1);
+        $rows = [[['v' => "ÉTAT D'EXÉCUTION DES TRAVAUX, ACTIVITÉS ET PRESTATIONS DU {$d['project']} AU " . mb_strtoupper($d['longDate']), 's' => $TITLE]], [], array_map(fn ($c) => ['v' => $c, 's' => $H], $cols)];
+        $merges = ["A1:{$last}1"];
+        $band = function (string $text) use (&$rows, &$merges, $B, $last) {
+            $rows[] = [['v' => $text, 's' => $B]];
+            $merges[] = 'A' . count($rows) . ":{$last}" . count($rows);
+        };
+        $vmerge = function (string $col, int $from, int $lines) use (&$merges) {
+            if ($lines > 1) $merges[] = "{$col}{$from}:{$col}" . ($from + $lines - 1);
+        };
+        $blank = ['v' => '', 's' => $T];
+        $done = fn (array $list) => $list ? ' — Ouvrages terminés : ' . implode(' ; ', array_map(fn ($x) => "{$x['type']} : {$x['count']}", $list)) : '';
+        foreach ($d['categories'] as $cat) {
+            $band("{$cat['label']} — {$cat['totals']['contracts']} contrat(s), coût " . number_format($cat['totals']['amount'], 2, ',', ' ') . ' USD (' . number_format($cat['totals']['progress'], 1, ',', ' ') . ' % de réalisation physique)');
+            foreach ($cat['provinces'] as $p) {
+                $band("Province {$p['province']}" . $done($p['completed']));
+                $byId = [];
+                foreach ($p['rows'] as $x) $byId[$x['id']] = $x;
+                foreach ($p['components'] as $g) {
+                    $groupStart = count($rows) + 1;
+                    foreach ($g['contractIds'] as $k => $id) {
+                        $x = $byId[$id];
+                        $start = count($rows) + 1;
+                        $lines = 1 + count($x['sites']);
+                        $supplier = $x['company'] . ($x['signatureDate'] ? "\nContrat signé le " . Dates::fr($x['signatureDate']) : '') . ($x['startDate'] ? "\nDémarrage le " . Dates::fr($x['startDate']) : '') . "\nDélai : {$x['durationMonths']} mois";
+                        $realization = trim(($x['installation'] ? 'Installation de chantier et travaux préparatoires : ' . number_format($x['installation']['progress'], 1, ',', ' ') . " %\n" : '') . $x['realization']);
+                        $rows[] = [$k === 0 ? ['v' => $g['name'], 's' => $T] : $blank, $k === 0 ? ['v' => $g['budget'] ?? '', 's' => $g['budget'] === null ? $T : $M] : $blank,
+                            ['v' => "Contrat N° {$x['number']} : " . ($x['activity'] ?: $x['title']), 's' => $T], ['v' => $supplier, 's' => $T], ['v' => $x['amount'], 's' => $M], ['v' => $x['elapsed'], 's' => $P],
+                            ['v' => $realization, 's' => $T], ['v' => $x['esPerformance'], 's' => $T], ['v' => $x['progress'], 's' => $P], ['v' => $x['engagement'], 's' => $M], ['v' => $x['paid'], 's' => $M],
+                            ['v' => $x['paymentRate'], 's' => $P], ['v' => $x['observation'], 's' => $T]];
+                        foreach ($x['sites'] as $s) {
+                            $what = trim(implode(' — ', array_filter([$s['workType'], $s['description'] !== $s['workType'] ? $s['description'] : ''])));
+                            $rows[] = [$blank, $blank, $blank, $blank, $blank, $blank,
+                                ['v' => "Site {$s['name']}" . ($what ? " : {$what}" : '') . ($s['situation'] ? "\nSituation actuelle : {$s['situation']}" : ''), 's' => $T],
+                                $blank, ['v' => $s['progress'], 's' => $P], $blank, $blank, $blank, ['v' => $s['observation'], 's' => $T]];
+                        }
+                        foreach (['C', 'D', 'E', 'F', 'H', 'J', 'K', 'L'] as $col) $vmerge($col, $start, $lines);
+                    }
+                    $vmerge('A', $groupStart, $g['lines']);
+                    $vmerge('B', $groupStart, $g['lines']);
+                }
+            }
+        }
+        $t = $d['totals'];
+        $rows[] = [['v' => "Total — {$t['contracts']} contrat(s)", 's' => $B], $blank, $blank, $blank, ['v' => $t['amount'], 's' => $M], $blank, $blank, $blank,
+            ['v' => $t['progress'], 's' => $P], ['v' => $t['amount'], 's' => $M], ['v' => $t['paid'], 's' => $M], ['v' => $t['paymentRate'], 's' => $P], $blank];
+        $bin = Xlsx::build([['name' => 'État d’exécution', 'rows' => $rows, 'merges' => $merges, 'widths' => [26, 13, 36, 22, 15, 11, 48, 12, 12, 15, 15, 11, 42], 'freezeRows' => 3]]);
+        $code = (string) DB::table('projects')->where('id', Ctx::projectId())->value('code');
+        Ctx::audit('EXPORT_RAPPORT', 'Report', $code, 'Export Excel de l’état d’exécution au ' . Dates::fr($asOf) . '.');
+        return response($bin, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="etat_execution_' . $code . '_' . $asOf . '.xlsx"',
+        ]);
     }
 
     private function params(Request $r): array

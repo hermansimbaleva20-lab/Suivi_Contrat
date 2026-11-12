@@ -113,6 +113,15 @@ class GuaranteeAlerts
         return AlertTemplates::render($template ?? AlertTemplates::DEFAULTS["GARANTIE_{$kind}"], $vars);
     }
 
+    /**
+     * Part consommée de la période, telle qu'écrite dans les messages : au-delà de l'échéance, « supérieur à 100 % » plutôt
+     * qu'un pourcentage comme 101,2 % (décision du 10/11/2026).
+     */
+    public static function consumedLabel(float $consumed): string
+    {
+        return $consumed > 100 ? 'supérieur à 100 %' : number_format($consumed, 1, ',', ' ') . ' %';
+    }
+
     /** Intitulé du projet : code suivi du numéro de la phase en cours en chiffres romains à partir de la 2e (« PRISE II »). */
     public static function projectLabel(int $projectId): string
     {
@@ -186,7 +195,7 @@ class GuaranteeAlerts
             $vars = [
                 'contrat' => $g['contract_number'], 'numero_garantie' => $g['account'], 'entreprise' => $g['company'], 'banque' => $g['bank'],
                 'montant_garanti' => number_format($g['amount'], 2, ',', ' '), 'debut' => Dates::fr($cov['start']), 'echeance' => Dates::fr($cov['end']),
-                'jours_consommes' => number_format(self::consumed($cov['start'], $cov['end'], $today), 1, ',', ' ') . ' %',
+                'jours_consommes' => self::consumedLabel(self::consumed($cov['start'], $cov['end'], $today)),
                 'nature' => $cov['type'] === 'RENOUVELLEMENT' ? 'le renouvellement' : 'la prolongation', 'projet' => $label,
             ];
             $msg = $lvl ? self::message($lvl['kind'], $vars, $templates["GARANTIE_{$lvl['kind']}"]) : null;

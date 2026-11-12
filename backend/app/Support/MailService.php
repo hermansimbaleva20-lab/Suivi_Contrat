@@ -42,8 +42,10 @@ class MailService
                 'timeout' => 20,
             ]);
             $from = $s->sender_email;
-            $mailer->raw($text, function ($m) use ($recipients, $subject, $from) {
-                $m->from($from, 'PRISE')->to($recipients)->subject($subject);
+            // Nom d'expéditeur : celui du projet de l'envoi (« PRISE II », « PREDIRE »), jamais PRISE pour tous.
+            $sender = GuaranteeAlerts::projectLabel($projectId) ?: 'PRISE';
+            $mailer->raw($text, function ($m) use ($recipients, $subject, $from, $sender) {
+                $m->from($from, $sender)->to($recipients)->subject($subject);
             });
             return ['success' => true, 'message' => 'Message envoyé à ' . implode(', ', $recipients) . '.'];
         } catch (\Throwable $e) {

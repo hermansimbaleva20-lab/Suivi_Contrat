@@ -24,6 +24,14 @@ class GuaranteeAlertsTest extends TestCase
         $this->assertSame(['RETARD', 4], [$at('2027-01-01')['kind'], $at('2027-01-01')['perWeek']]); // au-delà de 100 %
     }
 
+    public function test_part_consommee_ecrite_dans_les_messages(): void
+    {
+        $this->assertSame('82,5 %', GuaranteeAlerts::consumedLabel(82.5));
+        $this->assertSame('100,0 %', GuaranteeAlerts::consumedLabel(100.0));
+        // Au-delà de l'échéance, pas de « 101,2 % ».
+        $this->assertSame('supérieur à 100 %', GuaranteeAlerts::consumedLabel(101.2));
+    }
+
     public function test_une_prolongation_ouvre_une_nouvelle_periode(): void
     {
         $g = ['start' => '2026-01-01', 'end' => '2027-03-31', 'extensions' => [

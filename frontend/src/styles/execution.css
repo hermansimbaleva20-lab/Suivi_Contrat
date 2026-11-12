@@ -1,0 +1,75 @@
+/*
+ * État d'exécution (ExecutionPage.jsx) : matrice du projet, en grille bordée comme le document papier.
+ * Écran : jetons du thème (clair et sombre) ; impression (PrintDocument, A4 paysage) : toujours sur papier blanc.
+ */
+.exe-figures { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 0; }
+.exe-figures dt { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--prise-muted); }
+.exe-figures dd { margin: 0; font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 700; color: var(--ink); }
+.exe-figures small { font-size: 12px; font-weight: 600; color: var(--prise-muted); }
+
+.exe-screen { overflow: hidden; }
+.exe-head { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+.exe-head h2 { margin: 0; font-family: var(--ff-title); font-size: 18px; font-weight: 700; letter-spacing: .01em; color: var(--text-red, #b3261e); }
+.exe-head h2 span { white-space: nowrap; }
+.exe-head p { margin: 4px 0 0; font-size: 12.5px; color: var(--prise-muted); }
+.exe-scroll { overflow-x: auto; }
+.exe-scroll:focus-visible { outline-offset: -2px; }
+.exe-loading { opacity: .6; transition: opacity .2s; }
+
+/* Les 13 colonnes du modèle du projet ; sur un écran étroit, la matrice défile dans son cadre. */
+.exe-table { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: 11.5px; line-height: 1.4; color: var(--ink); }
+.exe-c-component { width: 9%; } .exe-c-budget { width: 6%; } .exe-c-activity { width: 11%; } .exe-c-supplier { width: 9%; }
+.exe-c-num { width: 6.5%; } .exe-c-small { width: 4.5%; } .exe-c-realization { width: 17%; } .exe-c-observation { width: 10.5%; }
+.exe-component { font-weight: 700; }
+.exe-es { text-align: center !important; font-weight: 600; }
+.exe-contract-first > * { border-top: 2px solid var(--line) !important; }
+.exe-table th, .exe-table td { padding: 6px 7px; border: 1px solid var(--line); vertical-align: top; text-align: left; }
+.exe-table thead th { position: sticky; top: 0; z-index: 1; vertical-align: middle; text-align: center; font-size: 11px; font-weight: 700; line-height: 1.25; color: var(--ink); background: var(--surface-sunk); }
+.exe-num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exe-rate { font-weight: 700; }
+.exe-rate.is-late, .exe-num.is-late { color: var(--text-red, #b3261e); }
+.exe-num.is-done { color: var(--text-green, #087a3f); font-weight: 700; }
+.exe-rate.is-over { color: var(--text-red, #b3261e); }
+.exe-note { display: block; font-size: 11.5px; color: var(--prise-muted); }
+.exe-note-inline, .exe-muted { color: var(--prise-muted); }
+.exe-activity a { color: var(--text-green, #087a3f); text-decoration: none; }
+.exe-activity a:hover { text-decoration: underline; }
+.exe-install { display: block; margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px dotted var(--line); }
+.exe-situation { display: block; margin-top: 2px; }
+.exe-site td { background: var(--surface); }
+.exe-site .exe-realization { padding-left: 14px; }
+.exe-observation { font-size: 11.5px; }
+
+.exe-band th { padding: 7px 10px; text-align: left; border-color: var(--line); }
+.exe-band-category th { font-family: var(--ff-title); font-size: 14px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--ink); background: var(--tint-green, #e3f2e8); }
+.exe-band-province th { font-size: 13px; font-weight: 700; color: var(--ink); background: var(--tint-amber, #fff4d6); }
+.exe-band-figures { margin-left: 14px; font-family: var(--ff-text); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--prise-muted); }
+.exe-done { margin-left: 14px; font-size: 12px; font-weight: 600; color: var(--prise-muted); }
+.exe-done.is-none { font-weight: 500; }
+.exe-done-item { margin-left: 8px; color: var(--ink); }
+.exe-done-item strong { color: var(--text-green, #087a3f); }
+.exe-table tfoot th, .exe-table tfoot td { font-weight: 700; background: var(--surface-sunk); border-top: 2px solid var(--line); }
+.exe-table tfoot .exe-done { margin-left: 0; }
+
+/* Impression : papier blanc, encre sombre, grille plus serrée ; un contrat ne se coupe pas entre deux pages s'il tient. */
+.exe-print { color: #1d2c25; }
+.exe-print .exe-table { min-width: 0; font-size: 6.9pt; line-height: 1.28; color: #1d2c25; }
+.exe-print .exe-contract-first > * { border-top: 1.4pt solid #6f8a7b !important; }
+.exe-print .exe-table th, .exe-print .exe-table td { padding: 2.2pt 3pt; border-color: #9fb3a8; }
+.exe-print .exe-table thead th { position: static; font-size: 6.8pt; color: #12261d; background: #e8efeb; }
+.exe-print .exe-note, .exe-print .exe-muted, .exe-print .exe-note-inline, .exe-print .exe-band-figures, .exe-print .exe-done { color: #4b6357; }
+.exe-print .exe-note, .exe-print .exe-observation { font-size: inherit; }
+.exe-print .exe-band-category th { font-size: 8.4pt; color: #12261d; background: #dcefe3; }
+.exe-print .exe-band-province th { font-size: 7.8pt; color: #12261d; background: #fdf0c8; }
+.exe-print .exe-band-figures, .exe-print .exe-done { font-size: 7pt; }
+.exe-print .exe-site td { background: #fff; }
+.exe-print .exe-rate.is-late, .exe-print .exe-rate.is-over { color: #b3261e; }
+.exe-print .exe-num.is-done { color: #087a3f; }
+.exe-print .exe-done-item, .exe-print .exe-done-item strong { color: #12261d; }
+.exe-print .exe-table tfoot th, .exe-print .exe-table tfoot td { background: #e8efeb; }
+.exe-print .pdoc-title { color: #b3261e; }
+.exe-signoff { margin: 6pt 0 0; font-size: 7pt; color: #4b6357; }
+@media print {
+  .exe-print .exe-table tr { break-inside: avoid; }
+  .exe-print .exe-band-group { break-after: avoid; }
+}

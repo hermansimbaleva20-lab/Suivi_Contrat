@@ -21,6 +21,7 @@ import Settings from './pages/Settings.jsx';
 import Audit from './modules/audit/AuditPage.jsx';
 import ErrorPage from './pages/ErrorPage.jsx';
 import OrganizationPage from './modules/organization/OrganizationPage.jsx';
+import ComponentsPage from './modules/organization/ComponentsPage.jsx';
 import StockPage from './modules/stock/StockPage.jsx';
 import StockCardPage from './modules/stock/StockCardPage.jsx';
 import FleetPage from './modules/fleet/FleetPage.jsx';
@@ -33,6 +34,7 @@ import LogisticsDashboard from './modules/logistics/LogisticsDashboard.jsx';
 import DecomptesPage from './modules/decomptes/DecomptesPage.jsx';
 import ReportSnapshotsPage from './modules/reports/ReportSnapshotsPage.jsx';
 import SynthesisPage from './modules/reports/SynthesisPage.jsx';
+import ExecutionPage from './modules/reports/ExecutionPage.jsx';
 import AlertSettingsPage from './modules/alerts/AlertSettingsPage.jsx';
 import OpeningLoader from './components/OpeningLoader.jsx';
 import { FINANCE } from './lib/navigation.js';
@@ -112,6 +114,7 @@ export default function App() {
         <Route path="/guarantees" element={<Guard any={['canManageGuarantees']}><Guarantees /></Guard>} />
         <Route path="/reports" element={<Guard any={['canViewReports', 'canViewSituation']}><Reports /></Guard>} />
         <Route path="/reports/synthese" element={<Guard any={['canViewReports', 'canViewSituation']}><SynthesisPage /></Guard>} />
+        <Route path="/reports/etat-execution" element={<Guard any={['canViewReports', 'canViewSituation']}><ExecutionPage /></Guard>} />
         <Route path="/reports/snapshots" element={<Guard any={['canViewReports', 'canViewSituation']}><ReportSnapshotsPage /></Guard>} />
         <Route path="/alerts" element={<Guard any={['canViewAlertsContracts', 'canViewAlertsGuarantees', 'canViewAlertsLogistics']}><Alerts /></Guard>} />
         <Route path="/archives" element={<Archives />} />
@@ -134,6 +137,7 @@ export default function App() {
         <Route path="/generators/maintenance" element={<Guard any={FLEET}><MaintenancePage kind="GROUPE" /></Guard>} />
         <Route path="/generators/reports" element={<Guard any={FLEET}><FleetReportPage kind="GROUPE" /></Guard>} />
         <Route path="/organization" element={<Guard any={['canManageSettings']}><OrganizationPage /></Guard>} />
+        <Route path="/components" element={<Guard any={['canManageSettings']}><ComponentsPage /></Guard>} />
         <Route path="/phases" element={<Guard any={['canManageSettings']}><Phases /></Guard>} />
         <Route path="/settings/alerts" element={<SuperAdminGuard><AlertSettingsPage /></SuperAdminGuard>} />
         <Route path="/settings" element={<Guard any={['canManageSettings']}><Settings /></Guard>} />

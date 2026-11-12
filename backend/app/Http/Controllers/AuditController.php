@@ -22,6 +22,7 @@ class AuditController extends Controller
         'FleetAsset' => 'Engin', 'FleetLog' => 'Carnet de bord', 'FleetMaintenance' => 'Entretien', 'FleetInsurance' => 'Assurance', 'ContractAdvance' => 'Avance de démarrage', 'Decompte' => 'Décompte',
         'ReportSnapshot' => 'État figé', 'AlertRecipient' => 'Destinataire d’alertes', 'AlertRule' => 'Séquence d’alertes', 'AlertDispatch' => 'Envoi d’alertes', 'AlertTemplate' => 'Modèle de message',
         'ProjectPhase' => 'Phase',
+        'ProjectComponent' => 'Composante du projet',
     ];
 
     private function query(Request $r)

@@ -103,6 +103,15 @@ class GuaranteeController extends Controller
         $end = Dates::valid($r->input('end_date')) ? Dates::part($r->input('end_date')) : null;
         abort_unless($start && $end, 422, 'Les dates de début et de fin sont obligatoires.');
         abort_if($end <= $start, 422, 'La date de fin de garantie doit être postérieure à la date de début.');
+        // Garantie initiale (ni prolongée ni renouvelée) : comprise dans la période du contrat (décision du 11/11/2026).
+        if (!DB::table('guarantee_extensions')->where('performance_guarantee_id', $id)->exists()) {
+            $contract = DB::table('contracts')->where('id', $g->contract_id)->first(['start_date', 'end_date']);
+            if ($contract && $contract->start_date && $contract->end_date) {
+                $e = [];
+                ContractController::checkGuaranteePeriod($start, $end, Dates::part($contract->start_date), Dates::part($contract->end_date), $e);
+                abort_if($e, 422, implode(' ', $e));
+            }
+        }
         $old = "Banque={$g->bank_name}; compte={$g->account_number}; taux=" . (float) $g->rate . '; début=' . Dates::fr(Dates::part($g->start_date)) . '; fin=' . Dates::fr(Dates::part($g->end_date)) . "; observation={$g->observation}";
         DB::table('performance_guarantees')->where('id', $id)->update([
             'bank_name' => trim((string) $r->input('bank_name', '')), 'account_number' => trim((string) $r->input('account_number', '')), 'rate' => $rate,

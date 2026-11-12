@@ -56,7 +56,7 @@ class GoodsProcedureApiTest extends TestCase
     private function form(array $extra = []): array
     {
         return $extra + ['reference' => '200', 'company_id' => $this->company, 'category' => 'BIENS', 'selected_provinces' => ['Kasaï-Central'], 'start_date' => '2025-01-01', 'duration_months' => 6, 'amount' => '100000',
-            'initial_financing_rate' => '10', 'guarantee_rate' => '10', 'guarantee_bank_name' => 'Rawbank', 'sites' => [['name' => 'Kananga', 'province' => 'Kasaï-Central']],
+            'initial_financing_rate' => '10', 'guarantee_rate' => '10', 'guarantee_bank_name' => 'Rawbank', 'sites' => [['name' => 'Kananga', 'province' => 'Kasaï-Central', 'amount' => '100000']],
             'goods_procedure' => 'BAD', 'goods_origin' => 'LOCAL'];
     }
 

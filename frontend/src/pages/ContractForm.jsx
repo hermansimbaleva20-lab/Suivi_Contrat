@@ -3,11 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, apiError, fieldErrors } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLoad } from '../lib/hooks.js';
-import { addMonths, fr, parseDecimal } from '../lib/format.js';
+import { addMonths, fr, money, parseDecimal } from '../lib/format.js';
 import { DecimalInput, Field, Loading, Notice, PageHead } from '../components/ui.jsx';
 
 const AEP = 'Système d’AEP';
-const blankSite = () => ({ id: 0, name: '', province: '', work_type: '', description: '', quantity: '1' });
+const blankSite = () => ({ id: 0, name: '', province: '', work_type: '', description: '', quantity: '1', amount: '' });
+const filled = (v) => String(v ?? '').trim() !== '';
+const toInput = (v) => (v === null || v === undefined ? '' : String(v).replace('.', ','));
 
 export default function ContractForm() {
   const { id } = useParams();
@@ -22,6 +24,7 @@ export default function ContractForm() {
     reference: '', company_id: '', category: 'TRAVAUX', province: '', selected_provinces: [], signature_date: '', start_date: '', duration_months: '12', amount: '',
     initial_financing_rate: '0', activities: '', work_mode: 'Lourd', selected_work_types: [], guarantee_rate: '5', guarantee_bank_name: '', guarantee_account_number: '',
     guarantee_observation: '', goods_procedure: '', goods_origin: '', payment_schedule: [], delay_penalty_rate: '', delay_penalty_cap: '', goods_min_amount: '', goods_max_amount: '',
+    installation_cost: '', component_id: '', guarantee_start_date: '', guarantee_end_date: '',
   });
   const [sites, setSites] = useState([blankSite()]);
   const [errors, setErrors] = useState({});
@@ -78,14 +81,32 @@ export default function ContractForm() {
       guarantee_rate: current.data?.guarantee ? String(current.data.guarantee.rate) : s.guarantee_rate,
       goods_min_amount: c.goodsMinAmount === null || c.goodsMinAmount === undefined ? '' : String(c.goodsMinAmount),
       goods_max_amount: c.goodsMaxAmount === null || c.goodsMaxAmount === undefined ? '' : String(c.goodsMaxAmount),
+      installation_cost: toInput(c.installationCost), component_id: c.componentId ? String(c.componentId) : '',
     }));
-    setSites((c.sites || []).map((x) => ({ id: x.id, name: x.name, province: x.province, work_type: x.workType, description: x.description, quantity: String(x.quantity) })));
+    setSites((c.sites || []).map((x) => ({ id: x.id, name: x.name, province: x.province, work_type: x.workType, description: x.description, quantity: String(x.quantity), amount: toInput(x.amount) })));
   }, [current.data]);
 
   const workTypes = useMemo(() => {
     const base = (ref.data?.workTypes || []).filter((w) => w.category === f.category || w.category === 'TRAVAUX').map((w) => w.name);
     return [...new Set([...base, ...f.selected_work_types])].filter((n) => n !== AEP);
   }, [ref.data, f.category, f.selected_work_types]);
+
+  // Montant du contrat (décision du 10/11/2026) = installation de chantier et travaux préparatoires + montants prévus des sites,
+  // plus ce qu'ont ajouté les renouvellements. Un ancien contrat, sans montant par site, garde son montant saisi tant qu'aucun
+  // montant n'est renseigné ; dès qu'il l'est, chaque site doit avoir le sien (contrôlé aussi par l'API).
+  const loaded = current.data?.contract;
+  const legacy = edit && loaded && !loaded.progressWeighted && (loaded.installationCost === null || loaded.installationCost === undefined);
+  const computed = !isOffice && (!legacy || (isWorks && filled(f.installation_cost)) || sites.some((s) => filled(s.amount)));
+  // Coût d'installation de chantier : contrats de TRAVAUX seulement.
+  const installation = isWorks ? parseDecimal(f.installation_cost) || 0 : 0;
+  const renewedAmount = edit ? Number(loaded?.renewedAmount) || 0 : 0;
+  const sitesTotal = sites.filter((s) => s.name.trim()).reduce((a, s) => a + (parseDecimal(s.amount) || 0), 0);
+  const total = installation + sitesTotal + renewedAmount;
+  // Fin du contrat : borne de la période de garantie (démarrage + durée).
+  const contractEnd = f.start_date ? addMonths(f.start_date, Number(f.duration_months) || 1) : '';
+  // Composantes enregistrées au préalable (Administration › Composantes) : le contrat en choisit une, facultativement.
+  const components = ref.data?.components || [];
+  const chosenComponent = components.find((x) => String(x.id) === String(f.component_id)) || null;
 
   const toggle = (key, value) => setF((s) => ({ ...s, [key]: s[key].includes(value) ? s[key].filter((x) => x !== value) : [...s[key], value] }));
   const setSite = (i, k, v) => setSites((list) => list.map((s, j) => (j === i ? { ...s, [k]: v } : s)));
@@ -114,7 +135,11 @@ export default function ContractForm() {
     setBusy(true);
     setError('');
     setErrors({});
-    const payload = { ...f, sites: sites.filter((s) => s.name.trim()) };
+    // Le montant calculé est recalculé par l'API ; il n'est transmis que pour un ancien contrat (montant saisi).
+    const payload = {
+      ...f, installation_cost: isWorks ? f.installation_cost : '', amount: computed ? String(total) : f.amount, sites: sites.filter((s) => s.name.trim()),
+      guarantee_start_date: f.guarantee_start_date || f.start_date, guarantee_end_date: f.guarantee_end_date || contractEnd,
+    };
     try {
       const res = edit ? await api.put(`/contracts/${id}`, payload) : await api.post('/contracts', payload);
       const contractId = edit ? id : res.data.id;
@@ -175,7 +200,23 @@ export default function ContractForm() {
                 <Field className="col-md-3" label="Durée (mois)"><input type="number" min="1" className="form-control" value={f.duration_months} onChange={(e) => set('duration_months')(e.target.value)} required /></Field>
               </>
             )}
-            {!isOffice && <Field className="col-md-3" label="Montant du contrat" error={errors.amount}><DecimalInput value={f.amount} onChange={set('amount')} placeholder="Ex. : 1500000,50" required /></Field>}
+            {/* Installation de chantier et travaux préparatoires : un coût de tout le contrat, pas d'un site ; TRAVAUX seulement. */}
+            {isWorks && (
+              <Field className="col-md-3" label="Coût d’installation de chantier et travaux préparatoires (USD)" error={errors.installation_cost}>
+                <DecimalInput id="installation-cost" value={f.installation_cost} onChange={set('installation_cost')} placeholder="0,00" />
+              </Field>
+            )}
+            {/* Montant calculé (installation + sites + renouvellements) ; saisi pour un ancien contrat sans montant par site. */}
+            {!isOffice && computed && (
+              <Field className="col-md-3" label="Montant du contrat (USD)" error={errors.amount}>
+                <input className="form-control text-money fw-semibold amount-computed" value={money(total)} readOnly tabIndex={-1} />
+              </Field>
+            )}
+            {!isOffice && !computed && (
+              <Field className="col-md-3" label="Montant du contrat (USD)" error={errors.amount}>
+                <DecimalInput value={f.amount} onChange={set('amount')} placeholder="Ex. : 1500000,50" required />
+              </Field>
+            )}
             {!(governed && f.goods_origin) && !isOffice && (
               <Field className="col-md-3" label="Avance de démarrage (%)" error={errors.initial_financing_rate}>
                 <DecimalInput value={isService ? '0' : f.initial_financing_rate} onChange={set('initial_financing_rate')} disabled={isService} aria-describedby={isService ? 'svc-financing' : undefined} />
@@ -191,6 +232,21 @@ export default function ContractForm() {
               </Field>
             )}
             <Field className="col-12" label="Activité / objet du contrat"><textarea className="form-control" rows="2" value={f.activities} onChange={(e) => set('activities')(e.target.value)} /></Field>
+            {/* Colonnes « Composantes » et « Budget en millions d'UC » de la matrice d'exécution du projet. */}
+            {/* Composante facultative, choisie parmi celles enregistrées dans Administration › Composantes. */}
+            {!isOffice && (
+              <>
+                <Field className="col-md-8" label="Composante du projet (facultatif)" error={errors.component_id}>
+                  <select className="form-select" value={f.component_id} onChange={(e) => set('component_id')(e.target.value)}>
+                    <option value="">— Aucune —</option>
+                    {components.filter((x) => x.isActive || String(x.id) === String(f.component_id)).map((x) => <option key={x.id} value={x.id}>{x.name}{x.isActive ? '' : ' (désactivée)'}</option>)}
+                  </select>
+                </Field>
+                <Field className="col-md-4" label="Budget de la composante (UC)">
+                  <input className="form-control text-money amount-computed" readOnly tabIndex={-1} value={chosenComponent?.budget === null || chosenComponent?.budget === undefined ? '—' : money(chosenComponent.budget).replace(/,00$/, '')} />
+                </Field>
+              </>
+            )}
           </div>
 
           {isMulti && (
@@ -229,15 +285,13 @@ export default function ContractForm() {
 
         {isGoods && goods && (
           <div className="cardx form-card p-3 mb-3">
-            <div className="section-title mb-1">Procédure du marché</div>
-            <div className="section-subtitle mb-3">Un marché suit une seule procédure. Ses taux sont repris du document et restent modifiables ; l’échéancier est indicatif, les paiements suivant les décomptes et leurs retenues.</div>
+            <div className="section-title mb-3">Procédure du marché</div>
             {errors.goods_procedure && <div className="text-danger small mb-2">{errors.goods_procedure}</div>}
             <div className="d-flex flex-wrap gap-2 mb-3" role="radiogroup" aria-label="Procédure du marché">
               {shownProcedures.map((p) => <label key={p.code} className="check-pill"><input type="radio" name="goods-procedure" checked={f.goods_procedure === p.code} onChange={() => chooseGoods(p.code, f.goods_origin)} />{p.label}</label>)}
             </div>
             {isOffice && (
               <>
-                <p className="small text-secondary mb-3">Ce contrat se suit uniquement par le stock de ses articles, entrées et sorties : ni montant de contrat, ni garantie, ni avance, ni décompte, ni paiement, ni avancement. Il peut être renouvelé.</p>
                 <div className="row g-3">
                   <Field className="col-md-3" label="Montant minimum d’une commande (USD)" error={errors.goods_min_amount}><DecimalInput value={f.goods_min_amount} onChange={set('goods_min_amount')} required /></Field>
                   <Field className="col-md-3" label="Montant maximum d’une commande (USD)" error={errors.goods_max_amount}><DecimalInput value={f.goods_max_amount} onChange={set('goods_max_amount')} required /></Field>
@@ -281,7 +335,7 @@ export default function ContractForm() {
 
         <div className="cardx form-card p-3 mb-3">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <div><div className="section-title">Sites d’exécution</div><div className="section-subtitle">Chaque site est suivi séparément ; l’avancement du contrat est la moyenne de ses sites.</div></div>
+            <div className="section-title">{isOffice ? 'Sites d’exécution' : 'Sites d’exécution et montants'}</div>
             <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setSites((l) => [...l, blankSite()])}><i className="bi bi-plus-lg me-1" />Ajouter un site</button>
           </div>
           {errors.sites && <div className="text-danger small mb-2">{errors.sites}</div>}
@@ -289,7 +343,7 @@ export default function ContractForm() {
             {sites.map((s, i) => (
               <div className="site-row" key={i}>
                 <div className="row g-2 align-items-end">
-                  <div className="col-md-3"><label className="form-label small">Nom du site</label><input className="form-control" value={s.name} onChange={(e) => setSite(i, 'name', e.target.value)} /></div>
+                  <div className={isMulti ? 'col-md-2' : 'col-md-3'}><label className="form-label small">Nom du site</label><input className="form-control" value={s.name} onChange={(e) => setSite(i, 'name', e.target.value)} /></div>
                   {isMulti && (
                     <div className="col-md-2">
                       <label className="form-label small">Province</label>
@@ -299,17 +353,32 @@ export default function ContractForm() {
                       </select>
                     </div>
                   )}
-                  <div className={isMulti ? 'col-md-2' : 'col-md-3'}>
+                  <div className="col-md-2">
                     <label className="form-label small">{isWorks ? 'Type d’ouvrage' : 'Nature'}</label>
                     <input className="form-control" list="work-types" value={s.work_type} onChange={(e) => setSite(i, 'work_type', e.target.value)} placeholder={isWorks && f.work_mode === 'Lourd' ? AEP : ''} />
                   </div>
-                  <div className={isMulti ? 'col-md-3' : 'col-md-4'}><label className="form-label small">Description</label><input className="form-control" value={s.description} onChange={(e) => setSite(i, 'description', e.target.value)} /></div>
+                  <div className={isOffice ? (isMulti ? 'col-md-4' : 'col-md-5') : (isMulti ? 'col-md-2' : 'col-md-3')}><label className="form-label small">Description</label><input className="form-control" value={s.description} onChange={(e) => setSite(i, 'description', e.target.value)} /></div>
                   <div className="col-md-1"><label className="form-label small">Qté</label><DecimalInput value={s.quantity} onChange={(v) => setSite(i, 'quantity', v)} /></div>
-                  <div className="col-md-1 text-end">{sites.length > 1 && <button type="button" className="btn btn-outline-danger btn-icon" onClick={() => setSites((l) => l.filter((_, j) => j !== i))} title="Retirer"><i className="bi bi-trash" /></button>}</div>
+                  {!isOffice && (
+                    <div className="col-md-2">
+                      <label className="form-label small">Montant prévu (USD)</label>
+                      <DecimalInput value={s.amount} onChange={(v) => setSite(i, 'amount', v)} placeholder="0,00" required={computed && !!s.name.trim()} aria-label={`Montant prévu du site ${i + 1} (USD)`} />
+                    </div>
+                  )}
+                  {/* Un site enregistré ne se retire pas d'ici : il porte peut-être déjà des situations d'avancement. */}
+                  <div className="col-md-1 text-end">{sites.length > 1 && (!edit || !s.id) && <button type="button" className="btn btn-outline-danger btn-icon" onClick={() => setSites((l) => l.filter((_, j) => j !== i))} title="Retirer" aria-label={`Retirer le site ${s.name || i + 1}`}><i className="bi bi-trash" /></button>}</div>
                 </div>
               </div>
             ))}
           </div>
+          {computed && (
+            <dl className="contract-amount-sum" aria-live="polite">
+              {isWorks && <div><dt>Installation de chantier</dt><dd>{money(installation)}</dd></div>}
+              <div><dt>Sites ({sites.filter((s) => s.name.trim()).length})</dt><dd>{money(sitesTotal)}</dd></div>
+              {renewedAmount > 0 && <div><dt>Renouvellements</dt><dd>{money(renewedAmount)}</dd></div>}
+              <div className="is-total"><dt>Montant du contrat</dt><dd>{money(total)} <span>USD</span></dd></div>
+            </dl>
+          )}
           <datalist id="work-types">{(ref.data?.workTypes || []).map((w) => <option key={w.id} value={w.name} />)}</datalist>
         </div>
 
@@ -322,15 +391,17 @@ export default function ContractForm() {
 
         {!edit && !isService && !isOffice && (
           <div className="cardx form-card p-3 mb-3">
-            <div className="section-title mb-1">Garantie de bonne exécution</div>
-
-            <div className="section-subtitle mb-3">Cette garantie est propre à ce contrat : sa période est celle du contrat (date de démarrage et durée).</div>
+            <div className="section-title mb-3">Garantie de bonne exécution</div>
+            {/* Période de la garantie : comprise dans celle du contrat, jamais au-delà de sa date de fin. */}
             <div className="row g-3">
               <Field className="col-md-3" label="Taux (%)" error={errors.guarantee_rate}><DecimalInput value={f.guarantee_rate} onChange={set('guarantee_rate')} /></Field>
               <Field className="col-md-5" label="Banque émettrice" error={errors.guarantee_bank_name}><input className="form-control" value={f.guarantee_bank_name} onChange={(e) => set('guarantee_bank_name')(e.target.value)} required /></Field>
               <Field className="col-md-4" label="N° garantie"><input className="form-control" value={f.guarantee_account_number} onChange={(e) => set('guarantee_account_number')(e.target.value)} /></Field>
-              <Field className="col-md-6" label="Période de la garantie (celle du contrat)">
-                <input className="form-control" readOnly value={f.start_date ? `du ${fr(f.start_date)} au ${fr(addMonths(f.start_date, Number(f.duration_months) || 1))}` : 'Renseignez la date de démarrage et la durée du contrat'} />
+              <Field className="col-md-3" label="Début de la garantie" error={errors.guarantee_start_date}>
+                <input type="date" className="form-control" value={f.guarantee_start_date || f.start_date} min={f.start_date || undefined} max={contractEnd || undefined} onChange={(e) => set('guarantee_start_date')(e.target.value)} required />
+              </Field>
+              <Field className="col-md-3" label="Fin de la garantie" error={errors.guarantee_end_date}>
+                <input type="date" className="form-control" value={f.guarantee_end_date || contractEnd} min={f.guarantee_start_date || f.start_date || undefined} max={contractEnd || undefined} onChange={(e) => set('guarantee_end_date')(e.target.value)} required />
               </Field>
               <Field className="col-md-6" label="Observation"><input className="form-control" value={f.guarantee_observation} onChange={(e) => set('guarantee_observation')(e.target.value)} /></Field>
             </div>
@@ -340,7 +411,7 @@ export default function ContractForm() {
         {!edit && (
           <div className="cardx form-card p-3 mb-3">
             <div className="section-title mb-1">Document du contrat signé</div>
-            <div className="section-subtitle mb-3">Joignez le contrat signé au moment de son enregistrement (PDF, DOC ou DOCX, 20 Mo maximum). Le document pourra aussi être ajouté ultérieurement depuis la fiche du contrat.</div>
+            <div className="section-subtitle mb-3">PDF, DOC ou DOCX, 20 Mo maximum.</div>
             <Field className="col-12" label="Fichier du contrat signé">
               <input type="file" className="form-control" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setDocumentFile(e.target.files?.[0] || null)} required />
             </Field>

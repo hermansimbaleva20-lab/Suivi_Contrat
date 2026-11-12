@@ -43,7 +43,7 @@ class ContractApiTest extends TestCase
         return array_merge([
             'reference' => 'C-' . uniqid(), 'company_id' => $this->company, 'category' => 'TRAVAUX', 'province' => 'Kasaï-Central', 'start_date' => '2026-01-15',
             'duration_months' => 12, 'amount' => '100000', 'initial_financing_rate' => '20', 'work_mode' => 'Lourd',
-            'guarantee_rate' => '5', 'guarantee_bank_name' => 'Rawbank', 'sites' => [['name' => 'Site 1', 'work_type' => '', 'description' => '', 'quantity' => '1']],
+            'guarantee_rate' => '5', 'guarantee_bank_name' => 'Rawbank', 'sites' => [['name' => 'Site 1', 'work_type' => '', 'description' => '', 'quantity' => '1', 'amount' => '100000']],
         ], $extra);
     }
 
@@ -56,7 +56,7 @@ class ContractApiTest extends TestCase
     {
         $this->gestionnaire();
         $form = $this->form(['category' => 'SERVICE', 'selected_provinces' => ['Kasaï-Central'], 'initial_financing_rate' => '30', 'guarantee_bank_name' => '',
-            'sites' => [['name' => 'Bureau', 'province' => 'Kasaï-Central', 'work_type' => 'Gardiennage', 'description' => '', 'quantity' => '1']]]);
+            'sites' => [['name' => 'Bureau', 'province' => 'Kasaï-Central', 'work_type' => 'Gardiennage', 'description' => '', 'quantity' => '1', 'amount' => '100000']]]);
         $id = $this->api()->postJson('/api/contracts', $form)->assertCreated()->json('id');
 
         $this->assertEquals(0, DB::table('contracts')->where('id', $id)->value('initial_financing_rate'));
@@ -69,18 +69,28 @@ class ContractApiTest extends TestCase
         $this->assertTrue(DB::table('performance_guarantees')->where('contract_id', $travaux)->exists());
     }
 
-    public function test_la_periode_de_garantie_suit_la_duree_du_contrat(): void
+    /** Décision du 11/11/2026 : la période de garantie est saisie et comprise dans celle du contrat, jamais après sa fin. */
+    public function test_la_periode_de_garantie_est_comprise_dans_le_contrat(): void
     {
         $this->gestionnaire();
-        $id = $this->api()->postJson('/api/contracts', $this->form(['guarantee_start_date' => '2030-01-01', 'guarantee_end_date' => '2031-01-01']))->assertCreated()->json('id');
+        // Contrat du 15/01/2026 au 15/01/2027 : une garantie qui le dépasse, ou qui commence avant, est refusée.
+        $this->api()->postJson('/api/contracts', $this->form(['guarantee_start_date' => '2026-01-15', 'guarantee_end_date' => '2027-03-01']))->assertStatus(422)->assertJsonValidationErrors('guarantee_end_date');
+        $this->api()->postJson('/api/contracts', $this->form(['guarantee_start_date' => '2025-12-01', 'guarantee_end_date' => '2026-12-01']))->assertStatus(422)->assertJsonValidationErrors('guarantee_start_date');
+        $id = $this->api()->postJson('/api/contracts', $this->form(['guarantee_start_date' => '2026-02-01', 'guarantee_end_date' => '2026-12-31']))->assertCreated()->json('id');
         $g = DB::table('performance_guarantees')->where('contract_id', $id)->first();
-        $this->assertSame(['2026-01-15', '2027-01-15'], [substr($g->start_date, 0, 10), substr($g->end_date, 0, 10)]);
+        $this->assertSame(['2026-02-01', '2026-12-31'], [substr($g->start_date, 0, 10), substr($g->end_date, 0, 10)]);
+        // Sans dates transmises : la période du contrat.
+        $other = $this->api()->postJson('/api/contracts', $this->form())->assertCreated()->json('id');
+        $this->assertSame('2027-01-15', substr(DB::table('performance_guarantees')->where('contract_id', $other)->value('end_date'), 0, 10));
 
-        // Correction de la durée du contrat : la garantie suit, tant qu'elle n'a été ni prolongée ni renouvelée.
-        $form = $this->form(['reference' => DB::table('contracts')->where('id', $id)->value('reference'), 'duration_months' => 18]);
+        // Le contrat raccourcit : la garantie y est ramenée ; il s'allonge : elle garde sa fin.
+        $form = $this->form(['reference' => DB::table('contracts')->where('id', $id)->value('reference'), 'duration_months' => 6]);
         $this->api()->putJson("/api/contracts/{$id}", $form)->assertOk();
-        $this->assertSame('2027-07-15', substr(DB::table('performance_guarantees')->where('id', $g->id)->value('end_date'), 0, 10));
+        $this->assertSame('2026-07-15', substr(DB::table('performance_guarantees')->where('id', $g->id)->value('end_date'), 0, 10));
+        $this->api()->putJson("/api/contracts/{$id}", array_merge($form, ['duration_months' => 18]))->assertOk();
+        $this->assertSame('2026-07-15', substr(DB::table('performance_guarantees')->where('id', $g->id)->value('end_date'), 0, 10));
 
+        // Une garantie prolongée n'est plus ramenée dans la période du contrat.
         DB::table('guarantee_extensions')->insert(['performance_guarantee_id' => $g->id, 'start_date' => '2027-07-15', 'end_date' => '2028-01-15', 'type' => 'PROLONGATION', 'reason' => 'Avenant', 'created_at' => now(), 'updated_at' => now()]);
         DB::table('performance_guarantees')->where('id', $g->id)->update(['end_date' => '2028-01-15']);
         $this->api()->putJson("/api/contracts/{$id}", array_merge($form, ['duration_months' => 12]))->assertOk();

@@ -4,6 +4,7 @@ import { api, apiError } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from '../components/ui.jsx';
 import { PositionPicker } from '../components/PositionPicker.jsx';
+import { AppFooter } from '../components/AppFooter.jsx';
 import '../styles/login-motion.css';
 
 const PROJECTS = {
@@ -20,7 +21,7 @@ const PROJECTS = {
 /* Fond des pages de connexion, de demande d'accès et de mot de passe oublié : la photo reprend sa dérive là où elle en était (login-motion.css). */
 function AuthPage({ children }) {
   const [drift] = useState(() => `-${Math.round(performance.now())}ms`);
-  return <div className="login-bg" style={{ '--login-drift': drift }}><div className="login-page">{children}</div></div>;
+  return <div className="login-bg" style={{ '--login-drift': drift }}><div className="login-page">{children}</div><AppFooter variant="auth" /></div>;
 }
 
 /* Autour de la carte : ondes qui s'en éloignent, tracé du contour à l'arrivée, puis lueur qui en fait le tour. */

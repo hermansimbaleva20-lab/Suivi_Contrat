@@ -7,6 +7,7 @@ import { useLoad } from '../lib/hooks.js';
 import { addMonths, fr, frDateTime, money, num, parseDecimal, todayISO } from '../lib/format.js';
 import { DecimalInput, Empty, Field, Kpi, Loading, Modal, Notice, PageHead, Progress, ReasonDialog, StatusPill } from '../components/ui.jsx';
 import { EvolutionChart, HBarChart, OverpaidNote } from '../components/Charts.jsx';
+import { ProgressBreakdown } from '../components/ProgressBreakdown.jsx';
 import { COLORS, paymentColor } from '../lib/chartColors.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -100,7 +101,7 @@ export default function ContractDetail({ readOnly = false }) {
       {c.stockOnly && !c.canManage && <ReadOnlyNote unitName={c.unitName} />}
 
       {!c.stockOnly && <div className="row g-3 mb-3">
-        <div className="col-xl-3 col-md-6"><Kpi tone="green" label="AVANCEMENT PHYSIQUE" value={`${num(c.progress, 1)} %`} sub={`${c.sitesCount} site(s)`} /></div>
+        <div className="col-xl-3 col-md-6"><Kpi tone="green" label="AVANCEMENT PHYSIQUE" value={`${num(c.progress, 1)} %`} sub={`${c.progressWeighted ? '' : 'Provisoire · '}${c.hasInstallation ? `Installation de chantier : ${num(c.installationProgress, 1)} % · ` : ''}${c.sitesCount} site(s)`} /></div>
         <div className="col-xl-3 col-md-6"><Kpi tone="orange" label="JOURS CONSOMMÉS" value={`${num(c.elapsed, 1)} %`} sub={c.daysRemaining !== null ? (c.daysRemaining >= 0 ? `${c.daysRemaining} jour(s) restant(s)` : `${-c.daysRemaining} jour(s) de dépassement`) : ''} /></div>
         <div className="col-xl-3 col-md-6"><Kpi label="TAUX DE PAIEMENT" value={`${num(c.paymentRate, 1)} %`} sub={`${money(c.paidIncludingInitial)} versés`} /></div>
         <div className="col-xl-3 col-md-6"><div className="cardx kpi"><div className="label">STATUT</div><div className="value" style={{ fontSize: 22 }}><StatusPill status={c.status} /></div><div className="small text-secondary">Écart : {num(c.gap, 1)} pts</div></div></div>
@@ -123,6 +124,8 @@ export default function ContractDetail({ readOnly = false }) {
               <div><span>Montant maximum d’une commande</span><strong className="text-money">{money(c.goodsMaxAmount)} USD</strong></div>
             </>
           ) : <div><span>Montant du contrat</span><strong className="text-money">{money(c.amount)}</strong></div>}
+          {c.hasInstallation && <div><span>Installation de chantier et travaux préparatoires</span><strong className="text-money">{c.installationCost === null || c.installationCost === undefined ? 'Coût non renseigné' : money(c.installationCost)} · taux {num(c.installationProgress, 1)} %</strong></div>}
+          {c.component && <div><span>Composante</span><strong>{c.component}{c.componentBudget !== null && c.componentBudget !== undefined ? ` — budget ${money(c.componentBudget)} UC` : ''}</strong></div>}
           {!c.stockOnly && <div><span>Avance de démarrage</span><strong className="text-money">{num(c.initialFinancingRate, 2)} % — {money(c.advanceOnRequest ? c.advanceDue : c.initialFinancing)}{c.advanceOnRequest && <span className="small text-secondary fw-normal d-block">{c.advanceRequest?.status === 'PAYEE' ? `Payée le ${fr(c.advanceRequest.paidDate)}` : c.advanceRequest ? 'Demandée, à payer' : 'Sur demande de l’entreprise'}</span>}</strong></div>}
           {!c.stockOnly && <div><span>Paiements enregistrés</span><strong className="text-money">{money(c.totalPaid)}</strong></div>}
           {d.startupAdvance && <div><span>Avance de démarrage</span><strong className="text-money">{money(d.startupAdvance.amount)} ({fr(d.startupAdvance.date)})</strong></div>}
@@ -146,19 +149,28 @@ export default function ContractDetail({ readOnly = false }) {
         <div className="section-title mb-3">Sites d’exécution</div>
         <div className="table-wrap">
           <table className="table align-middle">
-            <thead><tr><th>Site</th><th>Province</th><th>Type d’ouvrage</th><th>Description</th><th>Quantité</th>{!c.stockOnly && <th style={{ minWidth: 150 }}>Avancement</th>}</tr></thead>
+            <thead><tr><th>Site</th><th>Province</th><th>Type d’ouvrage</th><th>Description</th><th>Quantité</th>{c.progressWeighted && <th className="text-end">Montant prévu</th>}{!c.stockOnly && <th style={{ minWidth: 150 }}>Avancement</th>}</tr></thead>
             <tbody>
               {c.sites.map((s) => (
                 <tr key={s.id}>
                   <td><strong>{s.name}</strong></td><td>{s.province}</td><td>{s.workType || '—'}</td><td>{s.description || '—'}</td><td>{num(s.quantity, 2)}</td>
+                  {c.progressWeighted && <td className="text-end text-money">{money(s.amount)}</td>}
                   {!c.stockOnly && <td><strong>{num(s.progress, 1)}%</strong><Progress value={s.progress} /></td>}
                 </tr>
               ))}
-              {!c.sites.length && <tr><td colSpan="6"><Empty text="Aucun site enregistré." /></td></tr>}
+              {!c.sites.length && <tr><td colSpan="7"><Empty text="Aucun site enregistré." /></td></tr>}
             </tbody>
           </table>
         </div>
       </div>
+
+      {!c.stockOnly && c.progressBreakdown?.rows.length > 0 && (
+        <div className="cardx p-3 mb-3">
+          <div className="section-title mb-2">Détail de l’avancement physique</div>
+          <ProgressBreakdown breakdown={c.progressBreakdown} progress={c.progress}
+            editLink={!readOnly && c.canManage && !c.isTerminated ? `/contracts/${c.id}/edit` : null} />
+        </div>
+      )}
 
       {!c.stockOnly && <>
       <div className="row g-3 mb-3">

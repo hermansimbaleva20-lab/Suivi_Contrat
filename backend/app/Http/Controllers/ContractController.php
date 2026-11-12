@@ -126,7 +126,7 @@ class ContractController extends Controller
             'goodsRules' => GoodsProcedure::describe($c['goods_procedure'], $c['goods_origin']),
             'documents' => $docs,
             'payments' => array_map(fn ($p) => ['id' => $p['id'], 'date' => $p['date'], 'amount' => $p['amount'], 'reference' => $p['reference'], 'observation' => $p['observation']], array_reverse($c['payments'])),
-            'entries' => array_map(fn ($e) => ['id' => $e['id'], 'date' => $e['date'], 'site' => $e['site_id'] ? ($sitesById[$e['site_id']] ?? '—') : 'Contrat', 'progress' => $e['progress'], 'realization' => $e['realization'], 'observation' => $e['observation']], array_slice($entries, 0, 30)),
+            'entries' => array_map(fn ($e) => ['id' => $e['id'], 'date' => $e['date'], 'site' => $e['site_id'] ? ($sitesById[$e['site_id']] ?? '—') : (!empty($e['installation']) ? 'Installation de chantier' : 'Contrat'), 'progress' => $e['progress'], 'realization' => $e['realization'], 'observation' => $e['observation']], array_slice($entries, 0, 30)),
             'startupAdvance' => $adv ? ['date' => $adv['date'], 'amount' => $adv['amount'], 'reference' => $adv['reference']] : null,
             'history' => Metrics::history($c, $today),
             'siteEvolution' => Metrics::siteEvolution($c, $prev, $today),
@@ -152,12 +152,68 @@ class ContractController extends Controller
         foreach ((array) $raw as $s) {
             $name = trim((string) ($s['name'] ?? ''));
             if ($name === '') continue;
+            // Montant prévu du site (avancement pondéré) : vide pour un ancien contrat suivi par la moyenne de ses sites.
+            $rawAmount = trim((string) ($s['amount'] ?? ''));
+            $amount = $rawAmount === '' ? null : Dates::decimal($rawAmount);
             $out[] = [
                 'id' => (int) ($s['id'] ?? 0), 'name' => $name, 'province' => trim((string) ($s['province'] ?? '')), 'work_type' => trim((string) ($s['work_type'] ?? '')),
                 'description' => trim((string) ($s['description'] ?? '')), 'quantity' => max(0, (float) (Dates::decimal($s['quantity'] ?? 1) ?? 1)) ?: 1,
+                'amount' => $amount === null || $amount < 0 ? null : round($amount, 2), 'amount_invalid' => $rawAmount !== '' && ($amount === null || $amount < 0),
+                'amount_given' => is_array($s) && array_key_exists('amount', $s), // absent : un site enregistré garde son montant
+
             ];
         }
         return $out;
+    }
+
+    /**
+     * Composante du projet (matrice d'exécution), facultative : une de celles enregistrées dans Administration ›
+     * Composantes, active, ou celle que le contrat a déjà (même désactivée depuis).
+     */
+    private function componentFields(Request $r, array &$e, ?int $current = null): array
+    {
+        $id = (int) $r->input('component_id', 0) ?: null;
+        if ($id && $id !== $current && !DB::table('project_components')->where('id', $id)->where('project_id', Ctx::projectId())->where('is_active', true)->exists()) {
+            $e['component_id'] = 'Choisissez une composante enregistrée et active du projet.';
+            $id = $current;
+        }
+        return ['component_id' => $id];
+    }
+
+    /** La période de la garantie est comprise dans celle du contrat : pas avant son démarrage, pas après sa fin. */
+    public static function checkGuaranteePeriod(string $gStart, string $gEnd, string $start, string $end, array &$e): void
+    {
+        if ($gStart < $start) $e['guarantee_start_date'] = 'La garantie ne peut pas commencer avant le démarrage du contrat (' . Dates::fr($start) . ').';
+        if ($gEnd > $end) $e['guarantee_end_date'] = 'La garantie ne peut pas se terminer après la fin du contrat (' . Dates::fr($end) . ').';
+        elseif ($gEnd < $gStart) $e['guarantee_end_date'] = 'La fin de la garantie doit suivre son début.';
+    }
+
+    /** Coût de l'installation de chantier et des travaux préparatoires : 0 si le champ est vide. */
+    private function installationCost(Request $r, array &$e): float
+    {
+        $raw = trim((string) $r->input('installation_cost', ''));
+        if ($raw === '') return 0.0;
+        $v = Dates::decimal($raw);
+        if ($v === null || $v < 0) {
+            $e['installation_cost'] = 'Saisissez un coût valide, par exemple 25000,00 (0 si le contrat n’en prévoit pas).';
+            return 0.0;
+        }
+        return round($v, 2);
+    }
+
+    /**
+     * Somme des montants prévus des sites (décision du 10/11/2026) : chaque site doit avoir un montant supérieur à zéro, car
+     * le montant du contrat est l'installation de chantier plus la somme des sites, et il pondère l'avancement physique.
+     */
+    private function siteAmounts(array $sites, array &$e): float
+    {
+        $sum = 0.0;
+        foreach ($sites as $s) {
+            if (!empty($s['amount_invalid'])) $e['sites'] = "Le montant prévu du site « {$s['name']} » n’est pas valide : saisissez par exemple 150000,00.";
+            elseif ($s['amount'] === null || $s['amount'] <= 0) $e['sites'] = "Saisissez le montant prévu du site « {$s['name']} » : le montant du contrat est la somme des sites et de l’installation de chantier.";
+            else $sum += $s['amount'];
+        }
+        return round($sum, 2);
     }
 
     public function store(Request $r)
@@ -187,8 +243,11 @@ class ContractController extends Controller
         $signature = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($start ?: Dates::today());
         $duration = max(1, (int) $r->input('duration_months', 12));
         // Fournitures de bureau : pas de montant de contrat, seulement les montants minimum et maximum d'une commande.
-        $amount = $category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure')) ? 0.0 : Dates::decimal($r->input('amount'));
-        if ($amount === null || $amount < 0) $e['amount'] = 'Saisissez un montant valide, par exemple 1500000,50.';
+        // Les autres contrats : montant = installation de chantier + somme des montants prévus des sites (calculé plus bas).
+        $isOffice = $category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure'));
+        // Coût d'installation de chantier et travaux préparatoires : contrats de TRAVAUX seulement.
+        $installation = $category === 'TRAVAUX' ? $this->installationCost($r, $e) : null;
+        $amount = 0.0;
         // Un contrat de SERVICE ou de fournitures de bureau n'a ni avance de démarrage ni garantie de bonne exécution.
         $isService = $category === 'SERVICE';
         $noGuarantee = $isService || ($category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure')));
@@ -199,9 +258,11 @@ class ContractController extends Controller
         $guaranteeBank = trim((string) $r->input('guarantee_bank_name', ''));
         if (!$noGuarantee && $guaranteeBank === '') $e['guarantee_bank_name'] = 'La banque émettrice de la garantie est obligatoire.';
         $end = $start ? Dates::addMonths($start, $duration) : null;
-        // La garantie est liée au contrat : sa période est celle du contrat (démarrage → démarrage + durée).
-        $gStart = $start;
-        $gEnd = $end;
+        // Période de la garantie (décision du 11/11/2026) : saisie, comprise dans celle du contrat, jamais après sa fin.
+        // Sans dates transmises, celle du contrat.
+        $gStart = Dates::valid($r->input('guarantee_start_date')) ? Dates::part($r->input('guarantee_start_date')) : $start;
+        $gEnd = Dates::valid($r->input('guarantee_end_date')) ? Dates::part($r->input('guarantee_end_date')) : $end;
+        if (!$noGuarantee && $start && $end) self::checkGuaranteePeriod($gStart, $gEnd, $start, $end, $e);
 
         $provinces = array_values(array_unique(array_filter(array_map('trim', (array) $r->input('selected_provinces', [])))));
         $mainProvince = trim((string) $r->input('province', ''));
@@ -212,6 +273,10 @@ class ContractController extends Controller
 
         $sites = $this->cleanSites($r->input('sites', []));
         if (!$sites) $e['sites'] = 'Ajoutez au moins un site d’exécution.';
+        elseif (!$isOffice) {
+            $amount = round((float) $installation + $this->siteAmounts($sites, $e), 2);
+            if (!isset($e['sites']) && !isset($e['installation_cost']) && $amount <= 0) $e['amount'] = 'Le montant du contrat (installation de chantier + sites) doit être supérieur à zéro.';
+        }
         $workNames = [];
         if ($isWorks) {
             $workNames = $r->input('work_mode') === 'Lourd' ? [self::AEP] : array_map('trim', (array) $r->input('selected_work_types', []));
@@ -219,17 +284,17 @@ class ContractController extends Controller
         } else {
             $workNames = array_values(array_unique(array_filter(array_column($sites, 'work_type'))));
         }
-        $goods = $this->goodsFields($r, $category, (float) $initialRate, $e) + ['organizational_unit_id' => $officeUnit];
+        $goods = $this->goodsFields($r, $category, (float) $initialRate, $e) + ['organizational_unit_id' => $officeUnit] + $this->componentFields($r, $e);
         if ($isMulti && $provinces && $sites) {
             $entered = array_unique(array_filter(array_column($sites, 'province')));
             if (array_diff($provinces, $entered)) $e['sites'] = 'Ajoutez au moins un site pour chaque province sélectionnée.';
         }
         if ($e) $this->invalid($e);
 
-        $id = DB::transaction(function () use ($noGuarantee, $goods, $r, $pid, $number, $companyId, $category, $isWorks, $isMulti, $isService, $start, $end, $signature, $duration, $amount, $initialRate, $gRate, $gStart, $gEnd, $mainProvince, $sites, $workNames, $guaranteeBank) {
+        $id = DB::transaction(function () use ($noGuarantee, $goods, $r, $pid, $number, $companyId, $category, $isMulti, $isOffice, $start, $end, $signature, $duration, $amount, $installation, $initialRate, $gRate, $gStart, $gEnd, $mainProvince, $sites, $workNames, $guaranteeBank) {
             $cid = DB::table('contracts')->insertGetId([
                 'project_id' => $pid, 'phase_id' => Ctx::phaseId(), 'company_id' => $companyId, 'reference' => $number, 'title' => trim((string) $r->input('title', '')) ?: null,
-                'province' => $mainProvince, 'category' => $category, 'amount' => $amount, 'start_date' => $start, 'end_date' => $end, 'signature_date' => $signature,
+                'province' => $mainProvince, 'category' => $category, 'amount' => $amount, 'installation_cost' => $installation, 'start_date' => $start, 'end_date' => $end, 'signature_date' => $signature,
                 'duration_months' => $duration, 'initial_financing_rate' => $initialRate, 'activities' => trim((string) $r->input('activities', '')),
                 'work_type_text' => implode('; ', $workNames), 'completed' => false, 'created_at' => now(), 'updated_at' => now(),
             ] + $goods);
@@ -246,12 +311,13 @@ class ContractController extends Controller
                 if ($wt !== '') $this->workType($category, $wt, $wt !== self::AEP);
                 DB::table('contract_sites')->insert([
                     'contract_id' => $cid, 'province' => $isMulti ? ($s['province'] ?: $mainProvince) : $mainProvince, 'work_type' => $wt, 'name' => $s['name'],
-                    'description' => $s['description'] !== '' ? $s['description'] : $wt, 'quantity' => $s['quantity'], 'created_at' => now(), 'updated_at' => now(),
+                    'description' => $s['description'] !== '' ? $s['description'] : $wt, 'quantity' => $s['quantity'], 'amount' => $isOffice ? null : $s['amount'], 'created_at' => now(), 'updated_at' => now(),
                 ]);
             }
             return $cid;
         });
-        Ctx::audit('CREATION', 'Contract', $id, "Contrat {$number} créé avec " . count($sites) . ' site(s).');
+        $detail = $isOffice ? '' : ' Montant : ' . number_format($amount, 2, ',', ' ') . ' USD, dont installation de chantier ' . number_format((float) $installation, 2, ',', ' ') . ' USD.';
+        Ctx::audit('CREATION', 'Contract', $id, "Contrat {$number} créé avec " . count($sites) . ' site(s).' . $detail);
         // Le suivi commence : les comptes choisis par le super-admin sont prévenus. Une fourniture de bureau ne se suit que par le stock.
         if (!$officeUnit) {
             $company = DB::table('companies')->where('id', $companyId)->value('name');
@@ -279,9 +345,9 @@ class ContractController extends Controller
         $start = Dates::valid($r->input('start_date')) ? Dates::part($r->input('start_date')) : null;
         if (!$start) $e['start_date'] = 'La date de démarrage est obligatoire.';
         $duration = max(1, (int) $r->input('duration_months', $c['duration_months'] ?: 12));
-        $amount = $category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure', $c['goods_procedure'])) ? (float) $c['amount'] : Dates::decimal($r->input('amount'));
-        if ($amount === null || $amount < 0) $e['amount'] = 'Saisissez un montant valide, par exemple 1500000,50.';
-        elseif ($amount < (float) $c['renewed_amount']) $e['amount'] = 'Le montant ne peut pas être inférieur aux montants ajoutés par les renouvellements (' . number_format((float) $c['renewed_amount'], 2, ',', ' ') . ' USD).';
+        // Le montant est fixé plus bas, avec les sites : calculé pour un contrat pondéré, saisi pour un ancien contrat.
+        $amount = (float) $c['amount'];
+        $installation = $c['installation_cost'];
         $initialRate = $category === 'SERVICE' || ($category === 'BIENS' && GoodsProcedure::stockOnly($r->input('goods_procedure', $c['goods_procedure']))) ? 0.0 : (Dates::decimal($r->input('initial_financing_rate', 0)) ?? 0);
         if ($initialRate < 0 || $initialRate > 100) $e['initial_financing_rate'] = 'Le taux de l’avance de démarrage doit être compris entre 0 et 100 %.';
         $mainProvince = trim((string) $r->input('province', $c['province']));
@@ -294,6 +360,8 @@ class ContractController extends Controller
             Ctx::need('can_manage_stock');
         }
         $goods['organizational_unit_id'] = $isOffice ? ($wasOffice ? $c['unit_id'] : ((int) Ctx::user()->organizational_unit_id ?: null)) : null;
+        // Composante et budget : ceux du formulaire ; un appel sans ces champs garde ceux du contrat.
+        $goods += $r->has('component_id') ? $this->componentFields($r, $e, $c['component_id']) : ['component_id' => $c['component_id']];
         // Une fois une avance demandée ou un décompte saisi, les règles du marché ne changent plus : les lignes en dépendent.
         $goodsInUse = DB::table('contract_decomptes')->where('contract_id', $id)->where('status', '!=', DecompteLedger::REJECTED)->exists() || DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', 'REJETEE')->exists();
         $goodsTouched = GoodsProcedure::governs($c['goods_procedure']) || GoodsProcedure::governs($goods['goods_procedure']);
@@ -325,16 +393,45 @@ class ContractController extends Controller
             $prov = $isMulti ? $s['province'] : $mainProvince;
             if ($prov === '') $e['sites'] = 'La province du site « ' . $s['name'] . ' » est obligatoire.';
         }
+
+        // Montant du contrat (décision du 10/11/2026). Les sites enregistrés absents du formulaire gardent leur montant.
+        $merged = [];
+        foreach ($c['sites'] as $s) $merged[$s['id']] = ['name' => $s['name'], 'amount' => $s['amount'] ?? null];
+        $added = [];
+        foreach ($sites as $i => $s) {
+            if ($s['id'] > 0 && !$s['amount_given']) $sites[$i]['amount'] = $s['amount'] = $merged[$s['id']]['amount'] ?? null;
+            if ($s['id'] > 0) $merged[$s['id']] = $s;
+            else $added[] = $s;
+        }
+        $merged = array_merge(array_values($merged), $added);
+        $isWorksNow = $category === 'TRAVAUX';
+        $weighted = !$isOffice && (($isWorksNow && ($c['installation_cost'] !== null || trim((string) $r->input('installation_cost', '')) !== '')) || Metrics::weighting($c) !== null
+            || array_filter($merged, fn ($s) => $s['amount'] !== null || !empty($s['amount_invalid'])));
+        if ($isOffice) {
+            $installation = null;
+        } elseif ($weighted) {
+            // Contrat pondéré : montant = installation de chantier + somme des sites, plus les montants ajoutés par les renouvellements.
+            // Coût d'installation : contrats de TRAVAUX seulement (vidé si le contrat change de catégorie).
+            $installation = $isWorksNow ? $this->installationCost($r, $e) : null;
+            $amount = round((float) $installation + $this->siteAmounts($merged, $e) + (float) $c['renewed_amount'], 2);
+        } else {
+            // Ancien contrat, sans montant par site : montant saisi, avancement = moyenne simple de ses sites.
+            $amount = Dates::decimal($r->input('amount'));
+            if ($amount === null || $amount < 0) $e['amount'] = 'Saisissez un montant valide, par exemple 1500000,50.';
+            elseif ($amount < (float) $c['renewed_amount']) $e['amount'] = 'Le montant ne peut pas être inférieur aux montants ajoutés par les renouvellements (' . number_format((float) $c['renewed_amount'], 2, ',', ' ') . ' USD).';
+        }
+        if (!$isWorksNow) $installation = null;
         if ($e) $this->invalid($e);
 
-        DB::transaction(function () use ($goods, $newGuarantee, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $start, $duration, $amount, $initialRate, $mainProvince, $sites, $c) {
+        DB::transaction(function () use ($goods, $newGuarantee, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $isOffice, $start, $duration, $amount, $installation, $initialRate, $mainProvince, $sites, $c) {
             // Après un avenant ou un renouvellement, la fin ne se recalcule que si le démarrage ou la durée changent vraiment.
             $end = ($c['amendments'] || $c['renewals']) && $start === $c['start_date'] && $duration === (int) $c['duration_months'] ? $c['end_date'] : Dates::addMonths($start, $duration);
             $signature = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($c['signature_date'] ?: $start);
             foreach ($sites as $s) {
                 $wt = $s['work_type'];
                 if ($wt !== '') $this->workType($category, $wt, $wt !== self::AEP);
-                $data = ['province' => $isMulti ? $s['province'] : $mainProvince, 'work_type' => $wt, 'name' => $s['name'], 'description' => $s['description'], 'quantity' => $s['quantity'], 'updated_at' => now()];
+                $data = ['province' => $isMulti ? $s['province'] : $mainProvince, 'work_type' => $wt, 'name' => $s['name'], 'description' => $s['description'], 'quantity' => $s['quantity'],
+                    'amount' => $isOffice ? null : $s['amount'], 'updated_at' => now()];
                 if ($s['id'] > 0) DB::table('contract_sites')->where('id', $s['id'])->where('contract_id', $id)->update($data);
                 else DB::table('contract_sites')->insert($data + ['contract_id' => $id, 'created_at' => now()]);
             }
@@ -342,7 +439,7 @@ class ContractController extends Controller
             if ($isWorks && $r->has('selected_work_types')) $types = array_values(array_unique(array_filter(array_map('trim', (array) $r->input('selected_work_types')))));
             DB::table('contracts')->where('id', $id)->update([
                 'reference' => $number, 'company_id' => $companyId, 'category' => $category, 'province' => $mainProvince, 'signature_date' => $signature,
-                'start_date' => $start, 'duration_months' => $duration, 'end_date' => $end, 'amount' => $amount, 'initial_financing_rate' => $initialRate,
+                'start_date' => $start, 'duration_months' => $duration, 'end_date' => $end, 'amount' => $amount, 'installation_cost' => $installation, 'initial_financing_rate' => $initialRate,
                 'activities' => trim((string) $r->input('activities', '')), 'title' => trim((string) $r->input('title', '')) ?: null, 'work_type_text' => implode('; ', $types), 'updated_at' => now(),
             ] + $goods);
             // Fournitures de bureau : plus de garantie de bonne exécution (le marché n'a pas commencé, sinon la procédure est figée).
@@ -352,14 +449,21 @@ class ContractController extends Controller
             if ($newGuarantee) DB::table('performance_guarantees')->insert($newGuarantee + [
                 'project_id' => $pid, 'contract_id' => $id, 'company_id' => $companyId, 'amount' => round((float) $amount * $newGuarantee['rate'] / 100, 2), 'start_date' => $start, 'end_date' => $end, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            // La garantie reste liée au contrat ; synchroniser son entreprise et son montant si le contrat change, et sa
-            // période (celle du contrat) tant qu'elle n'a été ni prolongée ni renouvelée.
-            $guarantees = DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->get(['id', 'rate']);
+            // La garantie reste liée au contrat ; synchroniser son entreprise et son montant si le contrat change. Sa période,
+            // comprise dans celle du contrat, y est ramenée si le contrat raccourcit ou démarre plus tard, tant qu'elle n'a été
+            // ni prolongée ni renouvelée.
+            $guarantees = DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->get(['id', 'rate', 'start_date', 'end_date']);
             foreach ($guarantees as $guarantee) {
                 $rate = $newGuaranteeRate ?? (float) $guarantee->rate;
                 $sync = ['company_id' => $companyId, 'rate' => $rate, 'amount' => round(((float) $amount - (float) $c['renewed_amount']) * $rate / 100, 2), 'updated_at' => now()];
                 // La garantie ne suit pas un contrat renouvelé : elle n'est plus exigée pour la nouvelle période.
-                if (!$c['renewals'] && !DB::table('guarantee_extensions')->where('performance_guarantee_id', $guarantee->id)->exists()) $sync += ['start_date' => $start, 'end_date' => $end];
+                if (!$c['renewals'] && !DB::table('guarantee_extensions')->where('performance_guarantee_id', $guarantee->id)->exists()) {
+                    $gs = $guarantee->start_date ? Dates::part($guarantee->start_date) : $start;
+                    $ge = $guarantee->end_date ? Dates::part($guarantee->end_date) : $end;
+                    $gs = max($gs, $start);
+                    $ge = min($ge, $end);
+                    $sync += ['start_date' => min($gs, $ge), 'end_date' => $ge];
+                }
                 DB::table('performance_guarantees')->where('id', $guarantee->id)->update($sync);
             }
         });

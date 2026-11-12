@@ -20,7 +20,7 @@ class Structure
     ];
 
     /** Tables conservées telles quelles : comptes et configuration. */
-    public const KEPT_TABLES = ['users', 'personal_access_tokens', 'projects', 'project_phases', 'smtp_settings', 'provinces', 'organizational_units', 'positions', 'alert_recipients', 'alert_rules', 'alert_templates', 'ai_settings'];
+    public const KEPT_TABLES = ['users', 'personal_access_tokens', 'projects', 'project_phases', 'smtp_settings', 'provinces', 'organizational_units', 'positions', 'alert_recipients', 'alert_rules', 'alert_templates', 'ai_settings', 'project_components'];
 
     public static function dropBusinessTables(): void
     {
@@ -45,6 +45,20 @@ class Structure
             $t->timestamps();
             $t->unique(['project_id', 'name']);
         });
+
+        // Composantes du projet : configuration conservée (KEPT_TABLES), créée ici si elle manque, avant les contrats.
+        if (!Schema::hasTable('project_components')) {
+            Schema::create('project_components', function (Blueprint $t) {
+                $t->id();
+                $t->foreignId('project_id')->constrained()->cascadeOnDelete();
+                $t->string('name', 255);
+                $t->decimal('budget', 18, 2)->nullable(); // budget de la composante (UC)
+                $t->text('description')->nullable();
+                $t->boolean('is_active')->default(true);
+                $t->timestamps();
+                $t->unique(['project_id', 'name'], 'project_components_project_name_unique');
+            });
+        }
 
         Schema::create('contracts', function (Blueprint $t) {
             $t->id();
@@ -76,6 +90,10 @@ class Structure
             $t->decimal('goods_min_amount', 15, 2)->nullable(); // fournitures de bureau : clause du contrat, montants d'une commande
             $t->decimal('goods_max_amount', 15, 2)->nullable();
             $t->foreignId('organizational_unit_id')->nullable()->constrained('organizational_units')->nullOnDelete(); // unité d'un contrat de fournitures de bureau
+            $t->decimal('installation_cost', 15, 2)->nullable(); // installation de chantier et travaux préparatoires (avancement pondéré)
+            $t->string('component', 255)->nullable(); // V37, remplacée par component_id (plus lue)
+            $t->decimal('component_budget', 18, 2)->nullable(); // V37, remplacée par project_components.budget (plus lue)
+            $t->foreignId('component_id')->nullable()->constrained('project_components')->nullOnDelete(); // composante du projet (facultative)
             $t->timestamps();
             $t->unique(['project_id', 'reference'], 'contracts_project_reference_unique');
             $t->index(['project_id', 'phase_id']);
@@ -100,6 +118,7 @@ class Structure
             $t->string('name');
             $t->text('description')->nullable();
             $t->decimal('quantity', 15, 2)->nullable();
+            $t->decimal('amount', 15, 2)->nullable(); // montant prévu du site (avancement pondéré)
             $t->timestamps();
         });
 
@@ -107,6 +126,8 @@ class Structure
             $t->id();
             $t->foreignId('contract_id')->constrained()->cascadeOnDelete();
             $t->foreignId('contract_site_id')->nullable()->constrained('contract_sites')->cascadeOnDelete();
+            $t->boolean('is_installation')->default(false); // situation de l'installation de chantier (sans site)
+            $t->string('es_performance', 20)->nullable(); // performance environnementale et sociale (Bon, Moyen, Mauvais)
             $t->date('situation_date');
             $t->decimal('progress', 6, 2);
             $t->text('realization_physical')->nullable();

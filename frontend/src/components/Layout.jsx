@@ -5,6 +5,7 @@ import { Modal } from './ui.jsx';
 import NotificationBell, { NotificationToast } from './NotificationBell.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
 import ChangePasswordDialog from './ChangePasswordDialog.jsx';
+import { AppFooter } from './AppFooter.jsx';
 import { useNotifications } from '../lib/notifications.js';
 import { FINANCE } from '../lib/navigation.js';
 
@@ -22,6 +23,7 @@ const NAV = [
 
   ['Analyse', 'Rapports & suivi', 'Rapports', '/reports', 'bar-chart-line-fill', reports, true, [
     ['Synthèse des contrats', '/reports/synthese', 'file-earmark-bar-graph', reports],
+    ['État d’exécution', '/reports/etat-execution', 'table', reports],
     ['États figés & comparaisons', '/reports/snapshots', 'clock-history', reports],
   ]],
   ['Analyse', 'Alertes', 'Alertes', '/alerts', 'bell-fill', (c) => c('canViewAlertsContracts') || c('canViewAlertsGuarantees') || c('canViewAlertsLogistics')],
@@ -38,6 +40,8 @@ const NAV = [
   ['Administration', 'Utilisateurs', 'Utilisateurs', '/users', 'people-fill', (c) => c('canManageUsers')],
   ['Administration', 'Organisation', 'Organisation', '/organization', 'diagram-3-fill', (c) => c('canManageSettings')],
   ['Administration', 'Phases', 'Phases', '/phases', 'layers-fill', (c) => c('canManageSettings')],
+  // Composantes du projet (matrice d'exécution) : coordination nationale ou super-admin.
+  ['Administration', 'Composantes', 'Composantes', '/components', 'collection-fill', (c, user) => c('canManageSettings') && (!!user?.isSuperAdmin || user?.unit?.type === 'COORDINATION')],
   ['Administration', 'Paramètres', 'Réglages', '/settings', 'gear-fill', (c) => c('canManageSettings'), true],
   ['Administration', 'Alertes e-mail', 'E-mails', '/settings/alerts', 'envelope-paper-fill', (c, user) => !!user?.isSuperAdmin],
   ['Administration', 'Journal d’audit', 'Audit', '/audit', 'journal-text', (c) => c('canManageUsers') || c('canManageSettings')],
@@ -169,7 +173,11 @@ export default function Layout() {
         <main className="main">
           <header className="topbar">
             <button className="mobile-menu" type="button" onClick={() => setMenu(true)} aria-label="Menu"><i className="bi bi-list" /></button>
-            <img src={logo} className={`topbar-logo project-logo-${code.toLowerCase()}`} alt={code} />
+            {/* Sur ordinateur, PREDIRE prend son bandeau rogné et réduit proprement (net à la taille agrandie de prise-design.css). */}
+            <picture className="topbar-picture">
+              {code === 'PREDIRE' && <source media="(min-width: 1025px)" srcSet="/images/predire_entete.png" />}
+              <img src={logo} className={`topbar-logo project-logo-${code.toLowerCase()}`} alt={code} />
+            </picture>
             <div className="topbar-actions">
               <div className="topbar-alerts" role="group" aria-label="Notifications et alertes"><NotificationBell data={notifications} /><AlertChips summary={alerts} perms={perms} /></div>
               <ThemeSwitch />
@@ -188,7 +196,7 @@ export default function Layout() {
             </div>
             <div className="mobile-utility-right"><NotificationBell data={notifications} /><AlertChips summary={alerts} perms={perms} /><ThemeSwitch /></div>
           </div>
-          <section className="content"><Outlet /></section>
+          <section className="content"><div className="content-body"><Outlet /></div><AppFooter /></section>
           <NotificationToast data={notifications} />
         </main>
       </div>

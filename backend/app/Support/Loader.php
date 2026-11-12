@@ -14,8 +14,9 @@ class Loader
             ->leftJoin('companies as co', 'co.id', '=', 'c.company_id')
             ->leftJoin('project_phases as ph', 'ph.id', '=', 'c.phase_id')
             ->leftJoin('organizational_units as ou', 'ou.id', '=', 'c.organizational_unit_id')
+            ->leftJoin('project_components as pc', 'pc.id', '=', 'c.component_id')
             ->where('c.project_id', $projectId)
-            ->select('c.*', 'co.name as company_name', 'ph.name as phase_name', 'ph.number as phase_number', 'ou.name as unit_name')
+            ->select('c.*', 'co.name as company_name', 'ph.name as phase_name', 'ph.number as phase_number', 'ou.name as unit_name', 'pc.name as component_name', 'pc.budget as component_budget_uc')
             ->orderBy('c.reference');
         // Les fournitures de bureau ne se suivent que par le stock : hors indicateurs, paiements, alertes et rapports.
         if ($ids === null && !$withStockOnly) $q->where(fn ($w) => $w->whereNull('c.goods_procedure')->orWhere('c.goods_procedure', '!=', GoodsProcedure::OFFICE));
@@ -42,13 +43,17 @@ class Loader
         foreach (DB::table('contract_sites')->whereIn('contract_id', $ids)->orderBy('id')->get() as $s) {
             $sitesBy[$s->contract_id][$s->id] = [
                 'id' => (int) $s->id, 'name' => (string) $s->name, 'province' => (string) $s->province, 'work_type' => (string) $s->work_type,
-                'description' => (string) $s->description, 'quantity' => (float) $s->quantity, 'entries' => [],
+                'description' => (string) $s->description, 'quantity' => (float) $s->quantity,
+                // Montant prévu du site : pondère son avancement dans celui du contrat (null pour un ancien contrat).
+                'amount' => isset($s->amount) && $s->amount !== null ? (float) $s->amount : null, 'entries' => [],
             ];
         }
         $entriesBy = [];
         foreach (DB::table('progress_entries')->whereIn('contract_id', $ids)->orderBy('situation_date')->orderBy('id')->get() as $e) {
             $entry = [
                 'id' => (int) $e->id, 'site_id' => $e->contract_site_id ? (int) $e->contract_site_id : null, 'date' => Dates::part($e->situation_date),
+                'installation' => !empty($e->is_installation), // installation de chantier et travaux préparatoires
+                'es_performance' => (string) ($e->es_performance ?? ''), // performance environnementale et sociale
                 'progress' => (float) $e->progress, 'paid' => (float) $e->paid_amount, 'realization' => (string) $e->realization_physical, 'observation' => (string) $e->observation,
             ];
             $entriesBy[$e->contract_id][] = $entry;
@@ -100,6 +105,10 @@ class Loader
                 'work_type_text' => (string) ($c->work_type_text ?? ''), 'signature_date' => $c->signature_date ? Dates::part($c->signature_date) : null,
                 'start_date' => $c->start_date ? Dates::part($c->start_date) : null, 'end_date' => $c->end_date ? Dates::part($c->end_date) : null,
                 'duration_months' => (int) ($c->duration_months ?? 0), 'amount' => (float) $c->amount, 'initial_rate' => (float) $c->initial_financing_rate,
+                'installation_cost' => isset($c->installation_cost) && $c->installation_cost !== null ? (float) $c->installation_cost : null,
+                // Matrice d'exécution : composante du projet (enregistrée dans Administration › Composantes) et son budget (UC).
+                'component_id' => isset($c->component_id) && $c->component_id ? (int) $c->component_id : null,
+                'component' => trim((string) ($c->component_name ?? '')), 'component_budget' => isset($c->component_budget_uc) && $c->component_budget_uc !== null ? (float) $c->component_budget_uc : null,
                 'activity' => (string) ($c->activities ?? ''), 'completed' => (bool) ($c->completed ?? false),
                 'terminated' => !empty($c->termination_date), 'termination_date' => $c->termination_date ? Dates::part($c->termination_date) : null,
                 'termination_reason' => (string) ($c->termination_reason ?? ''),

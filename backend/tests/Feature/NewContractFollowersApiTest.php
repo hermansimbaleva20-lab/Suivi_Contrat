@@ -45,7 +45,7 @@ class NewContractFollowersApiTest extends TestCase
     private function form(array $extra = []): array
     {
         return $extra + ['reference' => '074/PRISE/2026', 'company_id' => $this->company, 'category' => 'TRAVAUX', 'province' => 'Kasaï-Central', 'start_date' => '2026-11-01', 'duration_months' => 12, 'amount' => '100000',
-            'initial_financing_rate' => '20', 'guarantee_rate' => '5', 'guarantee_bank_name' => 'Rawbank', 'work_mode' => 'Lourd', 'sites' => [['name' => 'Kananga', 'province' => 'Kasaï-Central']]];
+            'initial_financing_rate' => '20', 'guarantee_rate' => '5', 'guarantee_bank_name' => 'Rawbank', 'work_mode' => 'Lourd', 'sites' => [['name' => 'Kananga', 'province' => 'Kasaï-Central', 'amount' => '100000']]];
     }
 
     private function notes(User $u): array

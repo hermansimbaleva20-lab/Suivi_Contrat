@@ -19,7 +19,21 @@ class Views
     {
         return [
             'id' => $s['id'], 'name' => $s['name'], 'province' => $s['province'], 'workType' => $s['work_type'],
-            'description' => $s['description'], 'quantity' => $s['quantity'], 'progress' => Metrics::pct(Metrics::siteProgress($s)),
+            'description' => $s['description'], 'quantity' => $s['quantity'], 'amount' => $s['amount'] ?? null, 'progress' => Metrics::pct(Metrics::siteProgress($s)),
+        ];
+    }
+
+    /** Détail de l'avancement physique (Metrics::progressBreakdown), pour l'expliquer à l'écran. */
+    public static function progressBreakdown(array $c, ?string $asOf = null): array
+    {
+        $b = Metrics::progressBreakdown($c, $asOf);
+        return [
+            'weighted' => $b['weighted'], 'base' => $b['base'] === null ? null : round($b['base'], 2),
+            'rows' => array_map(fn ($r) => [
+                'kind' => $r['kind'], 'siteId' => $r['site_id'], 'name' => $r['name'], 'amount' => $r['amount'] === null ? null : round($r['amount'], 2),
+                'weight' => $r['weight'] === null ? null : round($r['weight'], 4), 'progress' => Metrics::pct($r['progress']),
+                'contribution' => $r['contribution'] === null ? null : round($r['contribution'], 4),
+            ], $b['rows']),
         ];
     }
 
@@ -68,8 +82,18 @@ class Views
             'advanceOnRequest' => GoodsProcedure::governs($c['goods_procedure'] ?? null), 'stockOnly' => GoodsProcedure::stockOnly($c['goods_procedure'] ?? null),
             'advanceDue' => round((float) $c['amount'] * (float) $c['initial_rate'] / 100, 2), 'advanceRequest' => self::advance($c['advance'] ?? null),
         ];
+        // Avancement pondéré par les montants : coût de l'installation de chantier et base du calcul (installation + sites).
+        $w = Metrics::weighting($c);
+        $v += [
+            // Installation de chantier et travaux préparatoires : contrats de TRAVAUX seulement.
+            'hasInstallation' => Metrics::hasInstallation($c),
+            'installationCost' => Metrics::hasInstallation($c) ? ($c['installation_cost'] ?? null) : null, 'installationProgress' => Metrics::pct(Metrics::installationProgress($c)),
+            'componentId' => $c['component_id'] ?? null, 'component' => $c['component'] ?? '', 'componentBudget' => $c['component_budget'] ?? null,
+            'progressWeighted' => $w !== null, 'progressBase' => $w ? round($w['base'], 2) : null,
+        ];
         if ($withSites) {
             $v['sites'] = array_map([self::class, 'site'], $c['sites']);
+            $v['progressBreakdown'] = self::progressBreakdown($c);
             $names = [];
             foreach ($c['sites'] as $s) if (trim($s['name']) !== '') $names[] = $s['name'];
             $v['siteNames'] = array_values(array_unique($names));

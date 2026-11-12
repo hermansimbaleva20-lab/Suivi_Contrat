@@ -1,4 +1,9 @@
-# Le projet tourne via « php artisan serve » (API) et Vite (frontend) : Apache/WAMP ne doit rien servir de ce dossier
-# (backend/.env, sauvegardes SQL, documents des contrats, sources). En production, seuls backend/public et frontend/dist sont publiés.
+# Protection des fichiers sensibles
+<IfModule mod_authz_core.c>
+    <FilesMatch "(?i)^(\.env.*|artisan|composer\.(json|lock)|phpunit\.xml|package(-lock)?\.json)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+# Désactivation de l'affichage des dossiers
 Options -Indexes
-Require all denied

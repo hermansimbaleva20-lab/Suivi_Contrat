@@ -30,6 +30,7 @@ export default function Reports() {
     <>
       <PageHead kicker="ANALYSE ET SUIVI" title="Rapport de suivi" desc="Rapport consolidé par date ou par période, avec matrice des garanties de bonne exécution et histogrammes d’évolution.">
         <Link className="btn btn-success" to="/reports/synthese"><i className="bi bi-file-earmark-bar-graph me-1" /> Synthèse contrat</Link>
+        <Link className="btn btn-success" to="/reports/etat-execution"><i className="bi bi-table me-1" /> État d’exécution</Link>
         <button className="btn btn-outline-success" onClick={exportXlsx}><i className="bi bi-file-earmark-excel me-1" /> Exporter le rapport</button>
       </PageHead>
       <Notice onClose={() => setMsg('')}>{msg}</Notice>

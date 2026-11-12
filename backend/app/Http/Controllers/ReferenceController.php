@@ -25,6 +25,11 @@ class ReferenceController extends Controller
             'companies' => DB::table('companies')->where('project_id', $pid)->orderBy('name')->get()->map(fn ($c) => [
                 'id' => $c->id, 'name' => $c->name,
             ])->values(),
+            // Composantes du projet enregistrées au préalable (Administration › Composantes), proposées au choix du contrat.
+            'components' => Schema::hasTable('project_components')
+                ? DB::table('project_components')->where('project_id', $pid)->orderBy('name')->get(['id', 'name', 'budget', 'is_active'])
+                    ->map(fn ($x) => ['id' => (int) $x->id, 'name' => $x->name, 'budget' => $x->budget === null ? null : (float) $x->budget, 'isActive' => (bool) $x->is_active])->values()
+                : [],
         ];
     }
 }
