@@ -100,9 +100,13 @@ class SettingsController extends Controller
 
     public function saveSmtp(Request $r)
     {
+        // email:rfc,filter : la règle email seule (RFC) accepte une adresse sans extension (« nom@gmail »), que le serveur SMTP
+        // refuse ensuite comme identifiant (erreur 535).
         $d = $r->validate([
-            'host' => 'required|string|max:255', 'port' => 'required|integer|min:1|max:65535', 'sender_email' => 'required|email|max:320', 'password' => 'nullable|string|max:1000',
+            'host' => 'required|string|max:255', 'port' => 'required|integer|min:1|max:65535', 'sender_email' => 'required|email:rfc,filter|max:320', 'password' => 'nullable|string|max:1000',
             'use_ssl' => 'sometimes|boolean',
+        ], [
+            'sender_email.email' => 'Adresse d’expédition incomplète ou invalide : saisissez l’adresse entière, par exemple nom@gmail.com.',
         ]);
         $pid = Ctx::projectId();
         $row = DB::table('smtp_settings')->where('project_id', $pid)->first();

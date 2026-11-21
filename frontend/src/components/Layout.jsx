@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api.js';
 import { Modal } from './ui.jsx';
 import NotificationBell, { NotificationToast } from './NotificationBell.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
 import ChangePasswordDialog from './ChangePasswordDialog.jsx';
 import { AppFooter } from './AppFooter.jsx';
 import { useNotifications } from '../lib/notifications.js';
+import { useSlidingIndicator } from '../lib/useSlidingIndicator.js';
 import { FINANCE } from '../lib/navigation.js';
 
 const fleet = (c) => c('canViewFleet') || c('canManageFleet') || c('canAuthorizeFleet');
@@ -95,9 +97,28 @@ export default function Layout() {
 
   useEffect(() => { setMenu(false); }, [loc.pathname]);
 
+  // Hébergement sans tâche planifiée : l'ouverture de l'application déclenche l'envoi des alertes dues (le serveur
+  // n'envoie qu'à partir de 7 h, une fois par heure au plus). Au plus un appel par heure et par navigateur.
+  useEffect(() => {
+    try {
+      const last = Number(localStorage.getItem('prise_alertes_auto') || 0);
+      if (Date.now() - last < 3600000) return;
+      localStorage.setItem('prise_alertes_auto', String(Date.now()));
+    } catch { /* stockage indisponible : l'appel part quand même, le serveur limite */ }
+    api.post('/alerts/auto', null, { silent: true }).catch(() => {});
+  }, []);
+
   const { user, project, phases, phaseId, alerts } = me;
   const code = project.code;
-  const logo = code === 'PREDIRE' ? '/images/predire_logo.png' : '/images/prise2.png';
+  // Thème du projet (18/11/2026) : html[data-project="predire"] passe l'espace PREDIRE au bleu de son logo (theme-predire.css).
+  useEffect(() => {
+    const html = document.documentElement;
+    html.setAttribute('data-project', code.toLowerCase());
+    try { localStorage.setItem('prise_project', code); } catch { /* stockage indisponible */ }
+    return () => html.removeAttribute('data-project');
+  }, [code]);
+  // Bannière PREDIRE du 18/11/2026 (nouveau nom de fichier : l'ancienne image en cache ne peut pas la masquer).
+  const logo = code === 'PREDIRE' ? '/images/predire_entete_2026.png' : '/images/prise2.png';
   const initials = (user.name || 'U').split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
   const items = NAV.filter((n) => n[5](can, user));
   const groups = [...new Set(items.map((n) => n[0]))];
@@ -105,6 +126,8 @@ export default function Layout() {
   // Le poste occupé dans le projet tient lieu de rôle affiché (Coordonnateur National, C.A Kananga…).
   const userLine = user.title ? `${code} · ${user.title}` : code;
   const notifications = useNotifications();
+  // Repère de l'option active du menu : il glisse vers l'option choisie (lib/useSlidingIndicator.js).
+  const marker = useSlidingIndicator('.nav-link.active', [loc.pathname, items.length]);
   const doLogout = async () => { await logout(); nav('/login'); };
 
   return (
@@ -120,7 +143,8 @@ export default function Layout() {
             <div className="phase-label"><i className="bi bi-layers-fill" /> Phase</div>
             <PhaseSelect className="phase-select" phases={phases} phaseId={phaseId} onChange={selectPhase} />
           </div>
-          <nav className="side-nav" aria-label="Navigation principale">
+          <nav className="side-nav has-marker" aria-label="Navigation principale" ref={marker.ref}>
+            <span className={`nav-marker${marker.glide ? ' is-gliding' : ''}`} style={marker.style} aria-hidden="true" />
             {groups.map((g) => (
               <React.Fragment key={g}>
                 <div className="nav-section"><span>{g}</span></div>
@@ -173,9 +197,8 @@ export default function Layout() {
         <main className="main">
           <header className="topbar">
             <button className="mobile-menu" type="button" onClick={() => setMenu(true)} aria-label="Menu"><i className="bi bi-list" /></button>
-            {/* Sur ordinateur, PREDIRE prend son bandeau rogné et réduit proprement (net à la taille agrandie de prise-design.css). */}
+            {/* Bannière du projet : une seule image pour toutes les tailles d'écran (prise-design.css en règle la largeur). */}
             <picture className="topbar-picture">
-              {code === 'PREDIRE' && <source media="(min-width: 1025px)" srcSet="/images/predire_entete.png" />}
               <img src={logo} className={`topbar-logo project-logo-${code.toLowerCase()}`} alt={code} />
             </picture>
             <div className="topbar-actions">

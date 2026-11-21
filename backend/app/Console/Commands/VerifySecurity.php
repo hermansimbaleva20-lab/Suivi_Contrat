@@ -28,6 +28,7 @@ class VerifySecurity extends Command
             ['Base : compte dédié, pas root', ($db['username'] ?? '') !== '' && strtolower((string) $db['username']) !== 'root', 'Créez un compte MySQL limité à la base de l’application.'],
             ['Base : mot de passe défini', (string) ($db['password'] ?? '') !== '', 'Un compte MySQL sans mot de passe est ouvert à tout processus de la machine.'],
             ['CORS : origines en HTTPS uniquement', $origins !== [] && collect($origins)->every(fn ($o) => str_starts_with($o, 'https://')), 'CORS_ALLOWED_ORIGINS (ou FRONTEND_URL) doit désigner le frontend en HTTPS.'],
+            ['CRON_SECRET vide ou de 32 caractères au moins', strlen((string) config('prise.cron_secret')) === 0 || strlen((string) config('prise.cron_secret')) >= 32, 'Un secret court se devine : générez-le, par exemple avec « php -r "echo bin2hex(random_bytes(24));" ».'],
             ['Journal : niveau warning ou plus', ! in_array(strtolower($level), ['debug', 'info', 'notice'], true), 'LOG_LEVEL=debug écrit dans le journal le détail des requêtes.'],
         ];
         $failed = 0;

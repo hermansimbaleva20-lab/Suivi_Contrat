@@ -112,7 +112,8 @@ class ReportController extends Controller
 
     /**
      * La même matrice en Excel, colonne pour colonne comme le modèle du projet : une ligne par contrat, suivie d'une ligne
-     * par site ; « Composantes » et « Budget » fusionnées sur les contrats de la composante, les colonnes du contrat sur ses sites.
+     * par site, sous les bandeaux de la composante, de sa catégorie et de la province ; « Composantes » et « Budget » (activité
+     * de la composante et son budget en UC) fusionnées sur les contrats de l'activité, les colonnes du contrat sur ses sites.
      */
     public function executionExport(Request $r)
     {
@@ -133,34 +134,42 @@ class ReportController extends Controller
         };
         $blank = ['v' => '', 's' => $T];
         $done = fn (array $list) => $list ? ' — Ouvrages terminés : ' . implode(' ; ', array_map(fn ($x) => "{$x['type']} : {$x['count']}", $list)) : '';
-        foreach ($d['categories'] as $cat) {
-            $band("{$cat['label']} — {$cat['totals']['contracts']} contrat(s), coût " . number_format($cat['totals']['amount'], 2, ',', ' ') . ' USD (' . number_format($cat['totals']['progress'], 1, ',', ' ') . ' % de réalisation physique)');
-            foreach ($cat['provinces'] as $p) {
-                $band("Province {$p['province']}" . $done($p['completed']));
-                $byId = [];
-                foreach ($p['rows'] as $x) $byId[$x['id']] = $x;
-                foreach ($p['components'] as $g) {
-                    $groupStart = count($rows) + 1;
-                    foreach ($g['contractIds'] as $k => $id) {
-                        $x = $byId[$id];
-                        $start = count($rows) + 1;
-                        $lines = 1 + count($x['sites']);
-                        $supplier = $x['company'] . ($x['signatureDate'] ? "\nContrat signé le " . Dates::fr($x['signatureDate']) : '') . ($x['startDate'] ? "\nDémarrage le " . Dates::fr($x['startDate']) : '') . "\nDélai : {$x['durationMonths']} mois";
-                        $realization = trim(($x['installation'] ? 'Installation de chantier et travaux préparatoires : ' . number_format($x['installation']['progress'], 1, ',', ' ') . " %\n" : '') . $x['realization']);
-                        $rows[] = [$k === 0 ? ['v' => $g['name'], 's' => $T] : $blank, $k === 0 ? ['v' => $g['budget'] ?? '', 's' => $g['budget'] === null ? $T : $M] : $blank,
-                            ['v' => "Contrat N° {$x['number']} : " . ($x['activity'] ?: $x['title']), 's' => $T], ['v' => $supplier, 's' => $T], ['v' => $x['amount'], 's' => $M], ['v' => $x['elapsed'], 's' => $P],
-                            ['v' => $realization, 's' => $T], ['v' => $x['esPerformance'], 's' => $T], ['v' => $x['progress'], 's' => $P], ['v' => $x['engagement'], 's' => $M], ['v' => $x['paid'], 's' => $M],
-                            ['v' => $x['paymentRate'], 's' => $P], ['v' => $x['observation'], 's' => $T]];
-                        foreach ($x['sites'] as $s) {
-                            $what = trim(implode(' — ', array_filter([$s['workType'], $s['description'] !== $s['workType'] ? $s['description'] : ''])));
-                            $rows[] = [$blank, $blank, $blank, $blank, $blank, $blank,
-                                ['v' => "Site {$s['name']}" . ($what ? " : {$what}" : '') . ($s['situation'] ? "\nSituation actuelle : {$s['situation']}" : ''), 's' => $T],
-                                $blank, ['v' => $s['progress'], 's' => $P], $blank, $blank, $blank, ['v' => $s['observation'], 's' => $T]];
+        // Coût en UC (composante, catégorie) puis chiffres des contrats, comme les bandeaux de la matrice du projet.
+        $cost = fn ($uc) => $uc === null ? '' : ' ; Coût : ' . number_format((float) $uc, 0, ',', ' ') . ' UC';
+        $summary = fn (array $t) => " — {$t['contracts']} contrat(s), coût " . number_format($t['amount'], 2, ',', ' ') . ' USD (' . number_format($t['progress'], 1, ',', ' ') . ' % de réalisation physique)';
+        $several = count($d['sections']) > 1;
+        foreach ($d['sections'] as $section) {
+            if ($section['id'] !== null) $band(mb_strtoupper($section['name']) . $cost($section['total']) . $summary($section['totals']));
+            elseif ($several) $band('CONTRATS NON RATTACHÉS À UNE COMPOSANTE' . $summary($section['totals']));
+            foreach ($section['categories'] as $cat) {
+                $band($cat['label'] . $cost($cat['cost']) . $summary($cat['totals']));
+                foreach ($cat['provinces'] as $p) {
+                    $band("Province {$p['province']}" . $done($p['completed']));
+                    $byId = [];
+                    foreach ($p['rows'] as $x) $byId[$x['id']] = $x;
+                    foreach ($p['components'] as $g) {
+                        $groupStart = count($rows) + 1;
+                        foreach ($g['contractIds'] as $k => $id) {
+                            $x = $byId[$id];
+                            $start = count($rows) + 1;
+                            $lines = 1 + count($x['sites']);
+                            $supplier = $x['company'] . ($x['signatureDate'] ? "\nContrat signé le " . Dates::fr($x['signatureDate']) : '') . ($x['startDate'] ? "\nDémarrage le " . Dates::fr($x['startDate']) : '') . "\nDélai : {$x['durationMonths']} mois";
+                            $realization = trim(($x['installation'] ? 'Installation de chantier et travaux préparatoires : ' . number_format($x['installation']['progress'], 1, ',', ' ') . " %\n" : '') . $x['realization']);
+                            $rows[] = [$k === 0 ? ['v' => $g['name'], 's' => $T] : $blank, $k === 0 ? ['v' => $g['budget'] ?? '', 's' => $g['budget'] === null ? $T : $M] : $blank,
+                                ['v' => "Contrat N° {$x['number']} : " . ($x['activity'] ?: $x['title']), 's' => $T], ['v' => $supplier, 's' => $T], ['v' => $x['amount'], 's' => $M], ['v' => $x['elapsed'], 's' => $P],
+                                ['v' => $realization, 's' => $T], ['v' => $x['esPerformance'], 's' => $T], ['v' => $x['progress'], 's' => $P], ['v' => $x['engagement'], 's' => $M], ['v' => $x['paid'], 's' => $M],
+                                ['v' => $x['paymentRate'], 's' => $P], ['v' => $x['observation'], 's' => $T]];
+                            foreach ($x['sites'] as $s) {
+                                $what = trim(implode(' — ', array_filter([$s['workType'], $s['description'] !== $s['workType'] ? $s['description'] : ''])));
+                                $rows[] = [$blank, $blank, $blank, $blank, $blank, $blank,
+                                    ['v' => "Site {$s['name']}" . ($what ? " : {$what}" : '') . ($s['situation'] ? "\nSituation actuelle : {$s['situation']}" : ''), 's' => $T],
+                                    $blank, ['v' => $s['progress'], 's' => $P], $blank, $blank, $blank, ['v' => $s['observation'], 's' => $T]];
+                            }
+                            foreach (['C', 'D', 'E', 'F', 'H', 'J', 'K', 'L'] as $col) $vmerge($col, $start, $lines);
                         }
-                        foreach (['C', 'D', 'E', 'F', 'H', 'J', 'K', 'L'] as $col) $vmerge($col, $start, $lines);
+                        $vmerge('A', $groupStart, $g['lines']);
+                        $vmerge('B', $groupStart, $g['lines']);
                     }
-                    $vmerge('A', $groupStart, $g['lines']);
-                    $vmerge('B', $groupStart, $g['lines']);
                 }
             }
         }

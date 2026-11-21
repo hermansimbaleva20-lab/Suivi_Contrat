@@ -125,7 +125,8 @@ export default function ContractDetail({ readOnly = false }) {
             </>
           ) : <div><span>Montant du contrat</span><strong className="text-money">{money(c.amount)}</strong></div>}
           {c.hasInstallation && <div><span>Installation de chantier et travaux préparatoires</span><strong className="text-money">{c.installationCost === null || c.installationCost === undefined ? 'Coût non renseigné' : money(c.installationCost)} · taux {num(c.installationProgress, 1)} %</strong></div>}
-          {c.component && <div><span>Composante</span><strong>{c.component}{c.componentBudget !== null && c.componentBudget !== undefined ? ` — budget ${money(c.componentBudget)} UC` : ''}</strong></div>}
+          {c.component && <div><span>Composante</span><strong>{c.component}{c.componentBudget !== null && c.componentBudget !== undefined ? ` — ${money(c.componentBudget).replace(/,00$/, '')} UC` : ''}</strong></div>}
+          {c.activityName && <div><span>Activité de la composante</span><strong>{c.activityName}{c.activityBudget !== null && c.activityBudget !== undefined ? ` — ${money(c.activityBudget).replace(/,00$/, '')} UC` : ''}{c.componentCategory && <span className="small text-secondary fw-normal d-block">{/^cat[ée]gorie\b/i.test(c.componentCategory) ? c.componentCategory : `Catégorie ${c.componentCategory}`}</span>}</strong></div>}
           {!c.stockOnly && <div><span>Avance de démarrage</span><strong className="text-money">{num(c.initialFinancingRate, 2)} % — {money(c.advanceOnRequest ? c.advanceDue : c.initialFinancing)}{c.advanceOnRequest && <span className="small text-secondary fw-normal d-block">{c.advanceRequest?.status === 'PAYEE' ? `Payée le ${fr(c.advanceRequest.paidDate)}` : c.advanceRequest ? 'Demandée, à payer' : 'Sur demande de l’entreprise'}</span>}</strong></div>}
           {!c.stockOnly && <div><span>Paiements enregistrés</span><strong className="text-money">{money(c.totalPaid)}</strong></div>}
           {d.startupAdvance && <div><span>Avance de démarrage</span><strong className="text-money">{money(d.startupAdvance.amount)} ({fr(d.startupAdvance.date)})</strong></div>}
@@ -316,7 +317,7 @@ export default function ContractDetail({ readOnly = false }) {
           <div className="row g-3">
             <Field className="col-md-6" label="Date de l’avenant"><input type="date" className="form-control" value={amend.date} onChange={(e) => setAmend({ ...amend, date: e.target.value })} /></Field>
             <Field className="col-md-6" label="Durée supplémentaire (mois)"><input type="number" min="1" className="form-control" value={amend.added_months} onChange={(e) => setAmend({ ...amend, added_months: e.target.value })} /></Field>
-            <Field className="col-12" label="Motif"><textarea className="form-control" rows="3" value={amend.reason} onChange={(e) => setAmend({ ...amend, reason: e.target.value })} /></Field>
+            <Field className="col-12" label="Motif" required><textarea className="form-control" rows="3" value={amend.reason} onChange={(e) => setAmend({ ...amend, reason: e.target.value })} /></Field>
           </div>
         </Modal>
       )}
@@ -330,7 +331,7 @@ export default function ContractDetail({ readOnly = false }) {
             <Field className="col-md-6" label="Début de la nouvelle période" error={renewErrors.period_start}><input type="date" className="form-control" value={renew.period_start} onChange={(e) => setRenew({ ...renew, period_start: e.target.value })} /></Field>
             <Field className="col-md-6" label="Durée (mois)" error={renewErrors.months}><input type="number" min="1" className="form-control" value={renew.months} onChange={(e) => setRenew({ ...renew, months: e.target.value })} /></Field>
             {!c.stockOnly && <Field className="col-12" label="Montant ajouté (USD)" error={renewErrors.added_amount}><DecimalInput value={renew.added_amount} onChange={(v) => setRenew({ ...renew, added_amount: v })} placeholder="Ex. : 25000" /></Field>}
-            <Field className="col-12" label="Motif" error={renewErrors.reason}><textarea className="form-control" rows="2" value={renew.reason} onChange={(e) => setRenew({ ...renew, reason: e.target.value })} /></Field>
+            <Field className="col-12" label="Motif" error={renewErrors.reason} required><textarea className="form-control" rows="2" value={renew.reason} onChange={(e) => setRenew({ ...renew, reason: e.target.value })} /></Field>
           </div>
           <p className="small mt-3 mb-0">
             {renew.period_start && Number(renew.months) > 0 ? <>Nouvelle fin : <strong>{fr(addMonths(renew.period_start, Number(renew.months)))}</strong>. </> : ''}

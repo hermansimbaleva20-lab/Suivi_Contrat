@@ -18,7 +18,7 @@ export function PrintLetterhead({ title, subtitle, always = false, orientation =
   }, [orientation]);
   return (
     <header className={`print-letterhead${always ? ' is-always' : ''}`}>
-      <img src={code === 'PREDIRE' ? '/images/predire_logo.png' : '/images/prise2.png'} alt={`Entête du projet ${code}`} className="pdoc-letterhead" />
+      <img src={code === 'PREDIRE' ? '/images/predire_entete_2026.png' : '/images/prise2.png'} alt={`Entête du projet ${code}`} className="pdoc-letterhead" />
       <hr className="pdoc-rule" />
       <p className="pdoc-project">
         {me.project.name}

@@ -53,24 +53,22 @@ function ArticleForm({ initial, onSubmit, onCancel, busy, errors }) {
   );
 }
 
-/** Modifier et supprimer sont toujours proposés (décision du 08/11/2026), même pour un article qui a des mouvements. */
+/**
+ * Modifier et désactiver : habilitation « Modifier ou supprimer les articles du stock » (accordée par le super-admin).
+ * Supprimer : seulement un article sans mouvement (décision du 16/11/2026) ; avec des mouvements, il se désactive.
+ */
 function CatalogActions({ a, busy, onEdit, onToggle, onDelete }) {
   return (
     <div className="tw:flex tw:items-center tw:justify-end tw:gap-1">
       <button type="button" className={btnGhost} onClick={onEdit} aria-label={`Modifier ${a.designation}`} title="Modifier"><i className="bi bi-pencil" aria-hidden="true" /></button>
-      <button type="button" className={btnGhost} disabled={busy} onClick={onToggle}>{a.isActive ? 'Désactiver' : 'Réactiver'}</button>
-      <button type="button" className={btnDanger} onClick={onDelete} aria-label={`Supprimer ${a.designation}`} title="Supprimer"><i className="bi bi-trash" aria-hidden="true" /></button>
+      <button type="button" className={btnGhost} disabled={busy} onClick={onToggle}
+        title={a.movementCount ? 'Article avec mouvements : il se désactive au lieu de se supprimer' : undefined}>{a.isActive ? 'Désactiver' : 'Réactiver'}</button>
+      {!a.movementCount && <button type="button" className={btnDanger} onClick={onDelete} aria-label={`Supprimer ${a.designation}`} title="Supprimer"><i className="bi bi-trash" aria-hidden="true" /></button>}
     </div>
   );
 }
 
-const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
-
-function deleteArticleText(a) {
-  if (!a.movementCount) return `« ${a.designation} » n’a aucun mouvement de stock : il sera retiré du catalogue.`;
-  return `« ${a.designation} » sera supprimé avec ${plural(a.movementCount, 'mouvement de stock', 'mouvements de stock')} (annulés compris) : sa fiche de stock disparaîtra. `
-    + 'Tout reste consultable dans le journal d’audit. Pour conserver l’historique, désactivez plutôt l’article.';
-}
+const deleteArticleText = (a) => `« ${a.designation} » n’a aucun mouvement de stock : il sera retiré du catalogue.`;
 
 /** Sortie de stock (consommation) : un ou plusieurs articles remis à un poste de l'unité du compte. */
 function ExitForm({ data, unitName, contract, onDone, onCancel }) {
@@ -130,7 +128,7 @@ function ExitForm({ data, unitName, contract, onDone, onCancel }) {
 
       <div className="tw:overflow-x-auto tw:rounded-lg tw:border tw:border-prise-border tw:bg-white">
         <table className="tw:w-full tw:border-collapse">
-          <thead><tr><th className={th} scope="col">Article</th><th className={`${th} tw:w-32 tw:text-right`} scope="col">Disponible</th><th className={`${th} tw:w-36 tw:text-right`} scope="col">Quantité sortie</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
+          <thead><tr><th className={`${th} is-required`} scope="col">Article</th><th className={`${th} tw:w-32 tw:text-right`} scope="col">Disponible</th><th className={`${th} tw:w-36 tw:text-right is-required`} scope="col">Quantité sortie</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
           <tbody>
             {lines.map((l, i) => {
               const a = articles.find((x) => String(x.id) === l.stock_article_id);
@@ -256,7 +254,7 @@ function DeliveryForm({ data, unitName, initialContract, onDone, onCancel }) {
 
       <div className="tw:overflow-x-auto tw:rounded-lg tw:border tw:border-prise-border tw:bg-white">
         <table className="tw:w-full tw:border-collapse">
-          <thead><tr><th className={th} scope="col">Article livré</th><th className={`${th} tw:w-36 tw:text-right`} scope="col">Quantité</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
+          <thead><tr><th className={`${th} is-required`} scope="col">Article livré</th><th className={`${th} tw:w-36 tw:text-right is-required`} scope="col">Quantité</th><th className={`${th} tw:w-12`} scope="col"><span className="tw:sr-only">Retirer</span></th></tr></thead>
           <tbody>
             {lines.map((l, i) => {
               const a = articles.find((x) => String(x.id) === l.stock_article_id);

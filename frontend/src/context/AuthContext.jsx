@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api } from '../api.js';
+import { api, DATA_CHANGED } from '../api.js';
 
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
@@ -25,6 +25,26 @@ export function AuthProvider({ children }) {
     if (localStorage.getItem('prise_token')) load();
     else setState((s) => ({ ...s, loading: false }));
   }, [load]);
+
+  /*
+   * Compteurs d'alertes de l'en-tête (me.alerts) et habilitations : relus aussitôt après une action enregistrée
+   * (DATA_CHANGED) et au retour sur l'onglet. Relecture discrète : un échec garde les valeurs affichées et ne déconnecte
+   * jamais (contrairement au chargement initial).
+   */
+  useEffect(() => {
+    let pending = null;
+    const refresh = () => {
+      if (!localStorage.getItem('prise_token')) return;
+      api.get('/auth/me', { silent: true })
+        .then(({ data }) => setState((s) => (s.me ? { ...s, me: data } : s)))
+        .catch(() => {});
+    };
+    const soon = () => { clearTimeout(pending); pending = setTimeout(refresh, 60); };
+    const visible = () => { if (document.visibilityState === 'visible') soon(); };
+    window.addEventListener(DATA_CHANGED, soon);
+    document.addEventListener('visibilitychange', visible);
+    return () => { clearTimeout(pending); window.removeEventListener(DATA_CHANGED, soon); document.removeEventListener('visibilitychange', visible); };
+  }, []);
 
   const login = async (email, password, project) => {
     const { data } = await api.post('/auth/login', { email, password, project }, { headers: { 'X-Project': project } });

@@ -104,7 +104,8 @@ export default function ProgressPage() {
   const instOpen = !!inst && inst.remaining > 0;
   const base = weighted ? d.breakdown?.base : null;
   const effects = [effect(site, parseDecimal(form.progress), base), instOpen ? effect(inst, parseDecimal(form.installation_progress), base) : null];
-  const sitesTotal = d.sites.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  // Sans contrat dans la phase, l'API ne renvoie ni sites ni situations : rien à additionner.
+  const sitesTotal = (d.sites || []).reduce((a, s) => a + (Number(s.amount) || 0), 0);
   const esValue = form.es_performance ?? (d.esPerformance || '');
 
   const say = (text, type = 'success') => setFlash({ type, text });
@@ -127,9 +128,11 @@ export default function ProgressPage() {
   return (
     <>
       <PageHead kicker="SUIVI-ÉVALUATION" title="Suivi & Avancement">
-        <select className="form-select" style={{ minWidth: 260 }} aria-label="Contrat" value={c?.id || ''} onChange={(e) => { setContractId(e.target.value); setPage(1); setForm(blank()); }}>
-          {d.contracts.map((x) => <option key={x.id} value={x.id}>{x.number} — {x.company}{x.isTerminated ? ' (résilié)' : ''}</option>)}
-        </select>
+        {d.contracts.length > 0 && (
+          <select className="form-select" style={{ minWidth: 260 }} aria-label="Contrat" value={c?.id || ''} onChange={(e) => { setContractId(e.target.value); setPage(1); setForm(blank()); }}>
+            {d.contracts.map((x) => <option key={x.id} value={x.id}>{x.number} — {x.company}{x.isTerminated ? ' (résilié)' : ''}</option>)}
+          </select>
+        )}
       </PageHead>
       <Notice type={flash.type} onClose={() => say('')}>{flash.text}</Notice>
       {!c ? <Empty text="Aucun contrat dans cette phase." /> : (

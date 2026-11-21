@@ -24,7 +24,7 @@ export default function ContractForm() {
     reference: '', company_id: '', category: 'TRAVAUX', province: '', selected_provinces: [], signature_date: '', start_date: '', duration_months: '12', amount: '',
     initial_financing_rate: '0', activities: '', work_mode: 'Lourd', selected_work_types: [], guarantee_rate: '5', guarantee_bank_name: '', guarantee_account_number: '',
     guarantee_observation: '', goods_procedure: '', goods_origin: '', payment_schedule: [], delay_penalty_rate: '', delay_penalty_cap: '', goods_min_amount: '', goods_max_amount: '',
-    installation_cost: '', component_id: '', guarantee_start_date: '', guarantee_end_date: '',
+    installation_cost: '', component_id: '', activity_id: '', guarantee_start_date: '', guarantee_end_date: '',
   });
   const [sites, setSites] = useState([blankSite()]);
   const [errors, setErrors] = useState({});
@@ -64,7 +64,12 @@ export default function ContractForm() {
   const shownProcedures = (goods?.procedures || []).filter((p) => (p.code === 'FOURNITURES_BUREAU' ? can('canManageStock') : can('canManageContracts')));
   const setTranche = (key, rate) => setF((s) => ({ ...s, payment_schedule: s.payment_schedule.map((t) => (t.key === key ? { ...t, rate } : t)) }));
   const scheduleTotal = f.payment_schedule.reduce((a, t) => a + (parseDecimal(t.rate) || 0), parseDecimal(f.initial_financing_rate) || 0);
-  const setCategory = (v) => setF((s) => ({ ...s, category: v, ...(v === 'SERVICE' ? { initial_financing_rate: '0' } : {}) }));
+  // Changer de catégorie retire une entreprise d'une autre catégorie (décision du 18/11/2026) ; une entreprise sans catégorie reste.
+  const setCategory = (v) => setF((s) => {
+    const chosen = (ref.data?.companies || []).find((c) => String(c.id) === String(s.company_id));
+    const keep = !chosen || !chosen.category || chosen.category === v;
+    return { ...s, category: v, ...(keep ? {} : { company_id: '' }), ...(v === 'SERVICE' ? { initial_financing_rate: '0' } : {}) };
+  });
 
   useEffect(() => {
     const c = current.data?.contract;
@@ -81,7 +86,7 @@ export default function ContractForm() {
       guarantee_rate: current.data?.guarantee ? String(current.data.guarantee.rate) : s.guarantee_rate,
       goods_min_amount: c.goodsMinAmount === null || c.goodsMinAmount === undefined ? '' : String(c.goodsMinAmount),
       goods_max_amount: c.goodsMaxAmount === null || c.goodsMaxAmount === undefined ? '' : String(c.goodsMaxAmount),
-      installation_cost: toInput(c.installationCost), component_id: c.componentId ? String(c.componentId) : '',
+      installation_cost: toInput(c.installationCost), component_id: c.componentId ? String(c.componentId) : '', activity_id: c.activityId ? String(c.activityId) : '',
     }));
     setSites((c.sites || []).map((x) => ({ id: x.id, name: x.name, province: x.province, work_type: x.workType, description: x.description, quantity: String(x.quantity), amount: toInput(x.amount) })));
   }, [current.data]);
@@ -104,9 +109,19 @@ export default function ContractForm() {
   const total = installation + sitesTotal + renewedAmount;
   // Fin du contrat : borne de la période de garantie (démarrage + durée).
   const contractEnd = f.start_date ? addMonths(f.start_date, Number(f.duration_months) || 1) : '';
-  // Composantes enregistrées au préalable (Administration › Composantes) : le contrat en choisit une, facultativement.
+  // Composantes enregistrées au préalable (Administration › Composantes) : le contrat choisit une activité d'une catégorie
+  // d'une composante, facultativement (décision du 16/11/2026) ; la composante et la catégorie en découlent.
   const components = ref.data?.components || [];
-  const chosenComponent = components.find((x) => String(x.id) === String(f.component_id)) || null;
+  const activitiesReady = !!ref.data?.activitiesReady;
+  const activityChoices = components.flatMap((c) => c.categories.map((k) => ({
+    component: c, category: k,
+    // Activités proposées : actives d'une composante active, plus celle que le contrat a déjà.
+    activities: k.activities.filter((a) => String(a.id) === String(f.activity_id) || (a.isActive && c.isActive)),
+  }))).filter((g) => g.activities.length);
+  const chosen = activityChoices.flatMap((g) => g.activities.map((a) => ({ ...g, activity: a }))).find((x) => String(x.activity.id) === String(f.activity_id)) || null;
+  const chosenComponent = chosen ? chosen.component : components.find((x) => String(x.id) === String(f.component_id)) || null;
+  const categoryTitle = (name) => (/^cat[ée]gorie\b/i.test(name) ? name : `Catégorie ${name}`);
+  const ucText = (v) => (v === null || v === undefined ? '—' : `${money(v).replace(/,00$/, '')} UC`);
 
   const toggle = (key, value) => setF((s) => ({ ...s, [key]: s[key].includes(value) ? s[key].filter((x) => x !== value) : [...s[key], value] }));
   const setSite = (i, k, v) => setSites((list) => list.map((s, j) => (j === i ? { ...s, [k]: v } : s)));
@@ -165,6 +180,12 @@ export default function ContractForm() {
   if (ref.loading || (edit && current.loading)) return <Loading />;
   const companies = ref.data?.companies || [];
   const provinces = ref.data?.provinces || [];
+  // Entreprises de la catégorie du contrat ; celles sans catégorie (antérieures au 18/11/2026) à part ; l'entreprise actuelle
+  // du contrat reste proposée même si sa catégorie diffère.
+  const CATEGORY_LABEL = { TRAVAUX: 'Travaux', BIENS: 'Biens', SERVICE: 'Services' };
+  const sameCategory = companies.filter((c) => c.category === f.category);
+  const uncategorized = companies.filter((c) => !c.category);
+  const keptCompany = companies.find((c) => String(c.id) === String(f.company_id) && c.category && c.category !== f.category);
 
   return (
     <>
@@ -177,16 +198,29 @@ export default function ContractForm() {
           <div className="section-title mb-3">Informations du contrat</div>
           <div className="row g-3">
             <Field className="col-md-4" label="N° du contrat" error={errors.reference}><input className="form-control" value={f.reference} onChange={(e) => set('reference')(e.target.value)} required /></Field>
-            <Field className="col-md-4" label="Entreprise" error={errors.company_id}>
-              <select className="form-select" value={f.company_id} onChange={(e) => set('company_id')(e.target.value)} required>
-                <option value="">— Sélectionner —</option>
-                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </Field>
+            {/* La catégorie d'abord : elle limite la liste des entreprises à celles de cette catégorie (18/11/2026). */}
             <Field className="col-md-4" label="Catégorie" error={errors.category}>
               <select className="form-select" value={f.category} onChange={(e) => setCategory(e.target.value)} disabled={logisticOnly}>
-                {['TRAVAUX', 'BIENS', 'SERVICE'].map((c) => <option key={c}>{c}</option>)}
+                {['TRAVAUX', 'BIENS', 'SERVICE'].map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
               </select>
+            </Field>
+            <Field className="col-md-4" label="Entreprise" error={errors.company_id}>
+              <select className="form-select" value={f.company_id} onChange={(e) => set('company_id')(e.target.value)} required>
+                <option value="">{sameCategory.length || uncategorized.length ? `— Entreprise de la catégorie ${CATEGORY_LABEL[f.category]} —` : `— Aucune entreprise de la catégorie ${CATEGORY_LABEL[f.category]} —`}</option>
+                {keptCompany && <option value={keptCompany.id}>{keptCompany.name} (catégorie {CATEGORY_LABEL[keptCompany.category]})</option>}
+                {sameCategory.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {uncategorized.length > 0 && (
+                  <optgroup label="Catégorie non renseignée">
+                    {uncategorized.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              {!sameCategory.length && (
+                <div className="form-text">
+                  Aucune entreprise enregistrée dans la catégorie {CATEGORY_LABEL[f.category]}.
+                  {can('canManageCompanies') && <> <Link to="/companies">Ajouter une entreprise</Link></>}
+                </div>
+              )}
             </Field>
             <Field className="col-md-3" label="Date de signature"><input type="date" className="form-control" value={f.signature_date} onChange={(e) => set('signature_date')(e.target.value)} /></Field>
             {renewed ? (
@@ -232,9 +266,38 @@ export default function ContractForm() {
               </Field>
             )}
             <Field className="col-12" label="Activité / objet du contrat"><textarea className="form-control" rows="2" value={f.activities} onChange={(e) => set('activities')(e.target.value)} /></Field>
-            {/* Colonnes « Composantes » et « Budget en millions d'UC » de la matrice d'exécution du projet. */}
-            {/* Composante facultative, choisie parmi celles enregistrées dans Administration › Composantes. */}
-            {!isOffice && (
+            {/* Rattachement à la matrice d'exécution : activité d'une catégorie d'une composante (Administration › Composantes). */}
+            {!isOffice && activitiesReady && (
+              <>
+                <Field className="col-md-8" label="Activité de la composante (facultatif)" error={errors.activity_id}>
+                  {/* « Aucune » détache aussi la composante ; une activité choisie impose la sienne (déduite par l'API). */}
+                  <select className="form-select" value={f.activity_id} onChange={(e) => setF((s) => ({ ...s, activity_id: e.target.value, component_id: e.target.value ? s.component_id : '' }))}>
+                    <option value="">{activityChoices.length ? '— Aucune —' : '— Aucune activité enregistrée (Administration › Composantes) —'}</option>
+                    {activityChoices.map((g) => (
+                      <optgroup key={g.category.id} label={`${g.component.name} — ${categoryTitle(g.category.name)}`}>
+                        {g.activities.map((a) => <option key={a.id} value={a.id}>{a.name}{a.budget !== null ? ` — ${ucText(a.budget)}` : ''}{a.isActive && g.component.isActive ? '' : ' (désactivée)'}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {!f.activity_id && f.component_id && chosenComponent && (
+                    <div className="form-text">Rattaché à la composante « {chosenComponent.name} » sans activité : choisissez son activité.</div>
+                  )}
+                </Field>
+                <Field className="col-md-4" label="Coût de l’activité (UC)">
+                  <input className="form-control text-money amount-computed" readOnly tabIndex={-1} value={chosen ? ucText(chosen.activity.budget) : '—'} />
+                </Field>
+                {chosen && (
+                  <div className="col-12">
+                    <dl className="progress-context mb-0">
+                      <div><dt>Composante</dt><dd>{chosen.component.name} <span>· {ucText(chosen.component.total)}</span></dd></div>
+                      <div><dt>Catégorie</dt><dd>{categoryTitle(chosen.category.name)} <span>· {ucText(chosen.category.cost)}</span></dd></div>
+                    </dl>
+                  </div>
+                )}
+              </>
+            )}
+            {/* Base pas encore mise à jour : composante seule, comme avant le 16/11/2026. */}
+            {!isOffice && !activitiesReady && (
               <>
                 <Field className="col-md-8" label="Composante du projet (facultatif)" error={errors.component_id}>
                   <select className="form-select" value={f.component_id} onChange={(e) => set('component_id')(e.target.value)}>
@@ -243,7 +306,7 @@ export default function ContractForm() {
                   </select>
                 </Field>
                 <Field className="col-md-4" label="Budget de la composante (UC)">
-                  <input className="form-control text-money amount-computed" readOnly tabIndex={-1} value={chosenComponent?.budget === null || chosenComponent?.budget === undefined ? '—' : money(chosenComponent.budget).replace(/,00$/, '')} />
+                  <input className="form-control text-money amount-computed" readOnly tabIndex={-1} value={chosenComponent ? ucText(chosenComponent.total) : '—'} />
                 </Field>
               </>
             )}

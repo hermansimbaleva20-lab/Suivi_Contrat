@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\ComponentTree;
 use App\Support\Ctx;
 use App\Support\GoodsProcedure;
 use Illuminate\Support\Facades\DB;
@@ -22,14 +23,15 @@ class ReferenceController extends Controller
             'goodsProcedures' => GoodsProcedure::catalog(),
             'provinces' => $provinces,
             'workTypes' => DB::table('work_types')->where('project_id', $pid)->orderBy('name')->get(['id', 'category', 'name'])->map(fn ($w) => ['id' => $w->id, 'category' => $w->category, 'name' => $w->name])->values(),
+            // Catégorie de l'entreprise (18/11/2026) : le formulaire ne propose que celles de la catégorie du contrat.
             'companies' => DB::table('companies')->where('project_id', $pid)->orderBy('name')->get()->map(fn ($c) => [
-                'id' => $c->id, 'name' => $c->name,
+                'id' => $c->id, 'name' => $c->name, 'category' => (string) ($c->category ?? ''),
             ])->values(),
-            // Composantes du projet enregistrées au préalable (Administration › Composantes), proposées au choix du contrat.
-            'components' => Schema::hasTable('project_components')
-                ? DB::table('project_components')->where('project_id', $pid)->orderBy('name')->get(['id', 'name', 'budget', 'is_active'])
-                    ->map(fn ($x) => ['id' => (int) $x->id, 'name' => $x->name, 'budget' => $x->budget === null ? null : (float) $x->budget, 'isActive' => (bool) $x->is_active])->values()
-                : [],
+            'companyCategoriesReady' => CompanyController::hasCategory(),
+            // Composantes du projet (Administration › Composantes), avec catégories et activités : le contrat choisit une activité
+            // (décision du 16/11/2026) ; sans la mise à jour de la base, il choisit encore une composante.
+            'components' => Schema::hasTable('project_components') ? ComponentTree::load($pid) : [],
+            'activitiesReady' => ComponentTree::ready(),
         ];
     }
 }

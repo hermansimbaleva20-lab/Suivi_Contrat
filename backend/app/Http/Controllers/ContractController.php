@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\ComponentTree;
 use App\Support\Ctx;
 use App\Support\Dates;
 use App\Support\DecompteLedger;
@@ -167,17 +168,41 @@ class ContractController extends Controller
     }
 
     /**
-     * Composante du projet (matrice d'exécution), facultative : une de celles enregistrées dans Administration ›
-     * Composantes, active, ou celle que le contrat a déjà (même désactivée depuis).
+     * Entreprise de la catégorie du contrat (décision du 18/11/2026). Acceptées aussi : une entreprise sans catégorie
+     * (enregistrée avant cette décision) et, à la modification, l'entreprise que le contrat a déjà.
      */
-    private function componentFields(Request $r, array &$e, ?int $current = null): array
+    private function companyCategoryError(int $companyId, string $category, ?int $currentCompany = null): ?string
     {
+        if (!CompanyController::hasCategory() || $companyId === $currentCompany) return null;
+        $companyCategory = (string) DB::table('companies')->where('id', $companyId)->value('category');
+        if ($companyCategory === '' || $companyCategory === $category) return null;
+        $labels = CompanyController::CATEGORIES;
+        return 'Cette entreprise est enregistrée dans la catégorie ' . $labels[$companyCategory] . ' : choisissez une entreprise de la catégorie ' . $labels[$category] . '.';
+    }
+
+    /**
+     * Rattachement à la matrice d'exécution, facultatif (décisions du 10 et du 16/11/2026) : une activité d'une composante
+     * (Administration › Composantes), dont la composante est déduite ; à défaut, une composante seule (contrats rattachés
+     * avant le détail par catégories et activités). Activité et composante doivent être actives, sauf si le contrat les a déjà.
+     */
+    private function componentFields(Request $r, array &$e, ?int $current = null, ?int $currentActivity = null): array
+    {
+        $ready = ComponentTree::ready();
+        $activity = $ready ? ((int) $r->input('activity_id', 0) ?: null) : null;
+        if ($activity) {
+            $a = ComponentTree::activity(Ctx::projectId(), $activity);
+            if (!$a || ($activity !== $currentActivity && (!$a->is_active || !$a->component_active))) {
+                $e['activity_id'] = 'Choisissez une activité enregistrée et active d’une composante active du projet.';
+                return ['component_id' => $current, 'activity_id' => $currentActivity];
+            }
+            return ['component_id' => (int) $a->component_id, 'activity_id' => $activity];
+        }
         $id = (int) $r->input('component_id', 0) ?: null;
         if ($id && $id !== $current && !DB::table('project_components')->where('id', $id)->where('project_id', Ctx::projectId())->where('is_active', true)->exists()) {
             $e['component_id'] = 'Choisissez une composante enregistrée et active du projet.';
             $id = $current;
         }
-        return ['component_id' => $id];
+        return ['component_id' => $id] + ($ready ? ['activity_id' => null] : []);
     }
 
     /** La période de la garantie est comprise dans celle du contrat : pas avant son démarrage, pas après sa fin. */
@@ -237,6 +262,7 @@ class ContractController extends Controller
         if (!DB::table('companies')->where('id', $companyId)->where('project_id', $pid)->exists()) $e['company_id'] = 'Sélectionnez une entreprise du projet.';
         $category = trim((string) $r->input('category', ''));
         if (!in_array($category, ['TRAVAUX', 'BIENS', 'SERVICE'], true)) $e['category'] = 'Sélectionnez une catégorie.';
+        elseif (!isset($e['company_id']) && ($msg = $this->companyCategoryError($companyId, $category))) $e['company_id'] = $msg;
         [$isWorks, $isMulti] = $this->categoryFlags($category);
         $start = Dates::valid($r->input('start_date')) ? Dates::part($r->input('start_date')) : null;
         if (!$start) $e['start_date'] = 'La date de démarrage est obligatoire.';
@@ -341,6 +367,7 @@ class ContractController extends Controller
         if (!DB::table('companies')->where('id', $companyId)->where('project_id', $pid)->exists()) $e['company_id'] = 'Sélectionnez une entreprise du projet.';
         $category = trim((string) $r->input('category', $c['category']));
         if (!in_array($category, ['TRAVAUX', 'BIENS', 'SERVICE'], true)) $e['category'] = 'Sélectionnez une catégorie.';
+        elseif (!isset($e['company_id']) && ($msg = $this->companyCategoryError($companyId, $category, (int) $c['company_id']))) $e['company_id'] = $msg;
         [$isWorks, $isMulti] = $this->categoryFlags($category);
         $start = Dates::valid($r->input('start_date')) ? Dates::part($r->input('start_date')) : null;
         if (!$start) $e['start_date'] = 'La date de démarrage est obligatoire.';
@@ -360,8 +387,8 @@ class ContractController extends Controller
             Ctx::need('can_manage_stock');
         }
         $goods['organizational_unit_id'] = $isOffice ? ($wasOffice ? $c['unit_id'] : ((int) Ctx::user()->organizational_unit_id ?: null)) : null;
-        // Composante et budget : ceux du formulaire ; un appel sans ces champs garde ceux du contrat.
-        $goods += $r->has('component_id') ? $this->componentFields($r, $e, $c['component_id']) : ['component_id' => $c['component_id']];
+        // Activité et composante : celles du formulaire ; un appel sans ces champs garde celles du contrat.
+        $goods += $r->has('component_id') || $r->has('activity_id') ? $this->componentFields($r, $e, $c['component_id'], $c['activity_id'] ?? null) : ['component_id' => $c['component_id']];
         // Une fois une avance demandée ou un décompte saisi, les règles du marché ne changent plus : les lignes en dépendent.
         $goodsInUse = DB::table('contract_decomptes')->where('contract_id', $id)->where('status', '!=', DecompteLedger::REJECTED)->exists() || DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', 'REJETEE')->exists();
         $goodsTouched = GoodsProcedure::governs($c['goods_procedure']) || GoodsProcedure::governs($goods['goods_procedure']);

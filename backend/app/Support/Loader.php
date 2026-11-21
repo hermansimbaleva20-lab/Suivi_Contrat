@@ -7,6 +7,14 @@ use Illuminate\Support\Facades\DB;
 /** Chargement des contrats et de leurs dépendances sous forme de tableaux normalisés (voir Metrics). */
 class Loader
 {
+    /** @var array<int,array<int,?float>> Montant total des composantes, par projet (une seule lecture par requête). */
+    private static array $componentTotals = [];
+
+    private static function componentTotals(int $projectId): array
+    {
+        return self::$componentTotals[$projectId] ??= ComponentTree::totals($projectId);
+    }
+
     /** @return array<int,array> */
     public static function contracts(int $projectId, int $phaseId = 0, ?array $ids = null, bool $allPhases = false, bool $withStockOnly = false): array
     {
@@ -18,6 +26,14 @@ class Loader
             ->where('c.project_id', $projectId)
             ->select('c.*', 'co.name as company_name', 'ph.name as phase_name', 'ph.number as phase_number', 'ou.name as unit_name', 'pc.name as component_name', 'pc.budget as component_budget_uc')
             ->orderBy('c.reference');
+        // Activité de la composante et sa catégorie (décision du 16/11/2026), une fois la base mise à jour.
+        if (ComponentTree::ready()) {
+            $q->leftJoin('component_activities as ca', 'ca.id', '=', 'c.activity_id')
+                ->leftJoin('component_categories as cc', 'cc.id', '=', 'ca.category_id')
+                ->addSelect('ca.name as activity_name', 'ca.budget as activity_budget', 'cc.id as component_category_id', 'cc.name as component_category_name')
+                // Coût de la catégorie : somme des coûts de ses activités (il ne se saisit plus sur la catégorie).
+                ->addSelect(DB::raw('(SELECT SUM(x.budget) FROM component_activities x WHERE x.category_id = cc.id) as component_category_cost'));
+        }
         // Les fournitures de bureau ne se suivent que par le stock : hors indicateurs, paiements, alertes et rapports.
         if ($ids === null && !$withStockOnly) $q->where(fn ($w) => $w->whereNull('c.goods_procedure')->orWhere('c.goods_procedure', '!=', GoodsProcedure::OFFICE));
         if (!$allPhases && $phaseId > 0) $q->where('c.phase_id', $phaseId);
@@ -106,9 +122,16 @@ class Loader
                 'start_date' => $c->start_date ? Dates::part($c->start_date) : null, 'end_date' => $c->end_date ? Dates::part($c->end_date) : null,
                 'duration_months' => (int) ($c->duration_months ?? 0), 'amount' => (float) $c->amount, 'initial_rate' => (float) $c->initial_financing_rate,
                 'installation_cost' => isset($c->installation_cost) && $c->installation_cost !== null ? (float) $c->installation_cost : null,
-                // Matrice d'exécution : composante du projet (enregistrée dans Administration › Composantes) et son budget (UC).
+                // Matrice d'exécution : composante du projet (Administration › Composantes) et son montant total en UC (somme des
+                // coûts de ses catégories, à défaut l'ancien budget saisi), puis l'activité du contrat et sa catégorie.
                 'component_id' => isset($c->component_id) && $c->component_id ? (int) $c->component_id : null,
-                'component' => trim((string) ($c->component_name ?? '')), 'component_budget' => isset($c->component_budget_uc) && $c->component_budget_uc !== null ? (float) $c->component_budget_uc : null,
+                'component' => trim((string) ($c->component_name ?? '')),
+                'component_budget' => isset($c->component_id) && $c->component_id ? (self::componentTotals((int) $c->project_id)[(int) $c->component_id] ?? null) : null,
+                'activity_id' => isset($c->activity_id) && $c->activity_id ? (int) $c->activity_id : null,
+                'activity_name' => trim((string) ($c->activity_name ?? '')), 'activity_budget' => isset($c->activity_budget) && $c->activity_budget !== null ? (float) $c->activity_budget : null,
+                'component_category_id' => isset($c->component_category_id) && $c->component_category_id ? (int) $c->component_category_id : null,
+                'component_category' => trim((string) ($c->component_category_name ?? '')),
+                'component_category_cost' => isset($c->component_category_cost) && $c->component_category_cost !== null ? (float) $c->component_category_cost : null,
                 'activity' => (string) ($c->activities ?? ''), 'completed' => (bool) ($c->completed ?? false),
                 'terminated' => !empty($c->termination_date), 'termination_date' => $c->termination_date ? Dates::part($c->termination_date) : null,
                 'termination_reason' => (string) ($c->termination_reason ?? ''),

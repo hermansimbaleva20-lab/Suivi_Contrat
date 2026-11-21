@@ -5,10 +5,12 @@ namespace App\Support;
 use Illuminate\Support\Str;
 
 /**
- * État d'exécution des travaux, activités et prestations (décision du 10/11/2026), sur le modèle de la matrice du projet :
- * par catégorie puis par province, chaque contrat (activité, fournisseur, coût, délai consommé, réalisation physique, taux
- * de réalisation, engagement, paiement, taux de paiement, observations), puis chacun de ses sites (situation actuelle et
- * taux). Adapté aux données de l'application : ni composante, ni budget en UC, ni performance environnementale et sociale.
+ * État d'exécution des travaux, activités et prestations (décisions du 10 et du 16/11/2026), sur le modèle de la matrice du
+ * projet : par composante (« A. Développement des infrastructures ; Coût : … UC »), puis par catégorie de la composante
+ * (« Catégorie Travaux », avec son coût), puis par province, chaque contrat (activité, fournisseur, coût, délai consommé,
+ * réalisation physique, taux de réalisation, engagement, paiement, taux de paiement, observations) et chacun de ses sites.
+ * Les contrats d'une même activité de la composante sont regroupés : la cellule « Composantes » porte l'activité et son budget.
+ * Un contrat sans activité reste sous sa composante éventuelle, rangé par la catégorie du contrat (Travaux, Biens, Services).
  * Fonctions pures sur les contrats de Loader, arrêtées à une date ($asOf).
  */
 class ExecutionReport
@@ -73,6 +75,8 @@ class ExecutionReport
         $es = self::latest($c['entries'], $asOf, fn ($e) => ($e['es_performance'] ?? '') !== '');
         return [
             'component' => (string) ($c['component'] ?? ''), 'componentBudget' => $c['component_budget'] ?? null, 'esPerformance' => $es ? $es['es_performance'] : '',
+            // Activité de la composante : cellule « Composantes » et « Budget » de la matrice, fusionnée sur ses contrats.
+            'group' => (string) ($c['activity_name'] ?? ''), 'groupBudget' => $c['activity_budget'] ?? null, 'groupId' => $c['activity_id'] ?? null,
             'id' => $c['id'], 'number' => $c['number'], 'activity' => $c['activity'], 'title' => $c['title'], 'company' => $c['company'], 'category' => $c['category'],
             'province' => $c['province'], 'provinces' => array_values(array_unique(array_filter(array_merge([$c['province']], array_column($c['sites'], 'province'))))),
             'signatureDate' => $c['signature_date'], 'startDate' => $renewal ? $renewal['period_start'] : $c['start_date'], 'endDate' => $c['end_date'],
@@ -108,23 +112,29 @@ class ExecutionReport
     }
 
     /**
-     * Groupes de contrats consécutifs d'une même composante : intitulé, budget (le premier renseigné), contrats et nombre
-     * de lignes de la matrice (un contrat = 1 ligne + ses sites), pour fusionner les cellules « Composantes » et « Budget ».
+     * Groupes de contrats consécutifs d'une même activité : intitulé, budget (le premier renseigné), contrats et nombre de
+     * lignes de la matrice (un contrat = 1 ligne + ses sites), pour fusionner les cellules « Composantes » et « Budget ».
      */
     public static function components(array $rows): array
     {
         $out = [];
         foreach ($rows as $r) {
             $last = count($out) - 1;
-            if ($last >= 0 && $out[$last]['name'] === $r['component']) {
+            if ($last >= 0 && $out[$last]['name'] === $r['group']) {
                 $out[$last]['contractIds'][] = $r['id'];
                 $out[$last]['lines'] += 1 + count($r['sites']);
-                if ($out[$last]['budget'] === null) $out[$last]['budget'] = $r['componentBudget'];
+                if ($out[$last]['budget'] === null) $out[$last]['budget'] = $r['groupBudget'];
                 continue;
             }
-            $out[] = ['name' => $r['component'], 'budget' => $r['componentBudget'], 'contractIds' => [$r['id']], 'lines' => 1 + count($r['sites'])];
+            $out[] = ['name' => $r['group'], 'budget' => $r['groupBudget'], 'contractIds' => [$r['id']], 'lines' => 1 + count($r['sites'])];
         }
         return $out;
+    }
+
+    /** « Catégorie Travaux » pour une catégorie saisie « Travaux » ; l'intitulé est gardé s'il commence déjà par « Catégorie ». */
+    public static function categoryLabel(string $name): string
+    {
+        return preg_match('/^cat[ée]gorie\b/iu', $name) ? $name : "Catégorie {$name}";
     }
 
     /** Coût total et taux de réalisation physique pondéré par le coût des contrats. */
@@ -141,35 +151,62 @@ class ExecutionReport
         ];
     }
 
+    /** Provinces d'une catégorie, par ordre alphabétique ; contrats regroupés par activité (sans activité en dernier), puis par numéro. */
+    private static function provinces(array $byProvince): array
+    {
+        uksort($byProvince, [self::class, 'compare']);
+        $out = [];
+        foreach ($byProvince as $prov => $rows) {
+            // Activités dans l'ordre de leur saisie (sans activité en dernier), puis contrats par numéro.
+            usort($rows, fn ($a, $b) => (($a['groupId'] === null) <=> ($b['groupId'] === null)) ?: ($a['groupId'] <=> $b['groupId']) ?: strnatcasecmp($a['number'], $b['number']));
+            $out[] = ['province' => (string) $prov, 'completed' => self::completed($rows), 'totals' => self::totals($rows), 'rows' => $rows, 'components' => self::components($rows)];
+        }
+        return $out;
+    }
+
     /**
-     * Matrice complète : catégories (Travaux, Biens, Services) puis provinces par ordre alphabétique, contrats par numéro.
-     * Un contrat est classé sous sa province principale ; ses sites d'autres provinces restent sous lui.
+     * Matrice complète : composantes (ordre naturel des intitulés, « A. » avant « B. » ; contrats sans composante en dernier),
+     * puis catégories de la composante (celles des activités, puis Travaux, Biens, Services pour les contrats sans activité),
+     * puis provinces par ordre alphabétique, contrats par activité et par numéro. Un contrat est classé sous sa province
+     * principale ; ses sites d'autres provinces restent sous lui.
      */
     public static function build(array $contracts, string $asOf): array
     {
-        $byCat = [];
+        $sections = [];
         foreach ($contracts as $c) {
             $row = self::contract($c, $asOf);
-            $cat = isset(self::CATEGORIES[$row['category']]) ? $row['category'] : 'TRAVAUX';
-            $prov = trim((string) $row['province']) ?: 'Province non renseignée';
-            $byCat[$cat][$prov][] = $row;
-        }
-        $categories = [];
-        $all = [];
-        foreach (array_keys(self::CATEGORIES) as $cat) {
-            if (empty($byCat[$cat])) continue;
-            uksort($byCat[$cat], [self::class, 'compare']);
-            $provinces = [];
-            $catRows = [];
-            foreach ($byCat[$cat] as $prov => $rows) {
-                // Par composante (sans composante en dernier), puis par numéro : la composante couvre ses contrats, comme dans la matrice.
-                usort($rows, fn ($a, $b) => (($a['component'] === '') <=> ($b['component'] === '')) ?: self::compare($a['component'], $b['component']) ?: strnatcasecmp($a['number'], $b['number']));
-                $provinces[] = ['province' => (string) $prov, 'completed' => self::completed($rows), 'totals' => self::totals($rows), 'rows' => $rows, 'components' => self::components($rows)];
-                $catRows = array_merge($catRows, $rows);
+            $sid = (int) ($c['component_id'] ?? 0);
+            $sections[$sid] ??= ['id' => $sid ?: null, 'name' => $sid ? (string) $c['component'] : '', 'total' => $sid ? ($c['component_budget'] ?? null) : null, 'cats' => []];
+            if (!empty($c['component_category_id'])) {
+                $key = 'k' . $c['component_category_id'];
+                $sections[$sid]['cats'][$key] ??= ['category' => $key, 'label' => self::categoryLabel((string) $c['component_category']), 'name' => (string) $c['component_category'], 'cost' => $c['component_category_cost'] ?? null, 'order' => 0, 'sortId' => (int) $c['component_category_id'], 'byProvince' => []];
+            } else {
+                $fixed = isset(self::CATEGORIES[$row['category']]) ? $row['category'] : 'TRAVAUX';
+                $key = 'f' . $fixed;
+                $sections[$sid]['cats'][$key] ??= ['category' => $fixed, 'label' => self::CATEGORIES[$fixed], 'name' => self::CATEGORIES[$fixed], 'cost' => null, 'order' => 1 + array_search($fixed, array_keys(self::CATEGORIES), true), 'sortId' => 0, 'byProvince' => []];
             }
-            $categories[] = ['category' => $cat, 'label' => self::CATEGORIES[$cat], 'totals' => self::totals($catRows), 'provinces' => $provinces];
-            $all = array_merge($all, $catRows);
+            $prov = trim((string) $row['province']) ?: 'Province non renseignée';
+            $sections[$sid]['cats'][$key]['byProvince'][$prov][] = $row;
         }
-        return ['asOf' => $asOf, 'categories' => $categories, 'totals' => self::totals($all), 'completed' => self::completed($all)];
+        uasort($sections, fn ($a, $b) => (($a['id'] === null) <=> ($b['id'] === null)) ?: self::compare($a['name'], $b['name']));
+
+        $out = [];
+        $all = [];
+        foreach ($sections as $s) {
+            $cats = array_values($s['cats']);
+            // Catégories des activités dans l'ordre de leur saisie, puis Travaux, Biens, Services (contrats sans activité).
+            usort($cats, fn ($a, $b) => ($a['order'] <=> $b['order']) ?: ($a['sortId'] <=> $b['sortId']));
+            $categories = [];
+            $sectionRows = [];
+            foreach ($cats as $k) {
+                $provinces = self::provinces($k['byProvince']);
+                $catRows = array_merge(...array_column($provinces, 'rows'));
+                $categories[] = ['category' => $k['category'], 'label' => $k['label'], 'cost' => $k['cost'], 'totals' => self::totals($catRows), 'provinces' => $provinces];
+                $sectionRows = array_merge($sectionRows, $catRows);
+            }
+            $out[] = ['id' => $s['id'], 'name' => $s['name'], 'total' => $s['total'], 'totals' => self::totals($sectionRows), 'categories' => $categories];
+            $all = array_merge($all, $sectionRows);
+        }
+        return ['asOf' => $asOf, 'sections' => $out, 'totals' => self::totals($all), 'completed' => self::completed($all)];
     }
 }

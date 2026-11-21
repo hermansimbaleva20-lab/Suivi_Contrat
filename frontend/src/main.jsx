@@ -10,6 +10,9 @@ import './styles/prise-react.css';
 import './styles/prise-design.css';
 import './styles/tailwind.css';
 import './styles/theme-sombre.css';
+// Espace PREDIRE : le bleu de son logo (fichier généré par scripts/theme-predire.mjs, puis réglages à la main).
+import './styles/theme-predire.css';
+import './styles/theme-predire-signature.css';
 import App from './App.jsx';
 import { installPressFeedback } from './lib/pressFeedback.js';
 import { installTheme } from './lib/theme.js';

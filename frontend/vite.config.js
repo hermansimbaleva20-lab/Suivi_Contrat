@@ -30,6 +30,22 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), securityHeaders(env.VITE_API_URL || '')],
     server: { port: 5173 },
-    build: { sourcemap: false, chunkSizeWarningLimit: 900 },
+    build: {
+      sourcemap: false,
+      chunkSizeWarningLimit: 900,
+      // Fichiers JS de moins de 1 Mo : InfinityFree refuse les fichiers HTML, PHP et JS plus lourds.
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/, priority: 30 },
+              { name: 'graphiques', test: /node_modules[\\/](chart\.js|@kurkle)[\\/]/, priority: 20 },
+              { name: 'carte', test: /node_modules[\\/]leaflet[\\/]/, priority: 20 },
+              { name: 'bibliotheques', test: /node_modules[\\/]/, priority: 10 },
+            ],
+          },
+        },
+      },
+    },
   };
 });

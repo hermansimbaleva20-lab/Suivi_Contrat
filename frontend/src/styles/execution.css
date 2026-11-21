@@ -41,7 +41,10 @@
 .exe-observation { font-size: 11.5px; }
 
 .exe-band th { padding: 7px 10px; text-align: left; border-color: var(--line); }
-.exe-band-category th { font-family: var(--ff-title); font-size: 14px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--ink); background: var(--tint-green, #e3f2e8); }
+/* Composante (« A. DÉVELOPPEMENT DES INFRASTRUCTURES ; Coût : … UC »), puis sa catégorie, puis la province (16/11/2026). */
+.exe-band-component th { font-family: var(--ff-title); font-size: 14.5px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; color: var(--ink); background: var(--tint-green-strong, #cfe6d7); }
+.exe-band-cost { margin-left: 10px; font-family: var(--ff-text); font-weight: 700; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.exe-band-category th { font-family: var(--ff-title); font-size: 13.5px; font-weight: 700; letter-spacing: .01em; color: var(--ink); background: var(--tint-green, #e3f2e8); }
 .exe-band-province th { font-size: 13px; font-weight: 700; color: var(--ink); background: var(--tint-amber, #fff4d6); }
 .exe-band-figures { margin-left: 14px; font-family: var(--ff-text); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--prise-muted); }
 .exe-done { margin-left: 14px; font-size: 12px; font-weight: 600; color: var(--prise-muted); }
@@ -59,6 +62,7 @@
 .exe-print .exe-table thead th { position: static; font-size: 6.8pt; color: #12261d; background: #e8efeb; }
 .exe-print .exe-note, .exe-print .exe-muted, .exe-print .exe-note-inline, .exe-print .exe-band-figures, .exe-print .exe-done { color: #4b6357; }
 .exe-print .exe-note, .exe-print .exe-observation { font-size: inherit; }
+.exe-print .exe-band-component th { font-size: 8.8pt; color: #12261d; background: #c6e2d0; }
 .exe-print .exe-band-category th { font-size: 8.4pt; color: #12261d; background: #dcefe3; }
 .exe-print .exe-band-province th { font-size: 7.8pt; color: #12261d; background: #fdf0c8; }
 .exe-print .exe-band-figures, .exe-print .exe-done { font-size: 7pt; }

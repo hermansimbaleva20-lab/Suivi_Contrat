@@ -8,7 +8,6 @@ use App\Models\StockArticle;
 use App\Models\StockMovement;
 use App\Support\Ctx;
 use App\Support\Dates;
-use App\Support\DeletionReason;
 use App\Support\GoodsProcedure;
 use App\Support\StockImport;
 use App\Support\StockLedger;
@@ -44,10 +43,13 @@ class StockController extends Controller
         return Ctx::can('can_manage_stock') && $this->ownerUnitId() && Ctx::canWriteUnit($this->ownerUnitId());
     }
 
-    /** Modifier un article : seulement ceux de son unité. */
+    /**
+     * Modifier, désactiver ou supprimer un article : habilitation « Modifier ou supprimer les articles », accordée par le
+     * super-admin (décision du 16/11/2026), en plus de la gestion du stock ; seulement les articles de son unité.
+     */
     private function canEditArticle(StockArticle $a): bool
     {
-        return Ctx::can('can_manage_stock') && Ctx::canWriteUnit((int) $a->organizational_unit_id);
+        return Ctx::can('can_manage_stock') && Ctx::can('can_edit_stock_articles') && Ctx::canWriteUnit((int) $a->organizational_unit_id);
     }
 
     private function needCatalog(): void
@@ -57,6 +59,7 @@ class StockController extends Controller
 
     private function needEdit(StockArticle $a): void
     {
+        abort_unless(Ctx::can('can_manage_stock') && Ctx::can('can_edit_stock_articles'), 403, 'Modifier ou supprimer un article demande l’habilitation « Modifier ou supprimer les articles », accordée par le super-administrateur.');
         abort_unless($this->canEditArticle($a), 403, 'Cet article appartient à une autre unité que la vôtre.');
     }
 
@@ -665,27 +668,24 @@ class StockController extends Controller
     }
 
     /**
-     * Un article se supprime toujours (décision du 08/11/2026). S'il a des mouvements, ils sont supprimés avec lui, sur motif
-     * obligatoire ; l'article et toutes ses lignes restent dans le journal d'audit (valeurs « avant »).
+     * Seul un article sans mouvement se supprime (décision du 16/11/2026, qui remplace celle du 08/11/2026) : avec des entrées
+     * ou des sorties, sa fiche de stock et les rapports passés en dépendent ; il se désactive à la place. La suppression reste
+     * dans le journal d'audit (valeurs « avant »).
      */
     public function destroyArticle(Request $r, int $id)
     {
         $a = $this->articleOr404($id);
         $this->needEdit($a);
-        $reason = DeletionReason::from($r, StockMovement::where('stock_article_id', $a->id)->exists());
 
-        return DB::transaction(function () use ($a, $id, $reason) {
-            $a = StockArticle::where('id', $a->id)->lockForUpdate()->first();
-            $moves = StockMovement::where('stock_article_id', $id)->orderBy('organizational_unit_id')->orderBy('operation_no')->get();
-            abort_if($moves->isNotEmpty() && $reason === null, 422, 'Des mouvements viennent d’être enregistrés sur cet article : indiquez le motif de la suppression.');
-            $before = self::snapshot($a) + ['mouvements' => $moves->map(fn ($m) => collect($m->getAttributes())->except(['updated_at'])->all())->all()];
-            StockMovement::where('stock_article_id', $id)->delete();
+        return DB::transaction(function () use ($id) {
+            $a = StockArticle::where('id', $id)->lockForUpdate()->first();
+            $n = StockMovement::where('stock_article_id', $id)->count();
+            abort_if($n > 0, 422, "Cet article a {$n} mouvement(s) de stock : il ne peut pas être supprimé sans fausser sa fiche et les rapports. Désactivez-le : il restera dans l’historique mais n’acceptera plus de mouvement.");
+            $before = self::snapshot($a);
             $a->delete();
-            $n = $moves->count();
-            $what = $n ? " avec ses {$n} mouvement(s) de stock" : '';
-            Ctx::auditChange('SUPPRESSION', 'StockArticle', $id, "Article « {$before['designation']} » supprimé du catalogue{$what}." . ($reason ? " Motif : {$reason}" : ''), $before, null);
+            Ctx::auditChange('SUPPRESSION', 'StockArticle', $id, "Article « {$before['designation']} » supprimé du catalogue.", $before, null);
 
-            return ['message' => $n ? "Article supprimé avec ses {$n} mouvement(s) de stock. Ils restent consultables dans le journal d’audit." : 'Article supprimé.'];
+            return ['message' => 'Article supprimé.'];
         });
     }
 }

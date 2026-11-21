@@ -139,8 +139,8 @@ export function Login() {
           <button type="submit" className="btn btn-primary w-100" disabled={busy}>{busy ? <><span className="spinner-border spinner-border-sm" aria-hidden="true" />CONNEXION…</> : 'SE CONNECTER'}</button>
         </form>
         <div className="d-flex justify-content-between mt-4 pt-3 border-top">
-          <Link to="/forgot-password" style={{ color: '#087a3f', fontWeight: 750 }}>Mot de passe oublié ?</Link>
-          <Link to="/register" style={{ color: '#087a3f', fontWeight: 750 }}>Demander un accès</Link>
+          <Link to="/forgot-password" className="auth-link">Mot de passe oublié ?</Link>
+          <Link to="/register" className="auth-link">Demander un accès</Link>
         </div>
       </section>
     </AuthPage>
@@ -215,7 +215,7 @@ export function Register() {
             )}
             {options.positions.length > 0 ? (
               <div className="col-md-6">
-                <span className="form-label d-block" id="reg-position-label">Poste dans le projet</span>
+                <span className="form-label d-block is-required" id="reg-position-label">Poste dans le projet</span>
                 {/* Seuls les postes prévus pour l'unité choisie (et les postes communs à toutes les unités) sont proposés ;
                     leur description s'affiche au survol de l'intitulé. */}
                 <PositionPicker positions={unitPositions} value={f.position_id} onChange={(v) => { set('position_id')(v); if (missingPosition) { setMissingPosition(false); setError(''); } }} invalid={missingPosition}
@@ -228,7 +228,7 @@ export function Register() {
           <PasswordField label="Confirmation" value={f.password_confirmation} onChange={set('password_confirmation')} autoComplete="new-password" />
           <button type="submit" className="btn btn-primary w-100" disabled={busy}>{busy ? <><span className="spinner-border spinner-border-sm" aria-hidden="true" />ENVOI…</> : 'ENVOYER MA DEMANDE'}</button>
         </form>
-        <div className="text-center mt-4 pt-3 border-top"><Link to="/login" style={{ color: '#087a3f', fontWeight: 750 }}>← Retour à la connexion</Link></div>
+        <div className="text-center mt-4 pt-3 border-top"><Link to="/login" className="auth-link">← Retour à la connexion</Link></div>
       </section>
     </AuthPage>
   );
@@ -267,7 +267,7 @@ export function ForgotPassword() {
             <button type="submit" className="btn btn-primary w-100" disabled={busy}>ENVOYER LE LIEN</button>
           </form>
         )}
-        <div className="text-center mt-4 pt-3 border-top"><Link to="/login" style={{ color: '#087a3f', fontWeight: 750 }}>← Retour à la connexion</Link></div>
+        <div className="text-center mt-4 pt-3 border-top"><Link to="/login" className="auth-link">← Retour à la connexion</Link></div>
       </section>
     </AuthPage>
   );
@@ -321,7 +321,7 @@ export function ResetPassword() {
             <button type="submit" className="btn btn-primary w-100" disabled={busy || valid === null}>ENREGISTRER LE MOT DE PASSE</button>
           </form>
         )}
-        <div className="text-center mt-4 pt-3 border-top"><Link to="/login" style={{ color: '#087a3f', fontWeight: 750 }}>← Retour à la connexion</Link></div>
+        <div className="text-center mt-4 pt-3 border-top"><Link to="/login" className="auth-link">← Retour à la connexion</Link></div>
       </section>
     </div>
   );

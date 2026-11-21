@@ -11,15 +11,21 @@ import { PrintLetterhead } from '../shared/PrintLetterhead.jsx';
 import '../../styles/execution.css';
 
 /*
- * Rapports & suivi › État d'exécution (décision du 10/11/2026) : la matrice du projet « État d'exécution des travaux,
- * activités et prestations », arrêtée à une date. Par catégorie puis par province (avec les ouvrages terminés), chaque
- * contrat sur une ligne, puis chacun de ses sites : situation actuelle et taux de réalisation. Même contenu à l'écran,
- * à l'impression (A4 paysage) et dans l'export Excel. Adaptée aux données de l'application : ni composante, ni budget en
- * UC, ni performance environnementale et sociale.
+ * Rapports & suivi › État d'exécution (décisions du 10 et du 16/11/2026) : la matrice du projet « État d'exécution des
+ * travaux, activités et prestations », arrêtée à une date. Par composante (avec son coût en UC), puis par catégorie de la
+ * composante (avec son coût), puis par province (avec les ouvrages terminés) ; les contrats d'une même activité sont regroupés
+ * sous la cellule « Composantes » (activité et budget en UC), chaque contrat sur une ligne puis chacun de ses sites. Même
+ * contenu à l'écran, à l'impression (A4 paysage) et dans l'export Excel.
  */
 
 const pct = (v) => `${num(v, 1)} %`;
+const uc = (v) => `${num(v)} UC`;
 const late = (r) => r.progress < 100 && r.elapsed - r.progress >= 0.5 && r.status !== 'Résilié';
+
+/** Chiffres d'un bandeau (composante ou catégorie) : contrats, coût en USD, réalisation physique et paiement. */
+function Figures({ t }) {
+  return <span className="exe-band-figures">{t.contracts} contrat{t.contracts > 1 ? 's' : ''} · coût {money(t.amount)} USD · réalisation physique {pct(t.progress)} · paiement {pct(t.paymentRate)}</span>;
+}
 
 function Completed({ list }) {
   if (!list.length) return <span className="exe-done is-none">Aucun ouvrage terminé</span>;
@@ -32,8 +38,8 @@ function Completed({ list }) {
 }
 
 /**
- * Un contrat : sa ligne, puis une ligne par site (les colonnes du contrat couvrent ses sites). group : la composante,
- * dont les cellules « Composantes » et « Budget » couvrent tous ses contrats (posées sur le premier).
+ * Un contrat : sa ligne, puis une ligne par site (les colonnes du contrat couvrent ses sites). group : l'activité de la
+ * composante, dont les cellules « Composantes » et « Budget » couvrent tous ses contrats (posées sur le premier).
  */
 function ContractRows({ r, printing, group }) {
   const span = 1 + r.sites.length;
@@ -85,7 +91,7 @@ function ContractRows({ r, printing, group }) {
   );
 }
 
-/** Contrats d'une province, groupés par composante comme dans la matrice du projet. */
+/** Contrats d'une province, groupés par activité de la composante comme dans la matrice du projet. */
 function ProvinceRows({ p, printing }) {
   const byId = Object.fromEntries(p.rows.map((r) => [r.id, r]));
   return (
@@ -109,24 +115,41 @@ function Matrix({ d, printing }) {
           <th scope="col">Taux de réalisation physique</th><th scope="col">Engagement</th><th scope="col">Paiement</th><th scope="col">Taux de paiement</th><th scope="col">Observations</th>
         </tr>
       </thead>
-      {d.categories.map((cat) => (
-        <React.Fragment key={cat.category}>
-          <tbody className="exe-band-group">
-            <tr className="exe-band exe-band-category">
-              <th colSpan={13} scope="colgroup">
-                {cat.label}
-                <span className="exe-band-figures">{cat.totals.contracts} contrat{cat.totals.contracts > 1 ? 's' : ''} · coût {money(cat.totals.amount)} USD · réalisation physique {pct(cat.totals.progress)} · paiement {pct(cat.totals.paymentRate)}</span>
-              </th>
-            </tr>
-          </tbody>
-          {cat.provinces.map((p) => (
-            <React.Fragment key={p.province}>
+      {d.sections.map((s) => (
+        <React.Fragment key={s.id ?? 'sans'}>
+          {/* Bandeau de la composante ; les contrats sans composante n'en ont que s'il y a aussi des composantes. */}
+          {(s.id !== null || d.sections.length > 1) && (
+            <tbody className="exe-band-group">
+              <tr className="exe-band exe-band-component">
+                <th colSpan={13} scope="colgroup">
+                  {s.id !== null ? s.name : 'Contrats non rattachés à une composante'}
+                  {s.total !== null && s.total !== undefined && <span className="exe-band-cost">; Coût : {uc(s.total)}</span>}
+                  <Figures t={s.totals} />
+                </th>
+              </tr>
+            </tbody>
+          )}
+          {s.categories.map((cat) => (
+            <React.Fragment key={cat.category}>
               <tbody className="exe-band-group">
-                <tr className="exe-band exe-band-province">
-                  <th colSpan={13} scope="colgroup">Province {p.province}<Completed list={p.completed} /></th>
+                <tr className="exe-band exe-band-category">
+                  <th colSpan={13} scope="colgroup">
+                    {cat.label}
+                    {cat.cost !== null && cat.cost !== undefined && <span className="exe-band-cost">; Coût : {uc(cat.cost)}</span>}
+                    <Figures t={cat.totals} />
+                  </th>
                 </tr>
               </tbody>
-              <ProvinceRows p={p} printing={printing} />
+              {cat.provinces.map((p) => (
+                <React.Fragment key={p.province}>
+                  <tbody className="exe-band-group">
+                    <tr className="exe-band exe-band-province">
+                      <th colSpan={13} scope="colgroup">Province {p.province}<Completed list={p.completed} /></th>
+                    </tr>
+                  </tbody>
+                  <ProvinceRows p={p} printing={printing} />
+                </React.Fragment>
+              ))}
             </React.Fragment>
           ))}
         </React.Fragment>
@@ -150,7 +173,7 @@ export default function ExecutionPage() {
   const [date, setDate] = useState(today);
   const [msg, setMsg] = useState('');
   const { data: d, loading, error } = useLoad('/reports/execution', { date });
-  const hasRows = d && d.categories.length > 0;
+  const hasRows = d && d.sections.length > 0;
 
   // Nom proposé par le navigateur à l'enregistrement en PDF.
   const docName = d ? `État d’exécution ${d.project} au ${d.longDate}` : null;
@@ -170,7 +193,7 @@ export default function ExecutionPage() {
     <>
       <ModuleHeader
         icon="table" title="État d’exécution"
-        desc="Matrice d’exécution des travaux, activités et prestations à une date : chaque contrat, puis chacun de ses sites, par catégorie et par province."
+        desc="Matrice d’exécution des travaux, activités et prestations à une date : par composante, catégorie et province, chaque contrat regroupé sous son activité, puis chacun de ses sites."
         actions={(
           <>
             <Link to="/reports" className={btnGhost}><i className="bi bi-arrow-left" aria-hidden="true" />Rapport de suivi</Link>

@@ -1,0 +1,320 @@
+/*
+ * PREDIRE — « turquoise professionnel, lumière holographique » (décision du 20/11/2026 ; bleu océan du 18/11 auparavant),
+ * chargé après theme-predire.css (généré, même teinte : scripts/theme-predire.mjs, TARGET_HUE 182).
+ * Le logo PREDIRE est une goutte d'eau au-dessus de vagues vert profond (#0d6533) : l'espace PREDIRE prend un turquoise sobre
+ * et profond, entre l'eau et la végétation, et son fond une lumière d'eau irisée (turquoise, cyan, aigue-marine, une touche du
+ * vert du logo) avec les ondes d'une goutte et les vagues du logo, en filigrane.
+ * Comme dans PRISE, l'holographie reste un arrière-plan : les données sont sur des surfaces pleines. Les couleurs de statut
+ * (Normal, Vigilance, Retard, succès) gardent leur sens et ne changent pas. Fonds et reflets sous @media screen : l'impression
+ * reste blanche.
+ *
+ * Contrastes mesurés (WCAG) — clair : #0b7377 (texte, boutons) 5,6:1 sur blanc, #08595d 8,1:1, titres #073b3e 12,3:1,
+ * texte du menu 13,7:1 ; sombre : --ink 16:1, --ink-soft 11,8:1, --prise-muted 8,4:1, accent #4fe0d2 10,8:1,
+ * contour des champs 3,6:1.
+ */
+
+/* ================================================================== Jetons — thème clair */
+html[data-project="predire"]:not([data-theme="dark"]) {
+  --predire-abyss: #032a2c;
+  --predire-ocean: #063d40;
+  --predire-deep: #08595d;
+  --predire-strong: #0b7377;
+  --predire-turquoise: #14a6a0;
+  --predire-sky: #7ee0d6;
+  --predire-mist: #e0f5f3;
+  --predire-foam: #f0f8f8;
+  --holo-cyan: #26c6da;
+  --holo-periwinkle: #7cc8f5;
+  --holo-aqua: #4fd9c6;
+  --holo-leaf: #2fae68;
+
+  --prise-green: var(--predire-deep);
+  --prise-green-2: var(--predire-strong);
+  --prise-green-soft: var(--predire-mist);
+  --prise-blue: #073b3e;
+  --prise-muted: #4d6a6c;
+  --canvas: var(--predire-foam);
+  --surface-sunk: #f3f9f9;
+  --line: #d3e6e5;
+  --line-soft: #e4efee;
+  --ink: #0c2527;
+  --ink-soft: #3d595b;
+  --shadow-card: 0 1px 2px rgba(4, 48, 50, .06), 0 10px 26px -14px rgba(4, 48, 50, .24);
+  --shadow-raise: 0 2px 4px rgba(4, 48, 50, .07), 0 18px 36px -16px rgba(4, 48, 50, .3);
+  --bs-link-color: var(--predire-strong);
+  --bs-link-color-rgb: 11, 115, 119;
+  --bs-link-hover-color: var(--predire-deep);
+  --bs-link-hover-color-rgb: 8, 89, 93;
+
+  --tw-color-prise-green: var(--predire-deep);
+  --tw-color-prise-green-2: var(--predire-strong);
+  --tw-color-prise-green-soft: var(--predire-mist);
+  --tw-color-prise-blue: #073b3e;
+  --tw-color-prise-bg: var(--predire-foam);
+  --tw-color-prise-border: #d3e6e5;
+  --tw-color-prise-muted: #4d6a6c;
+}
+
+/* ================================================================== Jetons — thème sombre (turquoise de nuit) */
+@media screen {
+  html[data-project="predire"][data-theme="dark"] {
+    --holo-cyan: #26c6da;
+    --holo-periwinkle: #7cc8f5;
+    --holo-aqua: #4fd9c6;
+    --canvas: #071413;
+    --surface: #0d1c1d;
+    --surface-sunk: #122627;
+    --surface-hover: #183133;
+    --field: #0a1717;
+    --field-border: #587776;
+    --line: #1f3536;
+    --line-soft: #182c2d;
+    --line-strong: #2f4a4b;
+    --ink: #eff7f6;
+    --ink-soft: #c4d8d6;
+    --accent: #4fe0d2;
+    --accent-strong: #93efe6;
+    --tint-neutral: #152a2b;
+    --tint-blue: #112b2c;
+    --text-neutral: #c4d8d6;
+    --predire-tint: #0d2e2f;
+    --predire-tint-strong: #11393a;
+    --predire-line: #1f5b5c;
+    --predire-text: #93efe6;
+    --shadow-card: inset 0 1px 0 rgba(147, 239, 230, .05), 0 1px 2px rgba(0, 0, 0, .45), 0 12px 28px -16px rgba(0, 0, 0, .85);
+    --shadow-raise: inset 0 1px 0 rgba(147, 239, 230, .07), 0 2px 4px rgba(0, 0, 0, .5), 0 20px 38px -16px rgba(0, 0, 0, .9);
+
+    --prise-bg: var(--canvas);
+    --prise-surface: var(--surface);
+    --prise-border: var(--line);
+    --prise-text: var(--ink);
+    --prise-muted: #a0b9b7;
+    --prise-blue: #ecf6f5;
+
+    --bs-body-bg: var(--surface);
+    --bs-body-bg-rgb: 13, 28, 29;
+    --bs-body-color: var(--ink);
+    --bs-body-color-rgb: 239, 247, 246;
+    --bs-emphasis-color: #f7fbfb;
+    --bs-secondary-color: var(--ink-soft);
+    --bs-secondary-color-rgb: 196, 216, 214;
+    --bs-secondary-bg: var(--surface-sunk);
+    --bs-secondary-bg-rgb: 18, 38, 39;
+    --bs-tertiary-bg: var(--surface-sunk);
+    --bs-tertiary-bg-rgb: 18, 38, 39;
+    --bs-tertiary-color: var(--prise-muted);
+    --bs-border-color: var(--line);
+    --bs-border-color-translucent: rgba(239, 247, 246, .12);
+    --bs-link-color: var(--accent);
+    --bs-link-color-rgb: 79, 224, 210;
+    --bs-link-hover-color: var(--accent-strong);
+    --bs-link-hover-color-rgb: 147, 239, 230;
+    --bs-light-rgb: 24, 49, 51;
+    --bs-dark-rgb: 239, 247, 246;
+    --bs-secondary-rgb: 196, 216, 214;
+    --bs-primary-rgb: 79, 224, 210;
+    --bs-info-rgb: 147, 239, 230;
+    --bs-secondary-bg-subtle: var(--tint-neutral);
+    --bs-light-bg-subtle: var(--tint-neutral);
+
+    --tw-color-prise-bg: var(--canvas);
+    --tw-color-prise-border: var(--line);
+    --tw-color-prise-text: var(--ink);
+    --tw-color-prise-muted: #a0b9b7;
+    --tw-color-prise-blue: #ecf6f5;
+    --tw-color-slate-100: var(--tint-neutral);
+    --tw-color-slate-600: #bfd3d1;
+    --tw-color-slate-700: #d3e4e2;
+
+    --chart-grid: #1c3233;
+    --chart-axis: #2a4546;
+    --chart-tick: #a0b9b7;
+    --chart-label: #e8f3f2;
+    --chart-legend: #bfd3d1;
+    --chart-value: #d3e4e2;
+    --chart-tooltip: #030a0a;
+  }
+}
+
+/* ================================================================== Fond holographique du contenu */
+/*
+ * Lumière d'eau : halos cyan et bleu-cyan pâle en haut à droite, aigue-marine et vert du logo en bas à gauche, une lame irisée
+ * en biais ; en filigrane, les ondes d'une goutte (en haut à droite) et les vagues du logo (en bas à gauche), tracées d'un
+ * dégradé irisé. Derrière les cartes seulement.
+ */
+@media screen {
+  html[data-project="predire"]:not([data-theme="dark"]) body,
+  html[data-project="predire"]:not([data-theme="dark"]) body .app-shell { background: var(--predire-foam) !important; }
+  html[data-project="predire"]:not([data-theme="dark"]) body .content {
+    background-color: var(--predire-foam) !important;
+    background-image:
+      radial-gradient(circle at 94% 6%, rgba(255, 255, 255, .75) 0, rgba(124, 200, 245, .2) 16rem, rgba(38, 198, 218, .18) 24rem, rgba(79, 217, 198, .12) 32rem, rgba(47, 174, 104, .05) 38rem, transparent 46rem),
+      radial-gradient(54rem 34rem at 102% -6%, rgba(38, 198, 218, .26), transparent 66%),
+      radial-gradient(38rem 26rem at 74% 16%, rgba(124, 200, 245, .16), transparent 70%),
+      radial-gradient(46rem 30rem at -6% 106%, rgba(79, 217, 198, .2), transparent 68%),
+      radial-gradient(30rem 22rem at 24% 104%, rgba(47, 174, 104, .08), transparent 72%),
+      linear-gradient(116deg, transparent 34%, rgba(124, 200, 245, .1) 44%, rgba(38, 198, 218, .15) 50%, rgba(79, 217, 198, .1) 56%, transparent 66%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='980' height='560' viewBox='0 0 980 560' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='h' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2326c6da'/%3E%3Cstop offset='.45' stop-color='%237cc8f5'/%3E%3Cstop offset='.78' stop-color='%234fd9c6'/%3E%3Cstop offset='1' stop-color='%232fae68'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg stroke='url(%23h)' stroke-width='1.3'%3E%3Cellipse cx='700' cy='170' rx='64' ry='26' stroke-opacity='.55'/%3E%3Cellipse cx='700' cy='170' rx='136' ry='56' stroke-opacity='.42'/%3E%3Cellipse cx='700' cy='170' rx='220' ry='92' stroke-opacity='.3'/%3E%3Cellipse cx='700' cy='170' rx='316' ry='134' stroke-opacity='.2'/%3E%3Cellipse cx='700' cy='170' rx='424' ry='182' stroke-opacity='.12'/%3E%3C/g%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='200' viewBox='0 0 720 200' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='w' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%234fd9c6' stop-opacity='0'/%3E%3Cstop offset='.18' stop-color='%234fd9c6'/%3E%3Cstop offset='.55' stop-color='%2326c6da'/%3E%3Cstop offset='.8' stop-color='%232fae68' stop-opacity='.7'/%3E%3Cstop offset='1' stop-color='%232fae68' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg stroke='url(%23w)' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M0 70c60-34 120-34 180 0s120 34 180 0 120-34 180 0 120 34 180 0' stroke-opacity='.4'/%3E%3Cpath d='M0 112c60-34 120-34 180 0s120 34 180 0 120-34 180 0 120 34 180 0' stroke-opacity='.28'/%3E%3Cpath d='M0 154c60-34 120-34 180 0s120 34 180 0 120-34 180 0 120 34 180 0' stroke-opacity='.16'/%3E%3C/g%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, right -170px top -40px, left -60px bottom 10px !important;
+  }
+
+  html[data-project="predire"][data-theme="dark"] body,
+  html[data-project="predire"][data-theme="dark"] body .app-shell { background: var(--canvas) !important; }
+  html[data-project="predire"][data-theme="dark"] body .content {
+    background-color: var(--canvas) !important;
+    background-image:
+      radial-gradient(circle at 94% 6%, rgba(124, 200, 245, .12) 0, rgba(38, 198, 218, .1) 18rem, rgba(79, 217, 198, .07) 28rem, rgba(47, 174, 104, .03) 36rem, transparent 44rem),
+      radial-gradient(54rem 34rem at 102% -6%, rgba(38, 198, 218, .13), transparent 66%),
+      radial-gradient(38rem 26rem at 74% 16%, rgba(124, 200, 245, .09), transparent 70%),
+      radial-gradient(46rem 30rem at -6% 106%, rgba(79, 217, 198, .09), transparent 68%),
+      radial-gradient(30rem 22rem at 24% 104%, rgba(47, 174, 104, .05), transparent 72%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='980' height='560' viewBox='0 0 980 560' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='h' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2326c6da'/%3E%3Cstop offset='.45' stop-color='%237cc8f5'/%3E%3Cstop offset='.78' stop-color='%234fd9c6'/%3E%3Cstop offset='1' stop-color='%232fae68'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg stroke='url(%23h)' stroke-width='1.3' opacity='.5'%3E%3Cellipse cx='700' cy='170' rx='64' ry='26' stroke-opacity='.55'/%3E%3Cellipse cx='700' cy='170' rx='136' ry='56' stroke-opacity='.42'/%3E%3Cellipse cx='700' cy='170' rx='220' ry='92' stroke-opacity='.3'/%3E%3Cellipse cx='700' cy='170' rx='316' ry='134' stroke-opacity='.2'/%3E%3Cellipse cx='700' cy='170' rx='424' ry='182' stroke-opacity='.12'/%3E%3C/g%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='200' viewBox='0 0 720 200' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='w' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%234fd9c6' stop-opacity='0'/%3E%3Cstop offset='.18' stop-color='%234fd9c6'/%3E%3Cstop offset='.55' stop-color='%2326c6da'/%3E%3Cstop offset='.8' stop-color='%232fae68' stop-opacity='.7'/%3E%3Cstop offset='1' stop-color='%232fae68' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg stroke='url(%23w)' stroke-width='1.5' stroke-linecap='round' opacity='.45'%3E%3Cpath d='M0 70c60-34 120-34 180 0s120 34 180 0 120-34 180 0 120 34 180 0' stroke-opacity='.4'/%3E%3Cpath d='M0 112c60-34 120-34 180 0s120 34 180 0 120-34 180 0 120 34 180 0' stroke-opacity='.28'/%3E%3Cpath d='M0 154c60-34 120-34 180 0s120 34 180 0 120-34 180 0 120 34 180 0' stroke-opacity='.16'/%3E%3C/g%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, right -170px top -40px, left -60px bottom 10px !important;
+  }
+}
+
+/* ================================================================== Menu latéral : turquoise profond, quadrillage et lueur */
+/* Modèle du 19/11/2026 (prise-design.css) : vignette, quadrillage carré en filets turquoise, lueur centrale, fond turquoise profond. */
+html[data-project="predire"] body .sidebar {
+  background:
+    radial-gradient(130% 90% at 50% 42%, transparent 52%, rgba(1, 18, 18, .5) 100%),
+    linear-gradient(90deg, rgba(126, 224, 214, .09) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(rgba(126, 224, 214, .09) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(85% 42% at 50% 42%, rgba(38, 198, 218, .32), transparent 72%),
+    linear-gradient(180deg, #042a2c 0%, #07474a 50%, #053335 100%) !important;
+  box-shadow: inset -1px 0 0 rgba(126, 224, 214, .2), 8px 0 28px -18px rgba(1, 24, 25, .55) !important;
+}
+@media screen {
+  html[data-project="predire"][data-theme="dark"] body .sidebar {
+    background:
+      radial-gradient(130% 90% at 50% 42%, transparent 50%, rgba(0, 8, 8, .55) 100%),
+      linear-gradient(90deg, rgba(126, 224, 214, .06) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(rgba(126, 224, 214, .06) 1px, transparent 1px) 0 0 / 32px 32px,
+      radial-gradient(85% 42% at 50% 42%, rgba(38, 198, 218, .17), transparent 72%),
+      linear-gradient(180deg, #031a1b 0%, #052e2f 50%, #042122 100%) !important;
+    box-shadow: inset -1px 0 0 rgba(126, 224, 214, .12), 8px 0 28px -18px rgba(0, 0, 0, .7) !important;
+  }
+  html[data-project="predire"][data-theme="dark"] body .prise-mobile-nav { background-color: #041e1f; }
+}
+html[data-project="predire"] body .sidebar .brand-title { color: rgba(190, 238, 232, .84) !important; }
+html[data-project="predire"] body .sidebar .nav-section,
+html[data-project="predire"] body .sidebar .nav-section span { color: #8fe3da !important; }
+html[data-project="predire"] body .sidebar .nav-section::after,
+html[data-project="predire"] body .sidebar .nav-section span::after { background: rgba(143, 227, 218, .22) !important; }
+html[data-project="predire"] body .sidebar .side-nav .nav-link { color: rgba(230, 247, 246, .92) !important; }
+html[data-project="predire"] body .sidebar .side-nav .nav-link:hover { background: rgba(126, 224, 214, .1) !important; color: #fff !important; }
+html[data-project="predire"] body .sidebar .side-nav.has-marker .nav-link.active > .bi:first-child { color: #9ff0e6; }
+html[data-project="predire"] body .sidebar .nav-subnav::before { background: rgba(126, 224, 214, .28); }
+html[data-project="predire"] body .sidebar .phase-switcher,
+html[data-project="predire"] body .sidebar .sidebar-user { background: rgba(126, 224, 214, .08) !important; border-color: rgba(126, 224, 214, .2) !important; }
+html[data-project="predire"] body .sidebar .sidebar-user .meta-unit { color: #9ff0e6 !important; }
+
+/* Repère de l'option active : verre turquoise, trait turquoise lumineux. */
+html[data-project="predire"] .nav-marker {
+  background: linear-gradient(90deg, rgba(38, 198, 218, .32), rgba(124, 200, 245, .13) 72%, rgba(255, 255, 255, .04));
+  box-shadow: inset 0 0 0 1px rgba(126, 224, 214, .42), 0 6px 18px -10px rgba(1, 22, 23, .7);
+}
+html[data-project="predire"] .nav-marker::before { background: #7ff0e3; box-shadow: 0 0 12px rgba(38, 198, 218, .75); }
+
+/* ================================================================== En-tête et indicateurs : filets irisés */
+html[data-project="predire"] body .topbar::after {
+  height: 2px !important;
+  background: linear-gradient(90deg, transparent 0%, #26c6da 20%, #7cc8f5 46%, #4fd9c6 70%, #2fae68 88%, transparent 100%) !important;
+  opacity: .85 !important;
+}
+html[data-project="predire"]:not([data-theme="dark"]) body .topbar { box-shadow: 0 6px 18px -14px rgba(4, 48, 50, .3) !important; }
+@media screen {
+  html[data-project="predire"][data-theme="dark"] body .topbar,
+  html[data-project="predire"][data-theme="dark"] body .mobile-utility-strip { background: rgba(8, 22, 22, .95) !important; border-bottom-color: var(--line) !important; }
+}
+html[data-project="predire"] body .kpi::before { background: linear-gradient(90deg, #26c6da, #7cc8f5, #4fd9c6) !important; opacity: .75; }
+html[data-project="predire"]:not([data-theme="dark"]) body .kpi:hover { border-color: #b3e2dd !important; }
+html[data-project="predire"]:not([data-theme="dark"]) body .kpi .label::before { background: var(--predire-strong); }
+
+/* ================================================================== Commandes — thème clair */
+html[data-project="predire"]:not([data-theme="dark"]) body .btn-primary {
+  background: linear-gradient(135deg, #0a6a6e, #0c8084) !important;
+  border-color: #0a6a6e !important;
+  box-shadow: 0 1px 2px rgba(3, 40, 42, .2), 0 6px 16px -8px rgba(11, 115, 119, .6) !important;
+}
+html[data-project="predire"]:not([data-theme="dark"]) body .btn-primary:hover,
+html[data-project="predire"]:not([data-theme="dark"]) body .btn-primary:focus-visible { background: linear-gradient(135deg, #08595d, #0b7377) !important; border-color: #08595d !important; }
+html[data-project="predire"]:not([data-theme="dark"]) body .btn-primary:active { background: #063d40 !important; border-color: #063d40 !important; }
+html[data-project="predire"]:not([data-theme="dark"]) body .btn-outline-primary { color: var(--predire-strong); border-color: #93d3cc; background: #fff; --bs-btn-active-bg: var(--predire-strong); --bs-btn-active-border-color: var(--predire-strong); }
+html[data-project="predire"]:not([data-theme="dark"]) body .btn-outline-primary:hover { background: var(--predire-mist); color: var(--predire-deep); border-color: var(--predire-strong); }
+html[data-project="predire"]:not([data-theme="dark"]) body .form-control:hover,
+html[data-project="predire"]:not([data-theme="dark"]) body .form-select:hover { border-color: #a3d2cc; }
+html[data-project="predire"]:not([data-theme="dark"]) body .form-control:focus,
+html[data-project="predire"]:not([data-theme="dark"]) body .form-select:focus { border-color: #119f9a; box-shadow: 0 0 0 3px rgba(17, 159, 154, .18); }
+html[data-project="predire"]:not([data-theme="dark"]) :focus-visible { outline-color: #119f9a; }
+html[data-project="predire"]:not([data-theme="dark"]) ::selection { background: #c9efea; color: #053b3c; }
+html[data-project="predire"]:not([data-theme="dark"]) { caret-color: var(--predire-strong); }
+html[data-project="predire"]:not([data-theme="dark"]) .form-check-input:checked { background-color: var(--predire-strong); border-color: var(--predire-strong); }
+html[data-project="predire"]:not([data-theme="dark"]) .contract-link { color: var(--predire-strong); }
+html[data-project="predire"]:not([data-theme="dark"]) .form-section { color: var(--predire-deep); }
+
+/* Pastille de la phase (en-tête et bandeau mobile). */
+html[data-project="predire"]:not([data-theme="dark"]) .phase-pill-select,
+html[data-project="predire"]:not([data-theme="dark"]) body .mobile-utility-strip .mobile-phase-select { background-color: var(--predire-mist) !important; border-color: #ade3dc !important; color: var(--predire-deep) !important; }
+html[data-project="predire"]:not([data-theme="dark"]) .phase-pill-select:hover { background-color: #cdeee9 !important; }
+html[data-project="predire"]:not([data-theme="dark"]) .phase-pill-icon,
+html[data-project="predire"]:not([data-theme="dark"]) body .mobile-utility-strip .phase-pill-icon { color: var(--predire-strong) !important; }
+
+/* Onglets des modules (Stock, Charroi, Groupes) : trait et fond de l'onglet choisi en turquoise. */
+html[data-project="predire"]:not([data-theme="dark"]) .module-tab.is-active .bi { color: var(--predire-strong); }
+html[data-project="predire"]:not([data-theme="dark"]) .module-tab-marker { background: linear-gradient(180deg, rgba(11, 115, 119, 0), rgba(11, 115, 119, .08)); }
+html[data-project="predire"]:not([data-theme="dark"]) .module-tab-marker::after { background: var(--predire-strong); }
+
+/* ================================================================== Commandes et détails — thème sombre */
+@media screen {
+  html[data-project="predire"][data-theme="dark"] ::selection { background: #1b5a58; color: #effbfa; }
+  html[data-project="predire"][data-theme="dark"] * { scrollbar-color: #2f4a4b transparent; }
+  html[data-project="predire"][data-theme="dark"] *::-webkit-scrollbar-thumb { background: #2f4a4b; }
+  html[data-project="predire"][data-theme="dark"] .phase-pill-select,
+  html[data-project="predire"][data-theme="dark"] body .mobile-utility-strip .mobile-phase-select { background-color: var(--predire-tint) !important; border-color: var(--predire-line) !important; color: var(--predire-text) !important; }
+  html[data-project="predire"][data-theme="dark"] .phase-pill-select:hover { background-color: var(--predire-tint-strong) !important; }
+  html[data-project="predire"][data-theme="dark"] .phase-pill-icon,
+  html[data-project="predire"][data-theme="dark"] body .mobile-utility-strip .phase-pill-icon { color: var(--accent) !important; }
+  html[data-project="predire"][data-theme="dark"] .form-section,
+  html[data-project="predire"][data-theme="dark"] .page-kicker,
+  html[data-project="predire"][data-theme="dark"] .theme-option.is-active,
+  html[data-project="predire"][data-theme="dark"] .module-tab.is-active .bi,
+  html[data-project="predire"][data-theme="dark"] .contract-link,
+  html[data-project="predire"][data-theme="dark"] .kpi.green .value { color: var(--predire-text); }
+  html[data-project="predire"][data-theme="dark"] body .kpi.green .label::before,
+  html[data-project="predire"][data-theme="dark"] body .kpi .label::before { background: var(--accent); }
+  html[data-project="predire"][data-theme="dark"] .mobile-menu { background: var(--predire-tint); color: var(--predire-text); }
+  html[data-project="predire"][data-theme="dark"] .work-mode:has(input:checked),
+  html[data-project="predire"][data-theme="dark"] .check-card:has(input:checked) { background: var(--predire-tint); border-color: var(--predire-line); }
+  html[data-project="predire"][data-theme="dark"] body .btn-outline-primary { color: var(--accent); border-color: var(--predire-line); background: transparent; }
+  html[data-project="predire"][data-theme="dark"] body .btn-outline-primary:hover { background: var(--predire-tint); color: var(--accent-strong); border-color: var(--accent); }
+  html[data-project="predire"][data-theme="dark"] body .btn-primary {
+    background: linear-gradient(135deg, #0a6a6e, #0c8084) !important;
+    border-color: #0a6a6e !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 18px -10px rgba(38, 198, 218, .45) !important;
+  }
+  html[data-project="predire"][data-theme="dark"] body .btn-primary:hover { background: linear-gradient(135deg, #0b7377, #0c8084) !important; }
+  html[data-project="predire"][data-theme="dark"] body .form-control:focus,
+  html[data-project="predire"][data-theme="dark"] body .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 224, 210, .2); }
+  html[data-project="predire"][data-theme="dark"] .form-check-input:checked { background-color: #0c8084; border-color: #0c8084; }
+  html[data-project="predire"][data-theme="dark"] .tw\:bg-\[\#f3faf6\] { background-color: var(--predire-tint); }
+  html[data-project="predire"][data-theme="dark"] .module-tab-marker { background: linear-gradient(180deg, rgba(79, 224, 210, 0), rgba(79, 224, 210, .12)); }
+  html[data-project="predire"][data-theme="dark"] .module-tab-marker::after { background: var(--accent); box-shadow: 0 0 12px rgba(79, 224, 210, .45); }
+  html[data-project="predire"][data-theme="dark"] .progress-bar-prise,
+  html[data-project="predire"][data-theme="dark"] .progress-kpi,
+  html[data-project="predire"][data-theme="dark"] .progress { background: #1d3a3a; }
+  html[data-project="predire"][data-theme="dark"] .gm-none { background: #112324 !important; }
+  html[data-project="predire"][data-theme="dark"] .leaflet-container { background: #0a1a1a; }
+  html[data-project="predire"][data-theme="dark"] .prise-map path[fill="#DCE4EC"] { fill: #20403f; }
+  html[data-project="predire"][data-theme="dark"] .prise-map path.leaflet-interactive { stroke: #071413; }
+}
+
+/* Pied de page : lien au turquoise de l'espace (le vert --text-green reste réservé aux statuts). */
+html[data-project="predire"]:not([data-theme="dark"]) .app-footer--app a { color: var(--predire-strong); }
+@media screen {
+  html[data-project="predire"][data-theme="dark"] .app-footer--app a { color: var(--accent); }
+}

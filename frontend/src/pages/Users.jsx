@@ -11,7 +11,7 @@ const PERMS = [
   ['canManageCompanies', 'Gérer entreprises'], ['canManageProgress', 'Gérer avancements'], ['canManagePayments', 'Gérer paiements'], ['canViewReports', 'Voir rapports'],
   ['canViewAlertsContracts', 'Alertes des contrats'], ['canViewAlertsGuarantees', 'Alertes de bonne exécution'], ['canViewSituation', 'Voir situation'], ['canViewArchives', 'Accéder aux phases archivées'], ['canManageGuarantees', 'Gérer garanties'],
   ['canViewAlertsLogistics', 'Alertes logistiques (stock, charroi, groupes électrogènes)'],
-  ['canViewStock', 'Consulter le stock'], ['canManageStock', 'Gérer le stock'],
+  ['canViewStock', 'Consulter le stock'], ['canManageStock', 'Gérer le stock'], ['canEditStockArticles', 'Modifier ou supprimer les articles du stock'],
   ['canViewFleet', 'Consulter le charroi et les groupes électrogènes'], ['canManageFleet', 'Gérer le charroi et les groupes électrogènes'],
   ['canValidateDecomptes', 'Valider les décomptes (chef de cellule infrastructures)'],
   ['canFollowNewContracts', 'Notifié des nouveaux contrats (suivi)'],
@@ -19,9 +19,9 @@ const PERMS = [
 ];
 // Accordées une à une, y compris à un administrateur : le rôle ne les donne pas.
 // Habilitations accordées une à une par le super-admin : être administrateur ne les donne pas.
-const EXPLICIT = ['canFollowNewContracts', 'canViewAlertHistory', 'canViewArchives'];
+const EXPLICIT = ['canFollowNewContracts', 'canViewAlertHistory', 'canViewArchives', 'canEditStockArticles'];
 // Logistique : chaque unité (coordination nationale, antennes) la gère de manière autonome, dans son seul périmètre.
-const LOGISTICS = ['canViewAlertsLogistics', 'canViewStock', 'canManageStock', 'canViewFleet', 'canManageFleet'];
+const LOGISTICS = ['canViewAlertsLogistics', 'canViewStock', 'canManageStock', 'canEditStockArticles', 'canViewFleet', 'canManageFleet'];
 // Autorisation des demandes logistiques : une case par poste, selon l'unité du compte (une seule qualité à la fois).
 const AUTHORITIES = {
   POOL: [['CA', 'C.A — autorise les demandes logistiques de l’antenne']],
@@ -29,7 +29,7 @@ const AUTHORITIES = {
 };
 const AUTHORITY_LABEL = { CA: 'Autorise : C.A', HRAF: 'Autorise : HRAF', COMPTABLE: 'Autorise : comptable' };
 const snake = (k) => k.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-const chips = { canManageContracts: 'Contrats', canManageProgress: 'Avancement', canManagePayments: 'Paiements', canManageGuarantees: 'Garanties', canViewReports: 'Rapports', canViewAlertsContracts: 'Alertes contrats', canViewAlertsGuarantees: 'Alertes garanties', canViewAlertsLogistics: 'Alertes logistique', canViewSituation: 'Situation', canManageStock: 'Stocks', canManageFleet: 'Charroi', canAuthorizeFleet: 'Visa charroi', canViewAlertHistory: 'Modèles et historique', canViewArchives: 'Archives' };
+const chips = { canManageContracts: 'Contrats', canManageProgress: 'Avancement', canManagePayments: 'Paiements', canManageGuarantees: 'Garanties', canViewReports: 'Rapports', canViewAlertsContracts: 'Alertes contrats', canViewAlertsGuarantees: 'Alertes garanties', canViewAlertsLogistics: 'Alertes logistique', canViewSituation: 'Situation', canManageStock: 'Stocks', canEditStockArticles: 'Articles du stock', canManageFleet: 'Charroi', canAuthorizeFleet: 'Visa charroi', canViewAlertHistory: 'Modèles et historique', canViewArchives: 'Archives' };
 
 const ROLES = [
   ['UTILISATEUR', 'Utilisateur simple', 'Seulement les habilitations cochées ci-dessous.'],
@@ -265,7 +265,8 @@ export default function Users() {
             <div className="row g-2">
               {PERMS.filter(([k]) => LOGISTICS.includes(k)).map(([k, label]) => (
                 <div className="col-md-6" key={k}>
-                  <label className="permission-toggle"><input type="checkbox" disabled={perm.role === 'ADMINISTRATEUR'} checked={perm.role === 'ADMINISTRATEUR' || !!perm.permissions[k]} onChange={(e) => setPerm({ ...perm, permissions: { ...perm.permissions, [k]: e.target.checked } })} /><span>{label}</span></label>
+                  {/* Un administrateur a toute la logistique, sauf les habilitations accordées une à une (EXPLICIT). */}
+                  <label className="permission-toggle"><input type="checkbox" disabled={perm.role === 'ADMINISTRATEUR' && !EXPLICIT.includes(k)} checked={(perm.role === 'ADMINISTRATEUR' && !EXPLICIT.includes(k)) || !!perm.permissions[k]} onChange={(e) => setPerm({ ...perm, permissions: { ...perm.permissions, [k]: e.target.checked } })} /><span>{label}</span></label>
                 </div>
               ))}
             </div>

@@ -165,10 +165,11 @@ export function DecimalInput({ value, onChange, ...props }) {
   );
 }
 
-export function Field({ label, error, children, className = '' }) {
+/** required : astérisque forcé, pour un champ obligatoire contrôlé à l'envoi (sinon il est déduit de l'attribut required du champ). */
+export function Field({ label, error, children, className = '', required = false }) {
   return (
     <div className={className}>
-      {label && <label className="form-label">{label}</label>}
+      {label && <label className={`form-label${required ? ' is-required' : ''}`}>{label}</label>}
       {children}
       {error && <div className="text-danger small mt-1">{error}</div>}
     </div>
@@ -201,7 +202,7 @@ export function ReasonDialog({ title, text, confirmLabel = 'Confirmer', danger =
       <form id="reason-form" onSubmit={submit}>
         {text && <p className="text-secondary">{text}</p>}
         {extra}
-        <Field label="Motif" error={error}>
+        <Field label="Motif" error={error} required>
           <textarea className="form-control" rows="3" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus placeholder="Expliquez brièvement la raison de cette opération…" />
         </Field>
       </form>

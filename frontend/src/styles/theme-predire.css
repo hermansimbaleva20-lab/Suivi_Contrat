@@ -1,0 +1,888 @@
+/*
+ * PREDIRE — thème turquoise (décision du 20/11/2026, bleu du logo du 18/11) : un turquoise remplace le vert de PRISE dans tout l'espace
+ * PREDIRE (html[data-project="predire"], posé par Layout.jsx et public/theme-init.js).
+ * FICHIER GÉNÉRÉ par scripts/theme-predire.mjs à partir des feuilles de style : ne pas modifier à la main, relancer le script.
+ * Les réglages faits à la main sont dans theme-predire-signature.css.
+ */
+html[data-project="predire"]:not([data-theme="dark"]) {
+    --tw-color-prise-green: #054d4e;
+    --tw-color-prise-green-2: #06797c;
+    --tw-color-prise-green-3: #135b5d;
+    --tw-color-prise-green-soft: #eaf7f7;
+    --tw-color-prise-bg: #f2f6f6;
+    --tw-color-prise-border: #dce7e7;
+    --tw-color-prise-muted: #5f7474
+}
+html[data-project="predire"]:not([data-theme="dark"]) {
+    --prise-green: #054d4e;
+    --prise-green-2: #06797c;
+    --prise-green-3: #135b5d;
+    --prise-green-soft: #eaf7f7;
+    --shadow: 0 10px 28px rgba(7, 41, 43,.08)
+}
+:where(html[data-project="predire"]) .sidebar {
+    background: linear-gradient(180deg,#054d4e 0%,#05575a 54%,#096265 100%)
+}
+:where(html[data-project="predire"]) .brand-sub {
+    color: #d8f0f0
+}
+:where(html[data-project="predire"]) .sidebar .nav-link {
+    color: #e7f5f5 !important
+}
+:where(html[data-project="predire"]) .sidebar .nav-link.active {
+    background: #135b5d;
+    border-color: #2c7c7f;
+    box-shadow: inset 3px 0 #8ae0e2
+}
+:where(html[data-project="predire"]) .sidebar-user {
+    background: #135b5d;
+    border: 1px solid #2c7c7f
+}
+:where(html[data-project="predire"]) .session-label {
+    color: #b6e4e5
+}
+:where(html[data-project="predire"]) .avatar {
+    background: #e8f7f7
+}
+:where(html[data-project="predire"]) .sidebar-user .meta {
+    color: #d8f2f3
+}
+:where(html[data-project="predire"]) .alert-bell {
+    color: #06797c
+}
+:where(html[data-project="predire"]) .kpi:after {
+    background: rgba(6, 121, 124,.07)
+}
+:where(html[data-project="predire"]) .table tbody tr:hover {
+    background: #f5fbfb
+}
+:where(html[data-project="predire"]) .form-control:focus,
+:where(html[data-project="predire"]) .form-select:focus {
+    border-color: #56a7a9;
+    box-shadow: 0 0 0 3px rgba(6, 121, 124,.11)
+}
+:where(html[data-project="predire"]) .btn-primary {
+    background: linear-gradient(135deg,#06797c,#13989e);
+    border-color: #06797c;
+    box-shadow: 0 5px 13px rgba(6, 121, 124,.16)
+}
+:where(html[data-project="predire"]) .btn-primary:hover {
+    background: linear-gradient(135deg,#046b6e,#0f8388);
+    border-color: #046b6e
+}
+:where(html[data-project="predire"]) .btn-outline-primary {
+    color: #06797c;
+    border-color: #78b9ba
+}
+:where(html[data-project="predire"]) .btn-outline-primary:hover {
+    background: #eaf7f7;
+    color: #054d4e;
+    border-color: #06797c
+}
+:where(html[data-project="predire"]) .filterbar {
+    background: linear-gradient(180deg,#fff,#fbfdfd)
+}
+:where(html[data-project="predire"]) .hero-dashboard {
+    background: linear-gradient(135deg,#054d4e,#0a6a6d);
+    box-shadow: 0 14px 30px rgba(5, 77, 78,.17)
+}
+:where(html[data-project="predire"]) .hero-dashboard p {
+    color: #d6f3f4
+}
+:where(html[data-project="predire"]) .metric-mini span {
+    color: #cbebec
+}
+:where(html[data-project="predire"]) .progress-bar-prise>span {
+    background: linear-gradient(90deg,#06797c,#44b9bb)
+}
+:where(html[data-project="predire"]) .password-toggle:hover {
+    color: #06797c
+}
+html[data-project="predire"]:not([data-theme="dark"]) {
+    --prise-green: #054d4e;
+    --prise-green-2: #06797c
+}
+:where(html[data-project="predire"]) .sidebar {
+    background: linear-gradient(180deg,#054d4e 0%,#05575a 54%,#096265 100%)
+}
+:where(html[data-project="predire"]) .mobile-menu {
+    background: #eff7f7
+}
+:where(html[data-project="predire"]) .prise-mobile-nav {
+    background: #054d4e
+}
+:where(html[data-project="predire"]) .mobile-nav-copy {
+    color: #d8f0f0
+}
+:where(html[data-project="predire"]) .alert-item:hover {
+    background: #f1fafa;
+    border-color: #bbdcdd
+}
+:where(html[data-project="predire"]) .permission-chips span,
+:where(html[data-project="predire"]) .chip {
+    background: #edf6f6;
+    color: #156a6d;
+    border: 1px solid #cce5e6
+}
+:where(html[data-project="predire"]) .work-mode:has(input:checked) {
+    border-color: #71b8b9;
+    background: #eef9f9;
+    box-shadow: 0 0 0 3px rgba(6, 121, 124,.08)
+}
+:where(html[data-project="predire"]) .check-card:has(input:checked) {
+    background: #eef9f9;
+    border-color: #74bdbe
+}
+:where(html[data-project="predire"]) .progress-kpi>span {
+    background: linear-gradient(90deg,#06797c,#44b9bb)
+}
+:where(html[data-project="predire"]) .province-dot.green {
+    background: #148386
+}
+@media (min-width:601px) and (max-width:850px) {
+    :where(html[data-project="predire"]) .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.07)
+    }
+}
+@media (max-width:440px) {
+    :where(html[data-project="predire"]) .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.07)
+    }
+}
+@media (max-width:440px) {
+    :where(html[data-project="predire"]) .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.07)
+    }
+}
+@media (min-width:601px) and (max-width:850px) {
+    :where(html[data-project="predire"]) .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.07)
+    }
+}
+@media (max-width:850px) {
+    :where(html[data-project="predire"]) .brand-sub {
+        color: #d8f0f0 !important
+    }
+}
+:where(html[data-project="predire"]) .sidebar-user {
+    background: #135b5d;
+    border: 1px solid #2c7c7f
+}
+:where(html[data-project="predire"]) .phase-switcher .phase-label {
+    color: #ceeeef
+}
+:where(html[data-project="predire"]) .sidebar .phase-select {
+    background: #0f2d30
+}
+:where(html[data-project="predire"]) .nav-section span {
+    color: #bee7e7
+}
+@media (max-width:440px) {
+    :where(html[data-project="predire"]) .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.07)
+    }
+}
+@media (min-width:768px) and (max-width:1194px) {
+    :where(html[data-project="predire"]) .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.06)
+    }
+}
+:where(html[data-project="predire"]) .alert-item {
+    border: 1px solid #e6f1f1
+}
+:where(html[data-project="predire"]) body .sidebar .brand-sub {
+    color: #bee7e7 !important
+}
+:where(html[data-project="predire"]) body .sidebar .nav-section {
+    color: #a7d5d6
+}
+:where(html[data-project="predire"]) body .sidebar .nav-section span {
+    color: #a7d5d6 !important
+}
+:where(html[data-project="predire"]) body .sidebar .side-nav .nav-link.active {
+    box-shadow: inset 3px 0 0 #7ce2e4
+}
+:where(html[data-project="predire"]) body .sidebar .sidebar-user {
+    background: #135b5d;
+    border: 1px solid #2c7c7f
+}
+:where(html[data-project="predire"]) body .sidebar .sidebar-user .meta {
+    color: #d8f2f3
+}
+@media (max-width:850px) {
+    :where(html[data-project="predire"]) body .mobile-utility-strip {
+        border-bottom: 1px solid #dfe9e9;
+        box-shadow: 0 2px 8px rgba(14, 48, 51,.07)
+    }
+}
+@media (max-width:850px) {
+    :where(html[data-project="predire"]) body .mobile-utility-strip .phase-pill-icon {
+        color: #06797c !important
+    }
+}
+@media (max-width:850px) {
+    :where(html[data-project="predire"]) body .mobile-utility-strip .mobile-phase-select {
+        border: 1px solid #bee0e1 !important;
+        background: #e8f6f6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%2306797c'%3E%3Cpath d='M1.6 5.2a.9.9 0 0 1 1.3 0L8 10.3l5.1-5.1a.9.9 0 1 1 1.3 1.3l-5.8 5.8a.9.9 0 0 1-1.3 0L1.6 6.5a.9.9 0 0 1 0-1.3z'/%3E%3C/svg%3E") no-repeat right 11px center;
+        color: #054d4e !important
+    }
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav {
+    background: linear-gradient(180deg,#054d4e 0%,#096265 100%) !important
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav .mobile-session {
+    background: #135b5d;
+    border: 1px solid #2c7c7f
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav .mobile-avatar {
+    background: #e8f7f7;
+    color: #054d4e
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav .mobile-session small {
+    color: #ceeeef
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav .mobile-phase .phase-label {
+    color: #ceeeef
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav .mobile-phase .phase-select {
+    background: #0f2d30
+}
+:where(html[data-project="predire"]) body .prise-mobile-nav .mobile-nav-copy {
+    color: #a7d5d6
+}
+:where(html[data-project="predire"]) body .sidebar .side-nav .nav-link:focus-visible,
+:where(html[data-project="predire"]) .alert-chip:focus-visible,
+:where(html[data-project="predire"]) .phase-pill-select:focus-visible,
+:where(html[data-project="predire"]) .mobile-phase-select:focus-visible,
+:where(html[data-project="predire"]) .sidebar .logout-btn:focus-visible {
+    outline: 3px solid #7ce2e4
+}
+:where(html[data-project="predire"]) .alert-chip {
+    color: #5c7a7b;
+    background: #eef4f4;
+    border: 1px solid #dbe8e8
+}
+:where(html[data-project="predire"]) .alert-chip:hover {
+    color: #054d4e;
+    background: #e2f0f0
+}
+:where(html[data-project="predire"]) .phase-pill-icon {
+    color: #06797c
+}
+:where(html[data-project="predire"]) .phase-pill-select {
+    border: 1px solid #bee0e1;
+    background: #e8f6f6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 16 16' fill='%2306797c'%3E%3Cpath d='M1.6 5.2a.9.9 0 0 1 1.3 0L8 10.3l5.1-5.1a.9.9 0 1 1 1.3 1.3l-5.8 5.8a.9.9 0 0 1-1.3 0L1.6 6.5a.9.9 0 0 1 0-1.3z'/%3E%3C/svg%3E") no-repeat right 14px center;
+    color: #054d4e
+}
+:where(html[data-project="predire"]) .phase-pill-select:hover {
+    background-color: #dcf1f1
+}
+:where(html[data-project="predire"]) .guarantee-mini-kpis>div {
+    border: 1px solid #e2ecec;
+    background: #fbfdfd
+}
+:where(html[data-project="predire"]) .guarantee-mini-kpis span {
+    color: #647979
+}
+:where(html[data-project="predire"]) .guarantee-mini-kpis strong {
+    color: #163234
+}
+:where(html[data-project="predire"]) .super-badge {
+    background: #e8f6f6;
+    color: #054d4e
+}
+:where(html[data-project="predire"]) .readonly-badge {
+    background: #e8f6f6;
+    border: 1px solid #bee0e1;
+    color: #054d4e
+}
+:where(html[data-project="predire"]) .alert-filter {
+    border: 1px solid #d5e4e4;
+    background: #f6fafa;
+    color: #345153
+}
+:where(html[data-project="predire"]) .alert-filter b {
+    background: #e1eeee;
+    color: #054d4e
+}
+:where(html[data-project="predire"]) .alert-filter:hover {
+    background: #eaf5f5;
+    border-color: #b8d8d9
+}
+:where(html[data-project="predire"]) .alert-filter.active {
+    background: #054d4e;
+    border-color: #054d4e
+}
+:where(html[data-project="predire"]) .alert-filter:focus-visible {
+    outline: 3px solid #7ce2e4
+}
+:where(html[data-project="predire"]) .alert-table thead th {
+    color: #5c7a7b
+}
+:where(html[data-project="predire"]) .alert-table tbody td {
+    border-top: 1px solid #e3eded;
+    border-bottom: 1px solid #e3eded
+}
+:where(html[data-project="predire"]) .alert-table tbody td:first-child {
+    border-left: 1px solid #e3eded
+}
+:where(html[data-project="predire"]) .alert-table tbody td:last-child {
+    border-right: 1px solid #e3eded
+}
+:where(html[data-project="predire"]) .alert-table tbody tr.alert-tr:hover td {
+    background: #f8fbfb
+}
+:where(html[data-project="predire"]) .meter-line {
+    color: #5c7a7b
+}
+:where(html[data-project="predire"]) .alert-history-table tbody tr:hover td {
+    background: #f8fbfb
+}
+:where(html[data-project="predire"]) .modal.show.d-block {
+    background: rgba(8, 27, 28,.35)
+}
+:where(html[data-project="predire"]) .site-row {
+    background: #fbfdfd
+}
+:where(html[data-project="predire"]) .form-section {
+    color: #054d4e
+}
+:where(html[data-project="predire"]) .contract-link {
+    color: #06797c
+}
+:where(html[data-project="predire"]) .info-grid>div {
+    background: #fbfdfd
+}
+:where(html[data-project="predire"]) .info-grid span {
+    color: #647979
+}
+:where(html[data-project="predire"]) .app-error-page {
+    background: radial-gradient(circle at top left, #e5f2f2, transparent 44%), #f5f8f8
+}
+:where(html[data-project="predire"]) .app-error-card {
+    border: 1px solid #dce8e8;
+    box-shadow: 0 24px 70px rgba(18, 58, 59, .11)
+}
+:where(html[data-project="predire"]) .app-error-card h1 {
+    color: #113c3e
+}
+:where(html[data-project="predire"]) .app-error-card p {
+    color: #5d7070
+}
+:where(html[data-project="predire"]) .app-error-details {
+    background: #f4f7f7;
+    color: #405656
+}
+:where(html[data-project="predire"]) .app-error-foot {
+    color: #778787
+}
+:where(html[data-project="predire"]) .dashboard-pager {
+    border-top: 1px solid var(--prise-border, #e0e9e9);
+    color: #647979
+}
+:where(html[data-project="predire"]) .kpi:hover {
+    box-shadow: 0 14px 30px rgba(14, 64, 66,.12) !important;
+    border-color: #b7d9da !important
+}
+:where(html[data-project="predire"]) .province-table .province-row > td {
+    background: var(--prise-green-soft, #e8f5f5);
+    color: var(--prise-green, #06797c)
+}
+:where(html[data-project="predire"]) body .sidebar .side-nav .nav-link.nav-sub {
+    color: #d4eeef !important
+}
+@media (min-width: 851px) {
+    :where(html[data-project="predire"]) body .sidebar .side-nav .nav-section span {
+        color: rgba(213, 240, 241, .66) !important
+    }
+}
+html[data-project="predire"]:not([data-theme="dark"]) {
+    --holo-mint: #a5f1f5;
+    --holo-teal: #5be0ed;
+    --ink: #122626;
+    --ink-soft: #4b6363;
+    --line: #dce7e7;
+    --line-soft: #e9f0f0;
+    --canvas: #f2f6f6;
+    --surface-sunk: #f5f9f9;
+    --shadow-card: 0 1px 2px rgba(9, 45, 47, .05), 0 10px 26px -14px rgba(9, 45, 47, .18);
+    --shadow-raise: 0 2px 4px rgba(9, 45, 47, .06), 0 18px 36px -16px rgba(9, 45, 47, .24);
+    --prise-muted: #5f7474
+}
+:where(html[data-project="predire"]) ::selection {
+    background: #bee9ea;
+    color: #052b2c
+}
+html:where([data-project="predire"]),
+:where(html[data-project="predire"]) body {
+    caret-color: #06797c
+}
+:where(html[data-project="predire"]) * {
+    scrollbar-color: #a9c1c1 transparent
+}
+:where(html[data-project="predire"]) *::-webkit-scrollbar-thumb {
+    background: #a9c1c1
+}
+:where(html[data-project="predire"]) *::-webkit-scrollbar-thumb:hover {
+    background: #7ea2a4
+}
+:where(html[data-project="predire"]) :focus-visible {
+    outline: 2px solid #06797c
+}
+:where(html[data-project="predire"]) .opening-loader {
+    color: #ecfdfd;
+    background: radial-gradient(60% 55% at 78% 18%, rgba(91, 224, 237, .16), transparent 70%),
+    radial-gradient(50% 50% at 14% 86%, rgba(232, 200, 115, .12), transparent 70%),
+    radial-gradient(70% 60% at 50% 50%, rgba(132, 240, 241, .08), transparent 75%),
+    linear-gradient(160deg, #021617 0%, #03282a 45%, #053c3e 100%)
+}
+:where(html[data-project="predire"]) .opening-loader::before {
+    background-image: linear-gradient(rgba(165, 241, 245, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(165, 241, 245, .07) 1px, transparent 1px)
+}
+:where(html[data-project="predire"]) .opening-loader::after {
+    background: conic-gradient(from 200deg at 50% 50%, transparent 0deg, rgba(91, 224, 237, .13) 50deg, rgba(232, 200, 115, .1) 95deg, rgba(165, 241, 245, .12) 140deg, transparent 190deg, rgba(103, 232, 249, .08) 260deg, transparent 320deg)
+}
+:where(html[data-project="predire"]) .ol-panel {
+    border: 1px solid rgba(165, 241, 245, .2);
+    background: linear-gradient(180deg, rgba(3, 33, 35, .9), rgba(3, 24, 25, .94));
+    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(165, 241, 245, .08)
+}
+:where(html[data-project="predire"]) .ol-soil {
+    fill: rgba(132, 240, 241, .1)
+}
+:where(html[data-project="predire"]) .ol-clay {
+    fill: rgba(91, 224, 237, .07)
+}
+:where(html[data-project="predire"]) .ol-boundary {
+    stroke: rgba(165, 241, 245, .22)
+}
+:where(html[data-project="predire"]) .ol-scale line {
+    stroke: rgba(165, 241, 245, .45)
+}
+:where(html[data-project="predire"]) .ol-scale text {
+    fill: rgba(208, 249, 251, .62)
+}
+:where(html[data-project="predire"]) .ol-line {
+    filter: drop-shadow(0 0 3px rgba(91, 224, 237, .45))
+}
+:where(html[data-project="predire"]) .ol-borehole {
+    fill: rgba(2, 18, 18, .85);
+    stroke: rgba(165, 241, 245, .35)
+}
+:where(html[data-project="predire"]) .ol-pipe {
+    fill: #d0f9fb
+}
+:where(html[data-project="predire"]) .ol-scan {
+    fill: rgba(165, 241, 245, .5);
+    filter: drop-shadow(0 0 6px rgba(91, 224, 237, .9))
+}
+:where(html[data-project="predire"]) .ol-depth {
+    border: 1px solid rgba(165, 241, 245, .22);
+    background: rgba(2, 18, 18, .55);
+    color: rgba(208, 249, 251, .7)
+}
+:where(html[data-project="predire"]) .ol-depth-value {
+    color: #ecfdfd
+}
+:where(html[data-project="predire"]) .ol-caption {
+    color: rgba(208, 249, 251, .72)
+}
+:where(html[data-project="predire"]) .ol-track {
+    background: rgba(165, 241, 245, .14)
+}
+:where(html[data-project="predire"]) .ol-track span {
+    box-shadow: 0 0 10px rgba(91, 224, 237, .6)
+}
+:where(html[data-project="predire"]) .ol-steps {
+    color: rgba(236, 253, 253, .86)
+}
+:where(html[data-project="predire"]) body .content {
+    background-image: radial-gradient(52rem 32rem at 100% 0%, rgba(91, 224, 237, .12), transparent 70%),
+    radial-gradient(44rem 30rem at 0% 100%, rgba(232, 200, 115, .12), transparent 70%),
+    radial-gradient(40rem 26rem at 58% 42%, rgba(132, 240, 241, .08), transparent 72%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='560' viewBox='0 0 760 560' fill='none' stroke='%23054d4e' stroke-opacity='.075' stroke-width='1'%3E%3Cpath d='M520 120c90-20 190 30 205 120s-55 170-150 185-205-20-230-110 85-175 175-195z'/%3E%3Cpath d='M528 158c66-14 138 22 150 88s-40 124-110 135-150-15-168-80 62-128 128-143z'/%3E%3Cpath d='M536 196c44-9 90 15 98 58s-26 82-72 89-98-10-110-53 40-84 84-94z'/%3E%3Cpath d='M545 232c24-5 50 8 54 32s-14 44-39 48-54-5-60-29 22-46 45-51z'/%3E%3Cpath d='M60 420c80-40 210-30 270 30s30 120-60 130-260-10-280-80 -10-60 70-80z'/%3E%3Cpath d='M90 450c55-26 145-20 186 20s20 82-42 89-178-7-192-55 -7-40 48-54z'/%3E%3Cpath d='M122 478c30-14 82-11 104 11s11 46-24 50-98-4-106-31 -3-21 26-30z'/%3E%3C/svg%3E")
+}
+:where(html[data-project="predire"]) body .topbar {
+    box-shadow: 0 6px 18px -14px rgba(9, 45, 47, .25) !important
+}
+:where(html[data-project="predire"]) body .topbar::after {
+    background: linear-gradient(90deg, transparent 0%, #5be0ed 28%, #e8c873 52%, #31c0c5 74%, transparent 100%)
+}
+:where(html[data-project="predire"]) body .sidebar {
+    background: radial-gradient(130% 90% at 50% 42%, transparent 52%, rgba(1, 14, 14, .5) 100%),
+    linear-gradient(90deg, rgba(108, 231, 233, .085) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(rgba(108, 231, 233, .085) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(85% 42% at 50% 42%, rgba(49, 192, 197, .3), transparent 72%),
+    linear-gradient(180deg, #042f31 0%, #093e40 50%, #053133 100%) !important;
+    box-shadow: inset -1px 0 0 rgba(165, 241, 245, .14), 8px 0 28px -18px rgba(0, 0, 0, .45) !important
+}
+@media (min-width: 851px) {
+    :where(html[data-project="predire"]) body .sidebar .brand-title {
+        color: rgba(208, 249, 251, .78) !important
+    }
+}
+:where(html[data-project="predire"]) body .kpi::before {
+    background: linear-gradient(90deg, #5be0ed, #e8c873, #31c0c5)
+}
+:where(html[data-project="predire"]) body .kpi.green .label::before {
+    background: #148386
+}
+:where(html[data-project="predire"]) body .kpi:hover {
+    border-color: #c5e0e1 !important
+}
+:where(html[data-project="predire"]) body .table tbody tr:hover > td {
+    background: #f4fafa
+}
+:where(html[data-project="predire"]) body .btn-primary {
+    background: #06797c;
+    border-color: #06797c;
+    box-shadow: 0 1px 2px rgba(5, 61, 62, .2), 0 6px 14px -8px rgba(6, 121, 124, .55)
+}
+:where(html[data-project="predire"]) body .btn-primary:hover,
+:where(html[data-project="predire"]) body .btn-primary:focus-visible {
+    background: #04696c;
+    border-color: #04696c
+}
+:where(html[data-project="predire"]) body .btn-primary:active {
+    background: #044e50 !important;
+    border-color: #044e50 !important
+}
+:where(html[data-project="predire"]) body .btn-outline-primary {
+    color: #06797c;
+    border-color: #a8d3d4
+}
+:where(html[data-project="predire"]) body .btn-outline-primary:hover {
+    background: #eaf7f7;
+    color: #054d4e;
+    border-color: #06797c
+}
+:where(html[data-project="predire"]) body .btn-light {
+    background: #f1f5f5
+}
+:where(html[data-project="predire"]) body .btn-light:hover {
+    background: #e7eeee
+}
+:where(html[data-project="predire"]) body .btn-light {
+    --bs-btn-active-bg: #d5e3e3;
+    --bs-btn-active-border-color: #b9cdcd
+}
+:where(html[data-project="predire"]) body .btn-outline-primary {
+    --bs-btn-active-bg: #06797c;
+    --bs-btn-active-border-color: #06797c
+}
+:where(html[data-project="predire"]) body .btn.submit-btn[data-state="done"] {
+    background: #044e50;
+    border-color: #044e50
+}
+:where(html[data-project="predire"]) body .form-control,
+:where(html[data-project="predire"]) body .form-select {
+    border-color: #d3e0e0
+}
+:where(html[data-project="predire"]) body .form-control::placeholder {
+    color: #7b8f8f
+}
+:where(html[data-project="predire"]) body .form-control:hover,
+:where(html[data-project="predire"]) body .form-select:hover {
+    border-color: #b7cdcd
+}
+:where(html[data-project="predire"]) body .form-control:focus,
+:where(html[data-project="predire"]) body .form-select:focus {
+    border-color: #06797c;
+    box-shadow: 0 0 0 3px rgba(6, 121, 124, .14)
+}
+:where(html[data-project="predire"]) body .modal-content {
+    box-shadow: 0 30px 70px -24px rgba(5, 39, 41, .45)
+}
+:where(html[data-project="predire"]) body .sidebar .side-nav .nav-link {
+    color: rgba(236, 253, 253, .9) !important
+}
+:where(html[data-project="predire"]) body .sidebar .side-nav .nav-link.active {
+    box-shadow: inset 0 0 0 1px rgba(165, 241, 245, .22) !important
+}
+:where(html[data-project="predire"]) body .sidebar .side-nav.has-marker .nav-link.active > .bi:first-child {
+    color: #a5f1f5
+}
+:where(html[data-project="predire"]) .nav-marker {
+    background: linear-gradient(90deg, rgba(165, 241, 245, .2), rgba(255, 255, 255, .1) 70%);
+    box-shadow: inset 0 0 0 1px rgba(165, 241, 245, .3), 0 6px 16px -10px rgba(0, 0, 0, .55)
+}
+:where(html[data-project="predire"]) .nav-marker::before {
+    background: #7ce2e4;
+    box-shadow: 0 0 10px rgba(124, 226, 228, .55)
+}
+:where(html[data-project="predire"]) .module-tab.is-active .bi {
+    color: #06797c
+}
+:where(html[data-project="predire"]) .module-tab-marker {
+    background: linear-gradient(180deg, rgba(6, 121, 124, 0), rgba(6, 121, 124, .08))
+}
+:where(html[data-project="predire"]) .module-tab-marker::after {
+    background: #06797c
+}
+:where(html[data-project="predire"]) body .sidebar .phase-switcher {
+    background: rgba(2, 24, 24, .32) !important;
+    border: 1px solid rgba(165, 241, 245, .16) !important
+}
+:where(html[data-project="predire"]) body .sidebar .phase-switcher .phase-label {
+    color: rgba(208, 249, 251, .72) !important
+}
+:where(html[data-project="predire"]) body .sidebar .phase-select {
+    border: 1px solid rgba(165, 241, 245, .22) !important;
+    background: rgba(255, 255, 255, .06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%23d0f9fb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E") no-repeat right 10px center !important
+}
+:where(html[data-project="predire"]) body .sidebar .phase-select:focus-visible {
+    outline: 2px solid #5be0ed
+}
+:where(html[data-project="predire"]) body .sidebar .phase-select option {
+    color: #122626
+}
+:where(html[data-project="predire"]) body .sidebar .sidebar-user .meta-unit {
+    color: #a5f1f5 !important
+}
+:where(html[data-project="predire"]) .pos-picker-option.is-active {
+    background: var(--tint-green, #e7f5f5)
+}
+:where(html[data-project="predire"]) .pos-picker-check {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .pos-picker-desc strong {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .contract-amount-sum .is-total dd {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .progress-preview-after {
+    background: var(--tint-green, #eef8f8)
+}
+:where(html[data-project="predire"]) .progress-preview-label {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .progress-preview-line strong {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .installation-entry-value {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .installation-entry-ok {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .progress-calc-table tbody tr.is-current > * {
+    background: var(--tint-green, #eef8f8)
+}
+:where(html[data-project="predire"]) .form-control.amount-computed,
+:where(html[data-project="predire"]) .form-control.amount-computed:focus {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .progress-calc-total {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) .app-footer--app a {
+    color: var(--text-green, #06797c)
+}
+:where(html[data-project="predire"]) body .sidebar .sidebar-user .password-btn:hover {
+    background: rgba(165, 241, 245, .14);
+    border-color: rgba(165, 241, 245, .5)
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) {
+        --canvas: #0a0f0f;
+        --surface: #141b1b;
+        --surface-sunk: #1a2323;
+        --surface-hover: #212c2c;
+        --field: #0f1515;
+        --field-border: #5a6d6d;
+        --line: #2d3a3a;
+        --line-soft: #232e2e;
+        --line-strong: #3d4e4e;
+        --ink: #f1f5f5;
+        --ink-soft: #c9d4d4;
+        --accent: #5dd2d6;
+        --accent-strong: #88e2e5;
+        --tint-neutral: #1c2828;
+        --text-neutral: #c9d4d4;
+        --prise-muted: #a8b8b8;
+        --bs-body-bg-rgb: 20, 27, 27;
+        --bs-body-color-rgb: 241, 245, 245;
+        --bs-emphasis-color: #f8fafa;
+        --bs-emphasis-color-rgb: 248, 250, 250;
+        --bs-secondary-color-rgb: 201, 212, 212;
+        --bs-secondary-bg-rgb: 26, 35, 35;
+        --bs-tertiary-bg-rgb: 26, 35, 35;
+        --bs-border-color-translucent: rgba(241, 245, 245, .12);
+        --bs-link-color-rgb: 93, 210, 214;
+        --bs-link-hover-color-rgb: 136, 226, 229;
+        --bs-light-rgb: 33, 44, 44;
+        --bs-dark-rgb: 241, 245, 245;
+        --bs-secondary-rgb: 201, 212, 212;
+        --tw-color-prise-muted: #a8b8b8;
+        --tw-color-slate-600: #c2cdcd;
+        --tw-color-slate-700: #d6dfdf
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) ::selection {
+        background: #1e5b5d;
+        color: #f1fafa
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) * {
+        scrollbar-color: #3d4e4e transparent
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) *::-webkit-scrollbar-thumb {
+        background: #3d4e4e
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) *::-webkit-scrollbar-thumb:hover {
+        background: #5a6d6d
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .content {
+        background-image: radial-gradient(52rem 32rem at 100% 0%, rgba(91, 224, 237, .055), transparent 70%),
+      radial-gradient(44rem 30rem at 0% 100%, rgba(232, 200, 115, .045), transparent 70%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='560' viewBox='0 0 760 560' fill='none' stroke='%2382dbde' stroke-opacity='.05' stroke-width='1'%3E%3Cpath d='M520 120c90-20 190 30 205 120s-55 170-150 185-205-20-230-110 85-175 175-195z'/%3E%3Cpath d='M528 158c66-14 138 22 150 88s-40 124-110 135-150-15-168-80 62-128 128-143z'/%3E%3Cpath d='M536 196c44-9 90 15 98 58s-26 82-72 89-98-10-110-53 40-84 84-94z'/%3E%3Cpath d='M545 232c24-5 50 8 54 32s-14 44-39 48-54-5-60-29 22-46 45-51z'/%3E%3Cpath d='M60 420c80-40 210-30 270 30s30 120-60 130-260-10-280-80 -10-60 70-80z'/%3E%3Cpath d='M90 450c55-26 145-20 186 20s20 82-42 89-178-7-192-55 -7-40 48-54z'/%3E%3Cpath d='M122 478c30-14 82-11 104 11s11 46-24 50-98-4-106-31 -3-21 26-30z'/%3E%3C/svg%3E")
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .topbar,
+html[data-theme="dark"]:where([data-project="predire"]) body .mobile-utility-strip {
+        background: rgba(17, 27, 27, .95) !important
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .topbar-logo,
+html[data-theme="dark"]:where([data-project="predire"]) .mobile-logo {
+        background: #f4f7f7
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .sidebar {
+        background: radial-gradient(130% 90% at 50% 42%, transparent 50%, rgba(0, 0, 0, .55) 100%),
+      linear-gradient(90deg, rgba(108, 231, 233, .055) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(rgba(108, 231, 233, .055) 1px, transparent 1px) 0 0 / 32px 32px,
+      radial-gradient(85% 42% at 50% 42%, rgba(49, 192, 197, .15), transparent 72%),
+      linear-gradient(180deg, #041717 0%, #062122 50%, #051a1a 100%) !important;
+        box-shadow: inset -1px 0 0 rgba(165, 241, 245, .1), 8px 0 28px -18px rgba(0, 0, 0, .7) !important
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .sidebar-user {
+        background: rgba(165, 241, 245, .06);
+        border-color: rgba(165, 241, 245, .14)
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .prise-mobile-nav {
+        background-color: #082122
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .phase-pill-select,
+html[data-theme="dark"]:where([data-project="predire"]) body .mobile-utility-strip .mobile-phase-select {
+        border-color: #275f60
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .work-mode:has(input:checked),
+html[data-theme="dark"]:where([data-project="predire"]) .check-card:has(input:checked) {
+        border-color: #275f60
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .progress-bar-prise,
+html[data-theme="dark"]:where([data-project="predire"]) .progress-kpi,
+html[data-theme="dark"]:where([data-project="predire"]) .progress {
+        background: #223232
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .table {
+        --bs-table-striped-bg: rgba(226, 235, 235, .03);
+        --bs-table-active-bg: rgba(226, 235, 235, .06)
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .btn-outline-primary {
+        border-color: #2e6a6c
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .btn-light {
+        --bs-btn-active-bg: #263636
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .btn-outline-secondary {
+        --bs-btn-hover-border-color: #4c6869;
+        --bs-btn-active-bg: #263636
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .form-control:hover,
+html[data-theme="dark"]:where([data-project="predire"]) body .form-select:hover {
+        border-color: #758989
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) body .form-control:focus,
+html[data-theme="dark"]:where([data-project="predire"]) body .form-select:focus {
+        box-shadow: 0 0 0 3px rgba(93, 210, 214, .2)
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .form-select {
+        --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23c9d4d4' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e")
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .form-control::placeholder {
+        color: #849393
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .form-check-input:checked {
+        background-color: #06797c;
+        border-color: #06797c
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .super-badge,
+html[data-theme="dark"]:where([data-project="predire"]) .readonly-badge,
+html[data-theme="dark"]:where([data-project="predire"]) .permission-chips span,
+html[data-theme="dark"]:where([data-project="predire"]) .chip {
+        border-color: #275f60
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .province-name-label span {
+        color: #e2ebeb;
+        text-shadow: -1px -1px 0 #0d1515, 1px -1px 0 #0d1515, -1px 1px 0 #0d1515, 1px 1px 0 #0d1515, 0 0 3px #0d1515
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .topbar-logo,
+html[data-theme="dark"]:where([data-project="predire"]) .mobile-logo {
+        background: #eef2f2
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .module-tab-marker {
+        background: linear-gradient(180deg, rgba(93, 210, 214, 0), rgba(93, 210, 214, .12))
+    }
+}
+@media screen {
+    html[data-theme="dark"]:where([data-project="predire"]) .module-tab-marker::after {
+        box-shadow: 0 0 12px rgba(93, 210, 214, .45)
+    }
+}

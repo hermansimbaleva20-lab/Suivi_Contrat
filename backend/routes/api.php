@@ -1,6 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,NotificationController,ComponentController};
+use App\Http\Controllers\{AuthController,DashboardController,ReferenceController,ContractController,ContractDocumentController,ProgressController,PaymentController,GuaranteeController,ReportController,AlertController,CompanyController,UserController,PhaseController,SettingsController,OrganizationController,StockController,FleetController,LogisticsController,DecompteController,ReportSnapshotController,AlertSettingsController,AuditController,NotificationController,ComponentController,AlertScheduleController};
 
 // ---- Public (le projet est transmis par l'en-tête X-Project)
 // Routes publiques : limites de débit par adresse IP (AppServiceProvider::rateLimits).
@@ -10,12 +10,16 @@ Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])-
 Route::get('/auth/reset-check', [AuthController::class, 'resetCheck'])->middleware('throttle:lien-mot-de-passe');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:lien-mot-de-passe');
 Route::get('/auth/registration-options', [OrganizationController::class, 'registrationOptions'])->middleware('throttle:30,1');
+// Cron web (hébergement sans tâche planifiée) : secret CRON_SECRET, 404 sinon.
+Route::get('/cron/alertes', [AlertScheduleController::class, 'cron'])->middleware('throttle:cron');
 
 // ---- Authentifié : projet + phase active
 Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:changement-mot-de-passe');
+    // Envoi des alertes dues, déclenché par l'ouverture de l'application (à partir de 7 h, une fois par heure au plus).
+    Route::post('/alerts/auto', [AlertScheduleController::class, 'auto']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/read-all', [NotificationController::class, 'readAll']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'read'])->whereNumber('id');
@@ -118,6 +122,14 @@ Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function (
         Route::put('/components/{id}', [ComponentController::class, 'update'])->whereNumber('id');
         Route::put('/components/{id}/toggle', [ComponentController::class, 'toggle'])->whereNumber('id');
         Route::delete('/components/{id}', [ComponentController::class, 'destroy'])->whereNumber('id');
+        // Catégories (coût en UC) et activités (budget en UC) d'une composante (décision du 16/11/2026).
+        Route::post('/components/{id}/categories', [ComponentController::class, 'storeCategory'])->whereNumber('id');
+        Route::put('/component-categories/{id}', [ComponentController::class, 'updateCategory'])->whereNumber('id');
+        Route::delete('/component-categories/{id}', [ComponentController::class, 'destroyCategory'])->whereNumber('id');
+        Route::post('/component-categories/{id}/activities', [ComponentController::class, 'storeActivity'])->whereNumber('id');
+        Route::put('/component-activities/{id}', [ComponentController::class, 'updateActivity'])->whereNumber('id');
+        Route::put('/component-activities/{id}/toggle', [ComponentController::class, 'toggleActivity'])->whereNumber('id');
+        Route::delete('/component-activities/{id}', [ComponentController::class, 'destroyActivity'])->whereNumber('id');
         Route::post('/organization/units', [OrganizationController::class, 'storeUnit']);
         Route::put('/organization/units/{id}', [OrganizationController::class, 'updateUnit'])->whereNumber('id');
         Route::put('/organization/units/{id}/toggle', [OrganizationController::class, 'toggleUnit'])->whereNumber('id');

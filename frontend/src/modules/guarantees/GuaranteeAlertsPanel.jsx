@@ -201,7 +201,7 @@ export default function GuaranteeAlertsPanel({ rev = 0 }) {
             <p className="tw:m-0 tw:-mt-2 tw:text-xs tw:text-prise-muted">L’interruption vise l’entreprise : le personnel du projet garde son rappel hebdomadaire jusqu’à la prolongation ou au renouvellement.</p>
             {dlg.form.paused && dlg.row.state !== 'SUSPENDUE' && (
               <div>
-                <label className={label} htmlFor="ga-reason">Motif de l’interruption</label>
+                <label className={`${label} is-required`} htmlFor="ga-reason">Motif de l’interruption</label>
                 <textarea id="ga-reason" rows={2} className={input} value={dlg.form.reason} onChange={(e) => setForm('reason', e.target.value)} placeholder="Ex. : prolongation annoncée par la banque, dossier en cours de régularisation…" />
               </div>
             )}

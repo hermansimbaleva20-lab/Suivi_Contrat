@@ -39,7 +39,23 @@ class Ctx
     {
         $user = $user ?: self::user();
         if (!$user) return false;
+        // Modifier ou supprimer un article (16/11/2026) : accordé un à un par le super-admin, y compris à un administrateur.
+        // Base pas encore mise à jour : ce droit reste lié à la gestion du stock, comme avant.
+        if ($permission === 'can_edit_stock_articles') {
+            if (!self::hasUserFlag($permission)) return self::can('can_manage_stock', $user);
+            return (bool) $user->is_super_admin || (bool) $user->can_edit_stock_articles;
+        }
         return self::isAdmin($user) || (bool) ($user->{$permission} ?? false);
+    }
+
+    /** @var array<string,bool>|null Colonnes de la table users, lues une fois par requête. */
+    private static ?array $userColumns = null;
+
+    /** Colonne d'habilitation présente dans la table users (habilitations ajoutées par une mise à jour de la base). */
+    public static function hasUserFlag(string $flag): bool
+    {
+        self::$userColumns ??= array_fill_keys(\Illuminate\Support\Facades\Schema::getColumnListing('users'), true);
+        return isset(self::$userColumns[$flag]);
     }
 
     /**

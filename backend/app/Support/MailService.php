@@ -49,7 +49,16 @@ class MailService
             });
             return ['success' => true, 'message' => 'Message envoyé à ' . implode(', ', $recipients) . '.'];
         } catch (\Throwable $e) {
-            return ['success' => false, 'message' => 'Échec de l’envoi : ' . $e->getMessage()];
+            $raw = $e->getMessage();
+            // 535 : identifiant ou mot de passe refusé par le serveur (Gmail : BadCredentials). Consigne en français plutôt que
+            // la réponse brute en anglais.
+            if (str_contains($raw, '535') || str_contains($raw, 'BadCredentials')) {
+                $hint = filter_var($s->sender_email, FILTER_VALIDATE_EMAIL) === false
+                    ? 'l’adresse d’expédition « ' . $s->sender_email . ' » est incomplète : saisissez l’adresse entière (par exemple nom@gmail.com).'
+                    : 'vérifiez l’adresse d’expédition et le mot de passe. Avec Gmail, il faut un mot de passe d’application de 16 caractères (compte Google › Sécurité › Validation en deux étapes › Mots de passe des applications), pas le mot de passe du compte.';
+                return ['success' => false, 'message' => 'Échec de l’envoi : le serveur SMTP a refusé l’identifiant ou le mot de passe (code 535) ; ' . $hint];
+            }
+            return ['success' => false, 'message' => 'Échec de l’envoi : ' . $raw];
         }
     }
 }

@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    private const FLAGS = ['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes', 'can_follow_new_contracts', 'can_view_alert_history'];
+    private const FLAGS = ['can_manage_settings', 'can_manage_users', 'can_delete_contracts', 'can_manage_contracts', 'can_manage_companies', 'can_manage_progress', 'can_manage_payments', 'can_view_reports', 'can_view_alerts_contracts', 'can_view_alerts_guarantees', 'can_view_alerts_logistics', 'can_view_situation', 'can_view_archives', 'can_manage_guarantees', 'can_view_stock', 'can_manage_stock', 'can_edit_stock_articles', 'can_view_fleet', 'can_manage_fleet', 'can_authorize_fleet', 'can_validate_decomptes', 'can_follow_new_contracts', 'can_view_alert_history'];
 
     /** Comptes visibles : ceux de son unité ; tous pour le super-admin et les comptes à vue nationale. */
     private function scoped()
@@ -46,7 +46,8 @@ class UserController extends Controller
     private function view(User $u): array
     {
         $perms = [];
-        foreach (self::FLAGS as $f) $perms[lcfirst(str_replace('_', '', ucwords($f, '_')))] = (bool) $u->$f;
+        // Sans sa colonne (base pas mise à jour), « Modifier ou supprimer les articles » suit encore la gestion du stock.
+        foreach (self::FLAGS as $f) $perms[lcfirst(str_replace('_', '', ucwords($f, '_')))] = (bool) (Ctx::hasUserFlag($f) ? $u->$f : ($f === 'can_edit_stock_articles' ? $u->can_manage_stock : false));
         return [
             'id' => $u->id, 'name' => $u->full_name ?: $u->full_name, 'email' => $u->email, 'title' => Ctx::title($u), 'position' => (string) $u->project_position, 'role' => $u->role,
             'logisticsAuthority' => $u->logistics_authority,
@@ -138,7 +139,8 @@ class UserController extends Controller
         }
         $keys = [...self::FLAGS, 'can_view_pools', 'logistics_authority', 'role'];
         $before = $u->only($keys);
-        foreach (self::FLAGS as $f) $u->$f = (bool) $r->input($f, false);
+        // Une habilitation dont la colonne n'existe pas encore (base pas mise à jour) n'est pas enregistrée.
+        foreach (self::FLAGS as $f) if (Ctx::hasUserFlag($f)) $u->$f = (bool) $r->input($f, false);
         $u->logistics_authority = $authority;
         $u->can_authorize_fleet = $authority !== null;
         $u->can_view_pools = (bool) $r->input('can_view_pools', false);

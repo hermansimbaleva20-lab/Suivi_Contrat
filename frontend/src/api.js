@@ -12,8 +12,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/*
+ * Après toute modification réussie (approbation, validation, autorisation, suppression…), l'application est prévenue
+ * (événement « prise:changed ») : la cloche et les compteurs d'alertes de l'en-tête se mettent à jour aussitôt, sans
+ * attendre un changement de page (décision du 15/11/2026). Les appels qui ne changent que la cloche elle-même ou la session
+ * n'en émettent pas.
+ */
+export const DATA_CHANGED = 'prise:changed';
+const QUIET = /\/(notifications|alerts\/auto|auth\/(login|logout|password|register|forgot|reset))/;
+const announceChange = (config) => {
+  const method = (config?.method || 'get').toLowerCase();
+  if (method === 'get' || method === 'head' || QUIET.test(config?.url || '')) return;
+  try { window.dispatchEvent(new CustomEvent(DATA_CHANGED, { detail: { url: config.url, method } })); } catch { /* environnement sans DOM */ }
+};
+
 api.interceptors.response.use(
-  (r) => r,
+  (r) => { announceChange(r.config); return r; },
   (error) => {
     if (error?.response?.status === 401 && localStorage.getItem('prise_token')) {
       localStorage.removeItem('prise_token');

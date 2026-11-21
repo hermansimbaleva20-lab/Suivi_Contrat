@@ -20,7 +20,7 @@ class Structure
     ];
 
     /** Tables conservées telles quelles : comptes et configuration. */
-    public const KEPT_TABLES = ['users', 'personal_access_tokens', 'projects', 'project_phases', 'smtp_settings', 'provinces', 'organizational_units', 'positions', 'alert_recipients', 'alert_rules', 'alert_templates', 'ai_settings', 'project_components'];
+    public const KEPT_TABLES = ['users', 'personal_access_tokens', 'projects', 'project_phases', 'smtp_settings', 'provinces', 'organizational_units', 'positions', 'alert_recipients', 'alert_rules', 'alert_templates', 'ai_settings', 'project_components', 'component_categories', 'component_activities'];
 
     public static function dropBusinessTables(): void
     {
@@ -35,6 +35,7 @@ class Structure
             $t->id();
             $t->foreignId('project_id')->constrained()->cascadeOnDelete();
             $t->string('name');
+            $t->string('category', 20)->nullable(); // TRAVAUX | BIENS | SERVICE (18/11/2026)
             $t->text('address')->nullable();
             $t->string('phone')->nullable();
             $t->string('email')->nullable();
@@ -57,6 +58,29 @@ class Structure
                 $t->boolean('is_active')->default(true);
                 $t->timestamps();
                 $t->unique(['project_id', 'name'], 'project_components_project_name_unique');
+            });
+        }
+        // Catégories (coût en UC) et activités (budget en UC) des composantes : configuration conservée, comme les composantes.
+        if (!Schema::hasTable('component_categories')) {
+            Schema::create('component_categories', function (Blueprint $t) {
+                $t->id();
+                $t->foreignId('component_id')->constrained('project_components')->cascadeOnDelete();
+                $t->string('name', 150);
+                $t->decimal('cost', 18, 2)->nullable();
+                $t->text('description')->nullable(); // plus lue (description retirée le 16/11/2026)
+                $t->timestamps();
+                $t->unique(['component_id', 'name'], 'component_categories_component_name_unique');
+            });
+        }
+        if (!Schema::hasTable('component_activities')) {
+            Schema::create('component_activities', function (Blueprint $t) {
+                $t->id();
+                $t->foreignId('category_id')->constrained('component_categories')->cascadeOnDelete();
+                $t->string('name', 500);
+                $t->decimal('budget', 18, 2)->nullable();
+                $t->boolean('is_active')->default(true);
+                $t->timestamps();
+                $t->index('category_id', 'component_activities_category_idx');
             });
         }
 
@@ -94,6 +118,7 @@ class Structure
             $t->string('component', 255)->nullable(); // V37, remplacée par component_id (plus lue)
             $t->decimal('component_budget', 18, 2)->nullable(); // V37, remplacée par project_components.budget (plus lue)
             $t->foreignId('component_id')->nullable()->constrained('project_components')->nullOnDelete(); // composante du projet (facultative)
+            $t->foreignId('activity_id')->nullable()->constrained('component_activities')->nullOnDelete(); // activité de la composante (16/11/2026)
             $t->timestamps();
             $t->unique(['project_id', 'reference'], 'contracts_project_reference_unique');
             $t->index(['project_id', 'phase_id']);

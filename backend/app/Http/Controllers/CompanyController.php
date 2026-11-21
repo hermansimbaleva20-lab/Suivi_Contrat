@@ -4,13 +4,29 @@ namespace App\Http\Controllers;
 use App\Support\Ctx;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
+/**
+ * Entreprises du projet. Chacune a une catégorie (décision du 18/11/2026) : TRAVAUX, BIENS ou SERVICE, la même que celle des
+ * contrats ; le formulaire du contrat ne propose que les entreprises de la catégorie choisie. Une entreprise antérieure
+ * peut rester sans catégorie (« non renseignée ») jusqu'à sa prochaine modification, qui la rend obligatoire.
+ */
 class CompanyController extends Controller
 {
+    public const CATEGORIES = ['TRAVAUX' => 'Travaux', 'BIENS' => 'Biens', 'SERVICE' => 'Services'];
+
+    private static ?bool $hasCategory = null;
+
+    /** Colonne companies.category présente (mise à jour du 18/11/2026). */
+    public static function hasCategory(): bool
+    {
+        return self::$hasCategory ??= Schema::hasColumn('companies', 'category');
+    }
+
     private function view($c): array
     {
         return [
-            'id' => $c->id, 'name' => $c->name, 'address' => (string) $c->address, 'phone' => (string) $c->phone, 'email' => (string) $c->email,
+            'id' => $c->id, 'name' => $c->name, 'category' => (string) ($c->category ?? ''), 'address' => (string) $c->address, 'phone' => (string) $c->phone, 'email' => (string) $c->email,
             'observation' => (string) ($c->observation ?? ''),
             'contracts' => (int) DB::table('contracts')->where('company_id', $c->id)->count(),
         ];
@@ -25,10 +41,16 @@ class CompanyController extends Controller
     {
         $name = trim((string) $r->input('name', ''));
         abort_if($name === '', 422, 'Le nom de l’entreprise est obligatoire.');
-        return [
+        $d = [
             'name' => $name, 'address' => trim((string) $r->input('address', '')), 'phone' => trim((string) $r->input('phone', '')), 'email' => trim((string) $r->input('email', '')),
             'observation' => trim((string) $r->input('observation', '')),
         ];
+        if (self::hasCategory()) {
+            $category = strtoupper(trim((string) $r->input('category', '')));
+            abort_unless(isset(self::CATEGORIES[$category]), 422, 'Choisissez la catégorie de l’entreprise : Travaux, Biens ou Services.');
+            $d['category'] = $category;
+        }
+        return $d;
     }
 
     public function store(Request $r)
@@ -36,7 +58,8 @@ class CompanyController extends Controller
         $d = $this->data($r);
         abort_if(DB::table('companies')->where('project_id', Ctx::projectId())->where('name', $d['name'])->exists(), 422, 'Cette entreprise existe déjà.');
         $id = DB::table('companies')->insertGetId($d + ['project_id' => Ctx::projectId(), 'created_at' => now(), 'updated_at' => now()]);
-        Ctx::audit('CREATION', 'Company', $id, "Entreprise {$d['name']} créée.");
+        $cat = isset($d['category']) ? ' (' . self::CATEGORIES[$d['category']] . ')' : '';
+        Ctx::audit('CREATION', 'Company', $id, "Entreprise {$d['name']}{$cat} créée.");
         return response()->json(['id' => $id, 'message' => 'Entreprise enregistrée.'], 201);
     }
 

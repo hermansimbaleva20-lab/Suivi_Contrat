@@ -235,13 +235,18 @@ body .topbar::after {
   pointer-events: none;
 }
 
-/* Barre latérale : vert profond, reflet holographique en haut et quadrillage de relevé */
+/*
+ * Barre latérale (décision du 19/11/2026, sur le modèle de la photo fournie) : vert profond, quadrillage carré de relevé en
+ * filets fins, lueur au centre (un peu au-dessus du milieu) et bords assombris en vignette. Mêmes couches pour PREDIRE, en bleu
+ * (theme-predire-signature.css), et en thème sombre (theme-sombre.css). Ordre : vignette, quadrillage, lueur, fond.
+ */
 body .sidebar {
   background:
-    radial-gradient(130% 34% at 0% 0%, rgba(94, 234, 212, .16), transparent 62%),
-    radial-gradient(110% 30% at 100% 100%, rgba(232, 200, 115, .12), transparent 62%),
-    linear-gradient(rgba(167, 243, 208, .035) 1px, transparent 1px) 0 0 / 100% 28px,
-    linear-gradient(180deg, #043620 0%, #064d25 48%, #075a2e 100%) !important;
+    radial-gradient(130% 90% at 50% 42%, transparent 52%, rgba(1, 14, 8, .5) 100%),
+    linear-gradient(90deg, rgba(110, 231, 160, .085) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(rgba(110, 231, 160, .085) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(85% 42% at 50% 42%, rgba(52, 194, 122, .3), transparent 72%),
+    linear-gradient(180deg, #05301c 0%, #0a3f26 50%, #06321e 100%) !important;
   box-shadow: inset -1px 0 0 rgba(167, 243, 208, .14), 8px 0 28px -18px rgba(0, 0, 0, .45) !important;
 }
 @media (min-width: 851px) {
@@ -344,6 +349,29 @@ body .form-control:hover, body .form-select:hover { border-color: #b7cdbf; }
 body .form-control:focus, body .form-select:focus { border-color: #087a3f; box-shadow: 0 0 0 3px rgba(8, 122, 63, .14); }
 body .form-label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 5px; }
 
+/*
+ * Champ obligatoire (décision du 15/11/2026) : astérisque rouge en exposant, juste après le libellé, au-dessus du champ.
+ * Déduit de l'attribut required du champ qui suit le libellé (directement ou dans son conteneur), donc aussi pour un champ
+ * qui ne devient obligatoire que sous condition ; is-required le force quand l'obligation n'est contrôlée qu'à l'envoi
+ * (Field required, PositionPicker). Cases et boutons radio enveloppés dans leur libellé : pas d'astérisque par option.
+ * Tableaux de saisie par lignes (stock) : le champ n'a pas de libellé propre, l'en-tête de colonne (th.is-required) le porte.
+ */
+:root { --required-mark: #c62828; }
+.auth-link { color: #087a3f; font-weight: 750; }
+:is(label, .form-label):not(.form-check-label, :has(> input[type="checkbox"], > input[type="radio"])):has(+ :is(input, select, textarea):required)::after,
+:is(label, .form-label):not(.form-check-label, :has(> input[type="checkbox"], > input[type="radio"])):has(+ * :is(input, select, textarea):required)::after,
+:is(label, legend, th, .form-label).is-required::after {
+  content: '*';
+  content: '*' / '';
+  position: relative;
+  top: -.32em;
+  margin-left: 3px;
+  color: var(--required-mark);
+  font-size: 1.08em;
+  font-weight: 700;
+  line-height: 0;
+}
+
 /* Messages, fenêtres et états vides */
 body .alert { border-radius: 12px; border-width: 1px; }
 body .modal-content { border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 70px -24px rgba(6, 40, 25, .45); }
@@ -356,6 +384,61 @@ body .sidebar .side-nav .nav-link { font-family: var(--ff-text) !important; font
 body .sidebar .side-nav .nav-link:hover { background: rgba(255, 255, 255, .07) !important; color: #fff !important; }
 body .sidebar .side-nav .nav-link.active { background: rgba(255, 255, 255, .14) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(167, 243, 208, .22) !important; }
 body .sidebar .side-nav .nav-link.nav-sub { font-weight: 500 !important; }
+
+/*
+ * Option active du menu (décision du 15/11/2026) : un repère unique (.nav-marker, lib/useSlidingIndicator.js) porte le fond,
+ * le liseré et le trait menthe de l'option choisie, et glisse de l'ancienne option vers la nouvelle. Les options passent
+ * au-dessus du repère ; l'option active n'a plus de fond propre.
+ */
+body .sidebar .side-nav.has-marker { position: relative; isolation: isolate; }
+body .sidebar .side-nav.has-marker .nav-link { position: relative; z-index: 1; }
+body .sidebar .side-nav.has-marker .nav-link.active { background: transparent !important; box-shadow: none !important; border-color: transparent !important; font-weight: 700 !important; }
+body .sidebar .side-nav.has-marker .nav-link.active > .bi:first-child { color: #a7f3d0; }
+.nav-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(167, 243, 208, .2), rgba(255, 255, 255, .1) 70%);
+  box-shadow: inset 0 0 0 1px rgba(167, 243, 208, .3), 0 6px 16px -10px rgba(0, 0, 0, .55);
+  pointer-events: none;
+}
+/* Trait menthe à gauche, détaché du bord : il signale l'option choisie sans encadrer la ligne. */
+.nav-marker::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 3px;
+  height: min(20px, 52%);
+  border-radius: 3px;
+  background: #7ee2a8;
+  box-shadow: 0 0 10px rgba(126, 226, 168, .55);
+  translate: 0 -50%;
+}
+.nav-marker.is-gliding { transition: translate .34s var(--ease-out), width .34s var(--ease-out), height .34s var(--ease-out), opacity .2s ease; }
+
+/* Onglets des modules (ModuleHeader) : l'onglet choisi est posé sur un fond teinté, souligné d'un trait vert qui glisse. */
+.module-tabs { isolation: isolate; }
+.module-tab { z-index: 1; }
+.module-tab.is-active { font-weight: 700; }
+.module-tab.is-active .bi { color: #087a3f; }
+.module-tab-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, rgba(8, 122, 63, 0), rgba(8, 122, 63, .08));
+  pointer-events: none;
+}
+.module-tab-marker::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: #087a3f; }
+.module-tab-marker.is-gliding { transition: translate .34s var(--ease-out), width .34s var(--ease-out), opacity .2s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-marker.is-gliding, .module-tab-marker.is-gliding { transition: opacity .15s ease; }
+}
+@media print { .nav-marker, .module-tab-marker { display: none; } }
 
 /* Sélecteur de phase de la barre latérale : champ sombre, cohérent avec le panneau */
 body .sidebar .phase-switcher { background: rgba(2, 24, 14, .32) !important; border: 1px solid rgba(167, 243, 208, .16) !important; border-radius: 12px !important; }
