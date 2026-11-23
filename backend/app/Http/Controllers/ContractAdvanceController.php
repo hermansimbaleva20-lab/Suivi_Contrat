@@ -71,8 +71,11 @@ class ContractAdvanceController extends Controller
             'guarantee_issue_date' => 'date de la caution', 'guarantee_end_date' => 'date d’expiration']);
         $e = [];
         if ($d['request_date'] > Dates::today()) $e['request_date'] = 'La date ne peut pas être postérieure à aujourd’hui.';
+        // L'avance se donne après la signature du contrat (décision du 23/11/2026) : la date de sa caution ne la précède jamais.
+        $signedOn = $c['signature_date'] ?: $c['start_date'];
         // Dates de la caution (23/11/2026) : les siennes, distinctes de celles du contrat ; valable au moins jusqu'à la demande.
         $issue = $d['guarantee_issue_date'] ?? null;
+        if ($issue && $signedOn && $issue < $signedOn) $e['guarantee_issue_date'] = 'L’avance de démarrage vient après la signature du contrat : la date de la caution ne peut pas être antérieure au ' . Dates::fr($signedOn) . '.';
         if ($issue && $d['guarantee_end_date'] < $issue) $e['guarantee_end_date'] = 'La date d’expiration doit suivre la date de la caution.';
         elseif ($d['guarantee_end_date'] < $d['request_date']) $e['guarantee_end_date'] = 'La caution doit rester valable après la date de la demande.';
         $amount = round((float) $c['amount'] * (float) $c['initial_rate'] / 100, 2);

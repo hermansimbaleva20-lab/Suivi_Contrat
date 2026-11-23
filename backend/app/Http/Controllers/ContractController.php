@@ -230,7 +230,7 @@ class ContractController extends Controller
      * Caution d'avance de démarrage (décision du 22/11/2026), facultative et complétée plus tard : null quand tous ses champs
      * sont vides. Ses dates (date de la caution, date d'expiration) sont les siennes, distinctes de celles du marché.
      */
-    private function advanceGuarantee(Request $r, array &$e): ?array
+    private function advanceGuarantee(Request $r, array &$e, ?string $signature = null): ?array
     {
         $ref = trim((string) $r->input('advance_guarantee_reference', ''));
         $bank = trim((string) $r->input('advance_guarantee_bank', ''));
@@ -250,6 +250,8 @@ class ContractController extends Controller
         $end = $endRaw === '' ? null : (Dates::valid($endRaw) ? Dates::part($endRaw) : false);
         if ($issue === false) $e['advance_guarantee_issue_date'] = 'La date de la caution n’est pas valide.';
         if ($end === false) $e['advance_guarantee_end_date'] = 'La date d’expiration n’est pas valide.';
+        // L'avance se donne après la signature du contrat (décision du 23/11/2026) : sa caution n'est jamais datée d'avant.
+        if ($issue && $signature && $issue < $signature) $e['advance_guarantee_issue_date'] = 'L’avance de démarrage vient après la signature du contrat : la date de la caution ne peut pas être antérieure au ' . Dates::fr($signature) . '.';
         if ($issue && $end && $end < $issue) $e['advance_guarantee_end_date'] = 'La date d’expiration doit suivre la date de la caution.';
         return ['reference' => $ref, 'bank_name' => $bank !== '' ? $bank : null, 'issue_date' => $issue ?: null, 'end_date' => $end ?: null, 'observation' => $obs !== '' ? $obs : null];
     }
@@ -370,7 +372,7 @@ class ContractController extends Controller
         $goods = $this->goodsFields($r, $category, (float) $initialRate, $e) + ['organizational_unit_id' => $officeUnit] + $this->componentFields($r, $e);
         if (Loader::hasAdvanceGuarantees()) $goods['acquisition_mode'] = $mode;
         // Caution d'avance de démarrage : seulement si le contrat a une avance à la signature.
-        $caution = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate) ? $this->advanceGuarantee($r, $e) : null;
+        $caution = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate) ? $this->advanceGuarantee($r, $e, $signature) : null;
         if ($isMulti && $provinces && $sites) {
             $entered = array_unique(array_filter(array_column($sites, 'province')));
             if (array_diff($provinces, $entered)) $e['sites'] = 'Ajoutez au moins un site pour chaque province sélectionnée.';
@@ -457,7 +459,9 @@ class ContractController extends Controller
         // (service, fournitures de bureau, biens BAD ou national, taux à 0) : la caution est retirée.
         $startup = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate);
         $touchCaution = !$startup || $r->has('advance_guarantee_reference');
-        $caution = $startup && $r->has('advance_guarantee_reference') ? $this->advanceGuarantee($r, $e) : null;
+        // Date de signature du formulaire, à défaut celle du contrat, à défaut le démarrage (comme à l'enregistrement plus bas).
+        $signedOn = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($c['signature_date'] ?: $start);
+        $caution = $startup && $r->has('advance_guarantee_reference') ? $this->advanceGuarantee($r, $e, $signedOn) : null;
         // Une fois une avance demandée ou un décompte saisi, les règles du marché ne changent plus : les lignes en dépendent.
         $goodsInUse = DB::table('contract_decomptes')->where('contract_id', $id)->where('status', '!=', DecompteLedger::REJECTED)->exists() || DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', 'REJETEE')->exists();
         $goodsTouched = GoodsProcedure::governs($c['goods_procedure']) || GoodsProcedure::governs($goods['goods_procedure']);

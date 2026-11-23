@@ -235,3 +235,42 @@ body .text-muted, body .muted { color: var(--prise-muted) !important; }
   html[data-project="predire"][data-theme="dark"] { --ouvrages: url('/images/ouvrages-predire-sombre.svg'); }
 }
 @media print { html { --ouvrages: none; } }
+
+/*
+ * Formulaire du contrat (décision du 23/11/2026) : un bloc, une couleur, pour que chacun repère sa zone de saisie.
+ * Fond teinté sur toute la carte, filet de 3 px en haut, pastille d'icône devant le titre ; les champs restent sur fond
+ * blanc (ou le fond des champs en sombre). Informations du contrat : couleur du projet (vert PRISE, turquoise PREDIRE).
+ */
+body .form-block {
+  --fb: #0c6b3b; --fb-ink: #0a5a32; --fb-tint: #eaf5ee;
+  background: var(--fb-tint) !important;
+  border-top: 3px solid var(--fb) !important;
+}
+body .form-block.fb-procedure { --fb: #5b7468; --fb-ink: #364b40; --fb-tint: #f0f3f1; }
+body .form-block.fb-sites { --fb: #1d5fa8; --fb-ink: #174b85; --fb-tint: #ebf2fb; }
+body .form-block.fb-avance { --fb: #b07200; --fb-ink: #7a4d00; --fb-tint: #fcf3e1; }
+body .form-block.fb-garantie { --fb: #6a4bb0; --fb-ink: #53389a; --fb-tint: #f2eefb; }
+body .form-block.fb-document { --fb: #5b6670; --fb-ink: #3e4750; --fb-tint: #f1f3f4; }
+html[data-project="predire"] body .form-block.fb-contrat { --fb: #0b7377; --fb-ink: #075a5d; --fb-tint: #e7f4f4; }
+
+body .form-block .section-title { display: flex; align-items: center; gap: 9px; color: var(--fb-ink) !important; }
+body .form-block .fb-icon {
+  display: inline-grid; place-items: center; flex: 0 0 auto;
+  width: 30px; height: 30px; border-radius: 8px;
+  font-size: 15px; color: #fff; background: var(--fb);
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, .25);
+}
+/* Sous-zones posées dans un bloc teinté (lignes de site, total, nature des travaux) : surface pleine, filet de la couleur du bloc. */
+body .form-block .site-row, body .form-block .work-mode { background: var(--surface, #fff) !important; border-color: color-mix(in srgb, var(--fb) 28%, transparent) !important; }
+
+@media screen {
+  html[data-theme="dark"] body .form-block { --fb: #5fd49a; --fb-ink: #8ae3b6; --fb-tint: #13261c; }
+  html[data-theme="dark"] body .form-block.fb-procedure { --fb: #9fb3a8; --fb-ink: #c9d4ce; --fb-tint: #172220; }
+  html[data-theme="dark"] body .form-block.fb-sites { --fb: #6fa6ea; --fb-ink: #a9cdf7; --fb-tint: #142133; }
+  html[data-theme="dark"] body .form-block.fb-avance { --fb: #e0ad4f; --fb-ink: #f6c76f; --fb-tint: #2a2113; }
+  html[data-theme="dark"] body .form-block.fb-garantie { --fb: #a48be6; --fb-ink: #c9b8f5; --fb-tint: #201b30; }
+  html[data-theme="dark"] body .form-block.fb-document { --fb: #9aa6b0; --fb-ink: #c3ccd3; --fb-tint: #1b2024; }
+  html[data-project="predire"][data-theme="dark"] body .form-block.fb-contrat { --fb: #4fe0d2; --fb-ink: #8eece2; --fb-tint: #0f2526; }
+  /* En sombre, la pastille claire porte une icône sombre. */
+  html[data-theme="dark"] body .form-block .fb-icon { color: #0b1210; }
+}

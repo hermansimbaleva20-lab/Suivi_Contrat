@@ -216,8 +216,8 @@ export default function ContractForm() {
       </PageHead>
       <Notice>{error}</Notice>
       <form onSubmit={submit}>
-        <div className="cardx form-card p-3 mb-3">
-          <div className="section-title mb-3">Informations du contrat</div>
+        <div className="cardx form-card form-block fb-contrat p-3 mb-3">
+          <div className="section-title mb-3"><i className="bi bi-file-earmark-text fb-icon" aria-hidden="true" />Informations du contrat</div>
           <div className="row g-3">
             <Field className="col-md-4" label="N° du contrat" error={errors.reference}><input className="form-control" value={f.reference} onChange={(e) => set('reference')(e.target.value)} required /></Field>
             {/* La catégorie d'abord : elle limite la liste des entreprises à celles de cette catégorie (18/11/2026). */}
@@ -381,8 +381,8 @@ export default function ContractForm() {
         </div>
 
         {isGoods && goods && (
-          <div className="cardx form-card p-3 mb-3">
-            <div className="section-title mb-3">Procédure du marché</div>
+          <div className="cardx form-card form-block fb-procedure p-3 mb-3">
+            <div className="section-title mb-3"><i className="bi bi-diagram-3 fb-icon" aria-hidden="true" />Procédure du marché</div>
             {errors.goods_procedure && <div className="text-danger small mb-2">{errors.goods_procedure}</div>}
             <div className="d-flex flex-wrap gap-2 mb-3" role="radiogroup" aria-label="Procédure du marché">
               {shownProcedures.map((p) => <label key={p.code} className="check-pill"><input type="radio" name="goods-procedure" checked={f.goods_procedure === p.code} onChange={() => chooseGoods(p.code, f.goods_origin)} />{p.label}</label>)}
@@ -430,9 +430,9 @@ export default function ContractForm() {
           </div>
         )}
 
-        <div className="cardx form-card p-3 mb-3">
+        <div className="cardx form-card form-block fb-sites p-3 mb-3">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <div className="section-title">{isOffice ? 'Sites d’exécution' : 'Sites d’exécution et montants'}</div>
+            <div className="section-title"><i className="bi bi-geo-alt fb-icon" aria-hidden="true" />{isOffice ? 'Sites d’exécution' : 'Sites d’exécution et montants'}</div>
             <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setSites((l) => [...l, blankSite()])}><i className="bi bi-plus-lg me-1" />Ajouter un site</button>
           </div>
           {errors.sites && <div className="text-danger small mb-2">{errors.sites}</div>}
@@ -480,8 +480,8 @@ export default function ContractForm() {
         </div>
 
         {startupAdvance && (
-          <div className="cardx form-card p-3 mb-3">
-            <div className="section-title mb-3">Avance de démarrage</div>
+          <div className="cardx form-card form-block fb-avance p-3 mb-3">
+            <div className="section-title mb-3"><i className="bi bi-cash-coin fb-icon" aria-hidden="true" />Avance de démarrage</div>
             <div className="row g-3">
               <Field className="col-md-3" label="Taux de l’avance (%)" error={errors.initial_financing_rate}><DecimalInput value={f.initial_financing_rate} onChange={set('initial_financing_rate')} /></Field>
               <Field className="col-md-3" label="Montant de l’avance (USD)">
@@ -500,7 +500,7 @@ export default function ContractForm() {
                   </Field>
                   <div className="col-md-4 d-none d-md-block" aria-hidden="true" />
                   <Field className="col-md-3" label="Date de la caution" error={errors.advance_guarantee_issue_date}>
-                    <input type="date" className="form-control" value={f.advance_guarantee_issue_date} onChange={(e) => set('advance_guarantee_issue_date')(e.target.value)} />
+                    <input type="date" className="form-control" value={f.advance_guarantee_issue_date} min={f.signature_date || f.start_date || undefined} onChange={(e) => set('advance_guarantee_issue_date')(e.target.value)} />
                   </Field>
                   <Field className="col-md-3" label="Date d’expiration" error={errors.advance_guarantee_end_date}>
                     <input type="date" className="form-control" value={f.advance_guarantee_end_date} min={f.advance_guarantee_issue_date || undefined} onChange={(e) => set('advance_guarantee_end_date')(e.target.value)} />
@@ -525,8 +525,8 @@ export default function ContractForm() {
         )}
 
         {!edit && !isService && !isOffice && (
-          <div className="cardx form-card p-3 mb-3">
-            <div className="section-title mb-3">Garantie de bonne exécution</div>
+          <div className="cardx form-card form-block fb-garantie p-3 mb-3">
+            <div className="section-title mb-3"><i className="bi bi-shield-check fb-icon" aria-hidden="true" />Garantie de bonne exécution</div>
             {/* Dates d'émission et d'expiration propres à la garantie (22/11/2026), distinctes de celles du marché. */}
             <div className="row g-3">
               <Field className="col-md-3" label="Taux (%)" error={errors.guarantee_rate}><DecimalInput value={f.guarantee_rate} onChange={set('guarantee_rate')} /></Field>
@@ -550,10 +550,10 @@ export default function ContractForm() {
         )}
 
         {edit && current.data?.guarantee && (
-          <div className="cardx form-card p-3 mb-3">
+          <div className="cardx form-card form-block fb-garantie p-3 mb-3">
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
               <div>
-                <div className="section-title">Garantie de bonne exécution</div>
+                <div className="section-title"><i className="bi bi-shield-check fb-icon" aria-hidden="true" />Garantie de bonne exécution</div>
                 <div className="small text-secondary mt-1">
                   N° {current.data.guarantee.account || '—'} · {current.data.guarantee.bank || '—'} · émise le {fr(current.data.guarantee.startDate)} · expire le {fr(current.data.guarantee.endDate)}
                 </div>
@@ -564,8 +564,8 @@ export default function ContractForm() {
         )}
 
         {!edit && (
-          <div className="cardx form-card p-3 mb-3">
-            <div className="section-title mb-1">Document du contrat signé</div>
+          <div className="cardx form-card form-block fb-document p-3 mb-3">
+            <div className="section-title mb-1"><i className="bi bi-paperclip fb-icon" aria-hidden="true" />Document du contrat signé</div>
             <div className="section-subtitle mb-3">PDF, DOC ou DOCX, 20 Mo maximum.</div>
             <Field className="col-12" label="Fichier du contrat signé">
               <input type="file" className="form-control" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setDocumentFile(e.target.files?.[0] || null)} required />

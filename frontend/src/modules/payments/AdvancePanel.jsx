@@ -66,7 +66,7 @@ function AdvanceDialog({ kind, c, onClose, onDone }) {
             <h3 className="tw:m-0 tw:mt-1 tw:font-display tw:text-sm tw:font-bold tw:text-prise-blue tw:sm:col-span-2">Caution d’avance de démarrage</h3>
             {field('guarantee_number', 'N° de la caution', { maxLength: 120 })}
             {field('guarantee_bank', 'Banque', { maxLength: 191 })}
-            {field('guarantee_issue_date', 'Date de la caution', { type: 'date' })}
+            {field('guarantee_issue_date', 'Date de la caution', { type: 'date', min: c.signatureDate || c.startDate || undefined })}
             {field('guarantee_end_date', 'Date d’expiration', { type: 'date', min: f.guarantee_issue_date || undefined })}
             {field('guarantee_amount', 'Montant (USD)', { inputMode: 'decimal', autoComplete: 'off' })}
             <div>
