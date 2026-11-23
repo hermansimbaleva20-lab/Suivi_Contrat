@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /** Chargement des contrats et de leurs dépendances sous forme de tableaux normalisés (voir Metrics). */
 class Loader
@@ -86,8 +87,20 @@ class Loader
                 'id' => (int) $a->id, 'status' => (string) $a->status, 'rate' => (float) $a->rate, 'amount' => (float) $a->amount,
                 'request_date' => Dates::part($a->request_date), 'request_reference' => (string) $a->request_reference,
                 'guarantee_bank' => $a->guarantee_bank, 'guarantee_number' => $a->guarantee_number, 'guarantee_amount' => $a->guarantee_amount === null ? null : (float) $a->guarantee_amount,
+                'guarantee_issue_date' => !empty($a->guarantee_issue_date) ? Dates::part($a->guarantee_issue_date) : null,
                 'guarantee_end_date' => $a->guarantee_end_date ? Dates::part($a->guarantee_end_date) : null, 'paid_date' => $a->paid_date ? Dates::part($a->paid_date) : null, 'payment_reference' => (string) $a->payment_reference,
             ];
+        }
+        // Caution d'avance de démarrage (22/11/2026) : une par contrat, lue seulement une fois la base mise à jour (V40).
+        $cautionBy = [];
+        if (self::hasAdvanceGuarantees()) {
+            foreach (DB::table('advance_guarantees')->whereIn('contract_id', $ids)->get() as $g) {
+                $cautionBy[$g->contract_id] = [
+                    'id' => (int) $g->id, 'reference' => (string) $g->reference, 'bank' => (string) ($g->bank_name ?? ''),
+                    'issue_date' => $g->issue_date ? Dates::part($g->issue_date) : null, 'end_date' => $g->end_date ? Dates::part($g->end_date) : null,
+                    'observation' => (string) ($g->observation ?? ''),
+                ];
+            }
         }
         $penaltyBy = DB::table('contract_decomptes')->whereIn('contract_id', $ids)->where('status', 'VALIDE')->groupBy('contract_id')->selectRaw('contract_id, SUM(penalty_amount) AS total')->pluck('total', 'contract_id');
         $renewBy = [];
@@ -143,9 +156,17 @@ class Loader
                 'unit_id' => isset($c->organizational_unit_id) ? (int) $c->organizational_unit_id : null, 'unit_name' => $c->unit_name ?? null,
                 'goods_min_amount' => isset($c->goods_min_amount) ? (float) $c->goods_min_amount : null, 'goods_max_amount' => isset($c->goods_max_amount) ? (float) $c->goods_max_amount : null,
                 'advance' => $advanceBy[$cid] ?? null, 'penalties' => (float) ($penaltyBy[$cid] ?? 0),
+                'acquisition_mode' => isset($c->acquisition_mode) ? trim((string) $c->acquisition_mode) : '', 'advance_guarantee' => $cautionBy[$cid] ?? null,
             ];
         }
         return $out;
+    }
+
+    /** La table des cautions d'avance existe (base mise à jour par la migration du 22/11/2026 ou V40). */
+    public static function hasAdvanceGuarantees(): bool
+    {
+        static $ready = null;
+        return $ready ??= Schema::hasTable('advance_guarantees');
     }
 
     /** Garanties du projet (filtre phase facultatif) ou de certains contrats, avec prolongements/renouvellements. */

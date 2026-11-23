@@ -1,0 +1,52 @@
+/*
+ * Cautions d'avance de démarrage et garanties de bonne exécution (CautionsPage.jsx, décision du 22/11/2026) : le tableau
+ * du projet, en grille bordée comme le fichier papier. Écran : jetons du thème (clair et sombre) ; impression
+ * (PrintDocument, A4 paysage) : toujours papier blanc, en-têtes gris clair, lignes expirées en rouge.
+ */
+.cau-figures { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 0; }
+.cau-figures dt { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--prise-muted); }
+.cau-figures dd { margin: 0; font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 700; color: var(--ink); }
+.cau-figures .is-alert dd { color: var(--text-red, #b3261e); }
+.cau-figures .is-warn dd { color: var(--text-amber, #9a5b00); }
+
+.cau-screen { overflow: hidden; }
+.cau-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
+.cau-head h2 { margin: 0; font-family: var(--ff-title); font-size: 18px; font-weight: 700; letter-spacing: .01em; color: var(--ink); }
+.cau-head h2 span { white-space: nowrap; color: var(--ink-soft); }
+.cau-scroll { overflow-x: auto; }
+.cau-scroll:focus-visible { outline-offset: -2px; }
+.cau-loading { opacity: .6; transition: opacity .2s; }
+
+.cau-table { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+.cau-c-holder { width: 13%; } .cau-c-amount { width: 9%; } .cau-c-mode { width: 7%; } .cau-c-date { width: 7.5%; }
+.cau-c-ref { width: 19%; } .cau-c-validity { width: 6.5%; } .cau-c-obs { width: 15%; }
+.cau-table th, .cau-table td { padding: 5px 7px; border: 1px solid var(--line-strong, var(--line)); vertical-align: middle; text-align: left; }
+.cau-table thead th { position: sticky; top: 0; z-index: 1; text-align: center; font-size: 11.5px; font-weight: 700; line-height: 1.25; color: var(--ink); background: var(--surface-sunk); }
+.cau-table tbody tr:hover > td { background: var(--surface-sunk); }
+.cau-holder { font-weight: 600; }
+.cau-contract { display: block; font-size: 11px; font-weight: 500; color: var(--prise-muted); }
+.cau-num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cau-date { text-align: center !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cau-mode { text-align: center !important; font-weight: 600; }
+.cau-ref > span:first-child { margin-right: 12px; }
+.cau-bank { float: right; font-weight: 600; white-space: nowrap; }
+.cau-muted { color: var(--prise-muted); }
+.cau-none { font-style: italic; text-align: center !important; }
+.cau-obs { font-size: 12px; }
+/* Expirée : toute la ligne en rouge, comme dans le tableau du projet. */
+.cau-table tr.is-expired td, .cau-table tr.is-expired .cau-contract { color: var(--text-red, #b3261e); }
+
+/* Impression : papier blanc, encre sombre, grille noire fine comme le fichier du projet. */
+.cau-print { color: #111; }
+.cau-print .cau-table { min-width: 0; font-size: 8pt; line-height: 1.25; color: #111; }
+.cau-print .cau-table th, .cau-print .cau-table td { padding: 2.5pt 4pt; border-color: #555; }
+.cau-print .cau-table thead th { position: static; font-size: 7.8pt; color: #111; background: #ececec; }
+.cau-print .cau-contract, .cau-print .cau-muted { color: #555; }
+.cau-print .cau-table tbody tr:hover > td { background: none; }
+.cau-print .cau-table tr.is-expired td, .cau-print .cau-table tr.is-expired .cau-contract { color: #c00000; }
+.cau-print .pdoc-title { color: #111; }
+.cau-signoff { margin: 6pt 0 0; font-size: 7pt; color: #555; }
+@media print {
+  .cau-print .cau-table tr { break-inside: avoid; }
+  .cau-print .cau-table thead { display: table-header-group; }
+}

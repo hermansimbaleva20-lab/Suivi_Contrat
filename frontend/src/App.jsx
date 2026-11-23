@@ -35,6 +35,7 @@ import DecomptesPage from './modules/decomptes/DecomptesPage.jsx';
 import ReportSnapshotsPage from './modules/reports/ReportSnapshotsPage.jsx';
 import SynthesisPage from './modules/reports/SynthesisPage.jsx';
 import ExecutionPage from './modules/reports/ExecutionPage.jsx';
+import CautionsPage from './modules/reports/CautionsPage.jsx';
 import AlertSettingsPage from './modules/alerts/AlertSettingsPage.jsx';
 import OpeningLoader from './components/OpeningLoader.jsx';
 import { FINANCE } from './lib/navigation.js';
@@ -115,6 +116,8 @@ export default function App() {
         <Route path="/reports" element={<Guard any={['canViewReports', 'canViewSituation']}><Reports /></Guard>} />
         <Route path="/reports/synthese" element={<Guard any={['canViewReports', 'canViewSituation']}><SynthesisPage /></Guard>} />
         <Route path="/reports/etat-execution" element={<Guard any={['canViewReports', 'canViewSituation']}><ExecutionPage /></Guard>} />
+        <Route path="/reports/cautions" element={<Navigate to="/reports/cautions/avances" replace />} />
+        <Route path="/reports/cautions/:kind" element={<Guard any={['canViewReports', 'canViewSituation']}><CautionsPage /></Guard>} />
         <Route path="/reports/snapshots" element={<Guard any={['canViewReports', 'canViewSituation']}><ReportSnapshotsPage /></Guard>} />
         <Route path="/alerts" element={<Guard any={['canViewAlertsContracts', 'canViewAlertsGuarantees', 'canViewAlertsLogistics']}><Alerts /></Guard>} />
         <Route path="/archives" element={<Archives />} />

@@ -6,9 +6,14 @@ import { btnGhost, btnPrimary, FieldError, input, label, panel } from '../shared
 import { advanceSituation } from './advanceSituation.js';
 
 /*
- * Avance de démarrage d'un marché de biens en procédure BAD ou nationale : l'entreprise la demande en présentant une garantie
- * de restitution d'un montant équivalent. Elle ne compte comme versée qu'une fois son paiement renseigné ici.
+ * Avance de démarrage d'un marché de biens en procédure BAD ou nationale : l'entreprise la demande en présentant une caution
+ * (garantie de restitution) d'un montant équivalent. Elle ne compte comme versée qu'une fois son paiement renseigné ici.
+ * Décision du 23/11/2026 : l'enregistrement porte le n° de référence de l'avance, puis la date de la caution et sa date
+ * d'expiration, propres à la caution et distinctes des dates du contrat (plus aucune reprise de la fin du contrat).
  */
+
+// Validité de la caution, en jours, de sa date à sa date d'expiration (comme le tableau du projet).
+const validity = (from, to) => (from && to ? Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) : null);
 
 const DIALOGS = {
   request: { url: (c) => `/contracts/${c.id}/advance`, title: 'Demande d’avance de démarrage', submit: 'Enregistrer la demande', danger: false },
@@ -19,7 +24,7 @@ const DIALOGS = {
 function AdvanceDialog({ kind, c, onClose, onDone }) {
   const d = DIALOGS[kind];
   const [f, setF] = useState(() => ({
-    request: { request_date: todayISO(), request_reference: '', guarantee_bank: '', guarantee_number: '', guarantee_amount: String(c.advanceDue).replace('.', ','), guarantee_end_date: c.endDate || '' },
+    request: { request_date: todayISO(), request_reference: '', guarantee_bank: '', guarantee_number: '', guarantee_amount: String(c.advanceDue).replace('.', ','), guarantee_issue_date: '', guarantee_end_date: '' },
     pay: { paid_date: todayISO(), payment_reference: '' },
     cancel: { reason: '' },
   }[kind]));
@@ -56,13 +61,20 @@ function AdvanceDialog({ kind, c, onClose, onDone }) {
         {failure && <p className="tw:m-0 tw:text-sm tw:text-prise-danger tw:sm:col-span-2" role="alert">{failure}</p>}
         {kind === 'request' && (
           <>
+            {field('request_reference', 'N° de référence de l’avance', { maxLength: 120, autoFocus: true, placeholder: 'Ex. : lettre n° 12/2026' })}
             {field('request_date', 'Date de la demande', { type: 'date', max: todayISO() })}
-            {field('request_reference', 'Référence de la demande', { maxLength: 120, autoFocus: true, placeholder: 'Ex. : lettre n° 12/2026' })}
-            <h3 className="tw:m-0 tw:mt-1 tw:font-display tw:text-sm tw:font-bold tw:text-prise-blue tw:sm:col-span-2">Garantie de restitution de l’avance</h3>
+            <h3 className="tw:m-0 tw:mt-1 tw:font-display tw:text-sm tw:font-bold tw:text-prise-blue tw:sm:col-span-2">Caution d’avance de démarrage</h3>
+            {field('guarantee_number', 'N° de la caution', { maxLength: 120 })}
             {field('guarantee_bank', 'Banque', { maxLength: 191 })}
-            {field('guarantee_number', 'N° de la garantie', { maxLength: 120 })}
+            {field('guarantee_issue_date', 'Date de la caution', { type: 'date' })}
+            {field('guarantee_end_date', 'Date d’expiration', { type: 'date', min: f.guarantee_issue_date || undefined })}
             {field('guarantee_amount', 'Montant (USD)', { inputMode: 'decimal', autoComplete: 'off' })}
-            {field('guarantee_end_date', 'Valable jusqu’au', { type: 'date' })}
+            <div>
+              <span className={label}>Validité</span>
+              <p className="tw:m-0 tw:rounded-lg tw:border tw:border-prise-border tw:bg-prise-green-soft tw:px-3 tw:py-2 tw:text-sm tw:font-semibold tw:text-prise-text tw:tabular-nums" aria-live="polite">
+                {validity(f.guarantee_issue_date, f.guarantee_end_date) === null ? '—' : `${validity(f.guarantee_issue_date, f.guarantee_end_date)} jours`}
+              </p>
+            </div>
           </>
         )}
         {kind === 'pay' && (
@@ -96,11 +108,14 @@ export default function AdvancePanel({ c, canManage, onDone }) {
           <h2 id="avance-title" className="tw:m-0 tw:font-display tw:text-[17px] tw:font-bold tw:text-prise-blue">Avance de démarrage sur demande</h2>
           <p className="tw:m-0 tw:mt-1 tw:text-sm tw:text-prise-text">{advanceSituation(c)}</p>
           {a ? (
-            <p className="tw:m-0 tw:mt-0.5 tw:text-xs tw:text-prise-muted">Garantie de restitution n° {a.guaranteeNumber} ({a.guaranteeBank}) : {money(a.guaranteeAmount)} USD, valable jusqu’au {fr(a.guaranteeEndDate)}.</p>
+            <p className="tw:m-0 tw:mt-0.5 tw:text-xs tw:text-prise-muted">
+              Avance n° {a.requestReference} · caution n° {a.guaranteeNumber} ({a.guaranteeBank}) : {money(a.guaranteeAmount)} USD,
+              {a.guaranteeIssueDate ? ` du ${fr(a.guaranteeIssueDate)}` : ''} jusqu’au {fr(a.guaranteeEndDate)}{a.guaranteeValidity !== null && a.guaranteeValidity !== undefined ? ` (${a.guaranteeValidity} jours)` : ''}.
+            </p>
           ) : (
-            <p className="tw:m-0 tw:mt-0.5 tw:text-xs tw:text-prise-muted">L’entreprise présente une garantie de restitution d’un montant équivalent. À traiter avant le premier décompte : l’avance ne peut plus être demandée ensuite.</p>
+            <p className="tw:m-0 tw:mt-0.5 tw:text-xs tw:text-prise-muted">L’entreprise présente une caution d’un montant équivalent. À traiter avant le premier décompte : l’avance ne peut plus être demandée ensuite.</p>
           )}
-          {expired && <p className="tw:m-0 tw:mt-1 tw:text-xs tw:font-semibold tw:text-prise-danger">La garantie de restitution a expiré : vérifiez-la avant de payer.</p>}
+          {expired && <p className="tw:m-0 tw:mt-1 tw:text-xs tw:font-semibold tw:text-prise-danger">La caution a expiré : vérifiez-la avant de payer.</p>}
         </div>
         {canAct && (
           <div className="tw:flex tw:flex-wrap tw:gap-2">

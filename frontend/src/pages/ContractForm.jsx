@@ -10,6 +10,9 @@ const AEP = 'Système d’AEP';
 const blankSite = () => ({ id: 0, name: '', province: '', work_type: '', description: '', quantity: '1', amount: '' });
 const filled = (v) => String(v ?? '').trim() !== '';
 const toInput = (v) => (v === null || v === undefined ? '' : String(v).replace('.', ','));
+// Validité, en jours, d'une caution ou d'une garantie : de sa date à sa date d'expiration (comme le tableau du projet).
+const validityDays = (from, to) => (from && to ? Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) : null);
+const daysText = (n) => (n === null ? '—' : `${n} jour${Math.abs(n) > 1 ? 's' : ''}`);
 
 export default function ContractForm() {
   const { id } = useParams();
@@ -25,6 +28,9 @@ export default function ContractForm() {
     initial_financing_rate: '0', activities: '', work_mode: 'Lourd', selected_work_types: [], guarantee_rate: '5', guarantee_bank_name: '', guarantee_account_number: '',
     guarantee_observation: '', goods_procedure: '', goods_origin: '', payment_schedule: [], delay_penalty_rate: '', delay_penalty_cap: '', goods_min_amount: '', goods_max_amount: '',
     installation_cost: '', component_id: '', activity_id: '', guarantee_start_date: '', guarantee_end_date: '',
+    // Mode d'acquisition et caution d'avance de démarrage (décision du 22/11/2026).
+    acquisition_mode: '', acquisition_mode_other: '', advance_guarantee_reference: '', advance_guarantee_bank: '',
+    advance_guarantee_issue_date: '', advance_guarantee_end_date: '', advance_guarantee_observation: '',
   });
   const [sites, setSites] = useState([blankSite()]);
   const [errors, setErrors] = useState({});
@@ -71,9 +77,12 @@ export default function ContractForm() {
     return { ...s, category: v, ...(keep ? {} : { company_id: '' }), ...(v === 'SERVICE' ? { initial_financing_rate: '0' } : {}) };
   });
 
+  const modes = ref.data?.acquisitionModes || [];
+  const modeCodes = modes.map((m) => m.code);
+  const cautionsReady = !!ref.data?.cautionsReady;
   useEffect(() => {
     const c = current.data?.contract;
-    if (!c) return;
+    if (!c || !ref.data) return;
     const types = (c.workTypeText || '').split(';').map((x) => x.trim()).filter(Boolean);
     setF((s) => ({
       ...s, reference: c.number, company_id: String(c.companyId), category: c.category || 'TRAVAUX', province: c.province || '',
@@ -87,9 +96,16 @@ export default function ContractForm() {
       goods_min_amount: c.goodsMinAmount === null || c.goodsMinAmount === undefined ? '' : String(c.goodsMinAmount),
       goods_max_amount: c.goodsMaxAmount === null || c.goodsMaxAmount === undefined ? '' : String(c.goodsMaxAmount),
       installation_cost: toInput(c.installationCost), component_id: c.componentId ? String(c.componentId) : '', activity_id: c.activityId ? String(c.activityId) : '',
+      // Un mode de la liste garde son code ; un autre mode est repris dans « Autre ».
+      acquisition_mode: !c.acquisitionMode ? '' : (modeCodes.includes(c.acquisitionMode) ? c.acquisitionMode : 'AUTRE'),
+      acquisition_mode_other: c.acquisitionMode && !modeCodes.includes(c.acquisitionMode) ? c.acquisitionMode : '',
+      advance_guarantee_reference: c.advanceGuarantee?.reference || '', advance_guarantee_bank: c.advanceGuarantee?.bank || '',
+      advance_guarantee_issue_date: c.advanceGuarantee?.issueDate || '', advance_guarantee_end_date: c.advanceGuarantee?.endDate || '',
+      advance_guarantee_observation: c.advanceGuarantee?.observation || '',
     }));
     setSites((c.sites || []).map((x) => ({ id: x.id, name: x.name, province: x.province, work_type: x.workType, description: x.description, quantity: String(x.quantity), amount: toInput(x.amount) })));
-  }, [current.data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.data, ref.data]);
 
   const workTypes = useMemo(() => {
     const base = (ref.data?.workTypes || []).filter((w) => w.category === f.category || w.category === 'TRAVAUX').map((w) => w.name);
@@ -107,8 +123,11 @@ export default function ContractForm() {
   const renewedAmount = edit ? Number(loaded?.renewedAmount) || 0 : 0;
   const sitesTotal = sites.filter((s) => s.name.trim()).reduce((a, s) => a + (parseDecimal(s.amount) || 0), 0);
   const total = installation + sitesTotal + renewedAmount;
-  // Fin du contrat : borne de la période de garantie (démarrage + durée).
+  // Fin contractuelle du marché (démarrage + durée), reprise dans les tableaux des cautions et des garanties.
   const contractEnd = f.start_date ? addMonths(f.start_date, Number(f.duration_months) || 1) : '';
+  // Avance de démarrage à la signature : ni service, ni fournitures de bureau, ni biens BAD ou national (avance sur demande).
+  const startupAdvance = !isService && !isOffice && !governed;
+  const advanceRate = parseDecimal(f.initial_financing_rate) || 0;
   // Composantes enregistrées au préalable (Administration › Composantes) : le contrat choisit une activité d'une catégorie
   // d'une composante, facultativement (décision du 16/11/2026) ; la composante et la catégorie en découlent.
   const components = ref.data?.components || [];
@@ -153,7 +172,10 @@ export default function ContractForm() {
     // Le montant calculé est recalculé par l'API ; il n'est transmis que pour un ancien contrat (montant saisi).
     const payload = {
       ...f, installation_cost: isWorks ? f.installation_cost : '', amount: computed ? String(total) : f.amount, sites: sites.filter((s) => s.name.trim()),
-      guarantee_start_date: f.guarantee_start_date || f.start_date, guarantee_end_date: f.guarantee_end_date || contractEnd,
+      // Caution d'avance : seulement pour une avance à la signature ; sinon, aucun champ n'est envoyé (l'API la retire).
+      ...(startupAdvance && advanceRate > 0 ? {} : {
+        advance_guarantee_reference: '', advance_guarantee_bank: '', advance_guarantee_issue_date: '', advance_guarantee_end_date: '', advance_guarantee_observation: '',
+      }),
     };
     try {
       const res = edit ? await api.put(`/contracts/${id}`, payload) : await api.post('/contracts', payload);
@@ -189,7 +211,7 @@ export default function ContractForm() {
 
   return (
     <>
-      <PageHead kicker="GESTION CONTRACTUELLE" title={edit ? `Modifier le contrat ${f.reference}` : 'Nouveau contrat'} desc={isService ? 'Renseignez le contrat et ses sites d’exécution. Un contrat de service n’a ni avance de démarrage ni garantie de bonne exécution.' : 'Renseignez le contrat, ses sites d’exécution et sa garantie de bonne exécution.'}>
+      <PageHead kicker="GESTION CONTRACTUELLE" title={edit ? `Modifier le contrat ${f.reference}` : 'Nouveau contrat'} desc={isService ? 'Informations du contrat et sites d’exécution. Un contrat de service n’a ni avance de démarrage ni garantie de bonne exécution.' : 'Informations du contrat, avance de démarrage et garantie de bonne exécution.'}>
         <Link to={edit ? `/contracts/${id}` : '/contracts'} className="btn btn-light"><i className="bi bi-arrow-left me-1" /> Retour</Link>
       </PageHead>
       <Notice>{error}</Notice>
@@ -204,7 +226,7 @@ export default function ContractForm() {
                 {['TRAVAUX', 'BIENS', 'SERVICE'].map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
               </select>
             </Field>
-            <Field className="col-md-4" label="Entreprise" error={errors.company_id}>
+            <Field className="col-md-4" label="Titulaire (entreprise)" error={errors.company_id}>
               <select className="form-select" value={f.company_id} onChange={(e) => set('company_id')(e.target.value)} required>
                 <option value="">{sameCategory.length || uncategorized.length ? `— Entreprise de la catégorie ${CATEGORY_LABEL[f.category]} —` : `— Aucune entreprise de la catégorie ${CATEGORY_LABEL[f.category]} —`}</option>
                 {keptCompany && <option value={keptCompany.id}>{keptCompany.name} (catégorie {CATEGORY_LABEL[keptCompany.category]})</option>}
@@ -222,6 +244,23 @@ export default function ContractForm() {
                 </div>
               )}
             </Field>
+            {cautionsReady && (
+              <>
+                <Field className="col-md-4" label="Mode d’acquisition" error={errors.acquisition_mode}>
+                  <select className="form-select" value={f.acquisition_mode} onChange={(e) => set('acquisition_mode')(e.target.value)} required>
+                    <option value="">— Sélectionner —</option>
+                    {modes.map((m) => <option key={m.code} value={m.code}>{m.code} — {m.label}</option>)}
+                    <option value="AUTRE">Autre mode (à préciser)</option>
+                  </select>
+                </Field>
+                {f.acquisition_mode === 'AUTRE' && (
+                  <Field className="col-md-4" label="Préciser le mode d’acquisition">
+                    <input className="form-control" maxLength={80} value={f.acquisition_mode_other} onChange={(e) => set('acquisition_mode_other')(e.target.value)} required />
+                  </Field>
+                )}
+                {f.acquisition_mode !== 'AUTRE' && <div className="col-md-4 d-none d-md-block" aria-hidden="true" />}
+              </>
+            )}
             <Field className="col-md-3" label="Date de signature"><input type="date" className="form-control" value={f.signature_date} onChange={(e) => set('signature_date')(e.target.value)} /></Field>
             {renewed ? (
               <>
@@ -230,8 +269,9 @@ export default function ContractForm() {
               </>
             ) : (
               <>
-                <Field className="col-md-3" label="Date de démarrage" error={errors.start_date}><input type="date" className="form-control" value={f.start_date} onChange={(e) => set('start_date')(e.target.value)} required /></Field>
+                <Field className="col-md-3" label="Date de début d’exécution (démarrage)" error={errors.start_date}><input type="date" className="form-control" value={f.start_date} onChange={(e) => set('start_date')(e.target.value)} required /></Field>
                 <Field className="col-md-3" label="Durée (mois)"><input type="number" min="1" className="form-control" value={f.duration_months} onChange={(e) => set('duration_months')(e.target.value)} required /></Field>
+                <Field className="col-md-3" label="Date de fin contractuelle"><input className="form-control amount-computed" value={contractEnd ? fr(contractEnd) : '—'} readOnly tabIndex={-1} /></Field>
               </>
             )}
             {/* Installation de chantier et travaux préparatoires : un coût de tout le contrat, pas d'un site ; TRAVAUX seulement. */}
@@ -249,12 +289,6 @@ export default function ContractForm() {
             {!isOffice && !computed && (
               <Field className="col-md-3" label="Montant du contrat (USD)" error={errors.amount}>
                 <DecimalInput value={f.amount} onChange={set('amount')} placeholder="Ex. : 1500000,50" required />
-              </Field>
-            )}
-            {!(governed && f.goods_origin) && !isOffice && (
-              <Field className="col-md-3" label="Avance de démarrage (%)" error={errors.initial_financing_rate}>
-                <DecimalInput value={isService ? '0' : f.initial_financing_rate} onChange={set('initial_financing_rate')} disabled={isService} aria-describedby={isService ? 'svc-financing' : undefined} />
-                {isService && <div id="svc-financing" className="form-text">Aucune avance de démarrage pour un contrat de service.</div>}
               </Field>
             )}
             {!isMulti && (
@@ -445,6 +479,44 @@ export default function ContractForm() {
           <datalist id="work-types">{(ref.data?.workTypes || []).map((w) => <option key={w.id} value={w.name} />)}</datalist>
         </div>
 
+        {startupAdvance && (
+          <div className="cardx form-card p-3 mb-3">
+            <div className="section-title mb-3">Avance de démarrage</div>
+            <div className="row g-3">
+              <Field className="col-md-3" label="Taux de l’avance (%)" error={errors.initial_financing_rate}><DecimalInput value={f.initial_financing_rate} onChange={set('initial_financing_rate')} /></Field>
+              <Field className="col-md-3" label="Montant de l’avance (USD)">
+                <input className="form-control text-money amount-computed" value={money((computed ? total : parseDecimal(f.amount) || 0) * advanceRate / 100)} readOnly tabIndex={-1} />
+              </Field>
+            </div>
+            {cautionsReady && advanceRate > 0 && (
+              <>
+                <div className="section-subtitle fw-semibold mt-3 mb-2">Caution d’avance de démarrage <span className="text-secondary fw-normal">(facultative)</span></div>
+                <div className="row g-3">
+                  <Field className="col-md-4" label="N° de référence de la caution" error={errors.advance_guarantee_reference}>
+                    <input className="form-control" maxLength={120} value={f.advance_guarantee_reference} onChange={(e) => set('advance_guarantee_reference')(e.target.value)} placeholder="Ex. : N° 00590/TMB/KIN/2023" />
+                  </Field>
+                  <Field className="col-md-4" label="Banque" error={errors.advance_guarantee_bank}>
+                    <input className="form-control" maxLength={191} value={f.advance_guarantee_bank} onChange={(e) => set('advance_guarantee_bank')(e.target.value)} />
+                  </Field>
+                  <div className="col-md-4 d-none d-md-block" aria-hidden="true" />
+                  <Field className="col-md-3" label="Date de la caution" error={errors.advance_guarantee_issue_date}>
+                    <input type="date" className="form-control" value={f.advance_guarantee_issue_date} onChange={(e) => set('advance_guarantee_issue_date')(e.target.value)} />
+                  </Field>
+                  <Field className="col-md-3" label="Date d’expiration" error={errors.advance_guarantee_end_date}>
+                    <input type="date" className="form-control" value={f.advance_guarantee_end_date} min={f.advance_guarantee_issue_date || undefined} onChange={(e) => set('advance_guarantee_end_date')(e.target.value)} />
+                  </Field>
+                  <Field className="col-md-2" label="Validité">
+                    <input className="form-control amount-computed" value={daysText(validityDays(f.advance_guarantee_issue_date, f.advance_guarantee_end_date))} readOnly tabIndex={-1} />
+                  </Field>
+                  <Field className="col-md-4" label="Observations" error={errors.advance_guarantee_observation}>
+                    <input className="form-control" maxLength={500} value={f.advance_guarantee_observation} onChange={(e) => set('advance_guarantee_observation')(e.target.value)} />
+                  </Field>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {!edit && isService && (
           <div className="alert alert-info d-flex gap-2 align-items-start mb-3">
             <i className="bi bi-info-circle-fill mt-1" aria-hidden="true" />
@@ -455,18 +527,38 @@ export default function ContractForm() {
         {!edit && !isService && !isOffice && (
           <div className="cardx form-card p-3 mb-3">
             <div className="section-title mb-3">Garantie de bonne exécution</div>
-            {/* Période de la garantie : comprise dans celle du contrat, jamais au-delà de sa date de fin. */}
+            {/* Dates d'émission et d'expiration propres à la garantie (22/11/2026), distinctes de celles du marché. */}
             <div className="row g-3">
               <Field className="col-md-3" label="Taux (%)" error={errors.guarantee_rate}><DecimalInput value={f.guarantee_rate} onChange={set('guarantee_rate')} /></Field>
-              <Field className="col-md-5" label="Banque émettrice" error={errors.guarantee_bank_name}><input className="form-control" value={f.guarantee_bank_name} onChange={(e) => set('guarantee_bank_name')(e.target.value)} required /></Field>
-              <Field className="col-md-4" label="N° garantie"><input className="form-control" value={f.guarantee_account_number} onChange={(e) => set('guarantee_account_number')(e.target.value)} /></Field>
-              <Field className="col-md-3" label="Début de la garantie" error={errors.guarantee_start_date}>
-                <input type="date" className="form-control" value={f.guarantee_start_date || f.start_date} min={f.start_date || undefined} max={contractEnd || undefined} onChange={(e) => set('guarantee_start_date')(e.target.value)} required />
+              <Field className="col-md-3" label="Montant de la garantie (USD)">
+                <input className="form-control text-money amount-computed" value={money((computed ? total : parseDecimal(f.amount) || 0) * (parseDecimal(f.guarantee_rate) || 0) / 100)} readOnly tabIndex={-1} />
               </Field>
-              <Field className="col-md-3" label="Fin de la garantie" error={errors.guarantee_end_date}>
-                <input type="date" className="form-control" value={f.guarantee_end_date || contractEnd} min={f.guarantee_start_date || f.start_date || undefined} max={contractEnd || undefined} onChange={(e) => set('guarantee_end_date')(e.target.value)} required />
+              <Field className="col-md-3" label="N° de la garantie"><input className="form-control" value={f.guarantee_account_number} onChange={(e) => set('guarantee_account_number')(e.target.value)} /></Field>
+              <Field className="col-md-3" label="Banque émettrice" error={errors.guarantee_bank_name}><input className="form-control" value={f.guarantee_bank_name} onChange={(e) => set('guarantee_bank_name')(e.target.value)} required /></Field>
+              <Field className="col-md-3" label="Date d’émission" error={errors.guarantee_start_date}>
+                <input type="date" className="form-control" value={f.guarantee_start_date} onChange={(e) => set('guarantee_start_date')(e.target.value)} required />
               </Field>
-              <Field className="col-md-6" label="Observation"><input className="form-control" value={f.guarantee_observation} onChange={(e) => set('guarantee_observation')(e.target.value)} /></Field>
+              <Field className="col-md-3" label="Date d’expiration" error={errors.guarantee_end_date}>
+                <input type="date" className="form-control" value={f.guarantee_end_date} min={f.guarantee_start_date || undefined} onChange={(e) => set('guarantee_end_date')(e.target.value)} required />
+              </Field>
+              <Field className="col-md-2" label="Validité">
+                <input className="form-control amount-computed" value={daysText(validityDays(f.guarantee_start_date, f.guarantee_end_date))} readOnly tabIndex={-1} />
+              </Field>
+              <Field className="col-md-4" label="Observations"><input className="form-control" value={f.guarantee_observation} onChange={(e) => set('guarantee_observation')(e.target.value)} /></Field>
+            </div>
+          </div>
+        )}
+
+        {edit && current.data?.guarantee && (
+          <div className="cardx form-card p-3 mb-3">
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div>
+                <div className="section-title">Garantie de bonne exécution</div>
+                <div className="small text-secondary mt-1">
+                  N° {current.data.guarantee.account || '—'} · {current.data.guarantee.bank || '—'} · émise le {fr(current.data.guarantee.startDate)} · expire le {fr(current.data.guarantee.endDate)}
+                </div>
+              </div>
+              {can('canManageGuarantees') && <Link to="/guarantees" className="btn btn-outline-primary btn-sm"><i className="bi bi-shield-check me-1" />Modifier dans Finance › Garanties</Link>}
             </div>
           </div>
         )}

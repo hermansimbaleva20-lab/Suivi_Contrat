@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\Cautions;
 use App\Support\ContractSynthesis;
 use App\Support\Ctx;
 use App\Support\Dates;
@@ -100,6 +101,34 @@ class ReportController extends Controller
         $contracts = array_values(array_filter(Loader::contracts(Ctx::projectId(), Ctx::phaseId()), fn ($c) => self::inScope($c, 'date', $asOf, null)));
         return ExecutionReport::build($contracts, $asOf) + [
             'project' => GuaranteeAlerts::projectLabel(Ctx::projectId()), 'longDate' => self::longDate($asOf),
+            'issuedBy' => ['name' => Ctx::user()->full_name, 'title' => Ctx::title(Ctx::user()), 'date' => Dates::today()],
+        ];
+    }
+
+    /**
+     * Tableaux des cautions d'avance de démarrage (type=avance) et des garanties de bonne exécution (type=garantie), arrêtés
+     * à une date jamais future (décision du 22/11/2026), sur le modèle des tableaux du projet : contrats de la phase consultée,
+     * signés ou démarrés à cette date, sans les fournitures de bureau. Une garantie relancée par e-mail porte « correspondance
+     * adressée » quand elle est expirée et qu'aucune observation n'a été saisie.
+     */
+    public function cautions(Request $r)
+    {
+        $type = $r->query('type') === 'garantie' ? 'garantie' : 'avance';
+        $asOf = self::executionDate($r);
+        $pid = Ctx::projectId();
+        $contracts = array_values(array_filter(Loader::contracts($pid, Ctx::phaseId()), fn ($c) => self::inScope($c, 'date', $asOf, null)));
+        if ($type === 'garantie') {
+            $ids = array_values(array_filter(array_map(fn ($c) => $c['guarantee']['id'] ?? null, $contracts)));
+            $sent = $ids ? DB::table('alert_dispatches')->where('project_id', $pid)->where('status', 'ENVOYE')->whereIn('performance_guarantee_id', $ids)
+                ->whereDate('created_at', '<=', $asOf)->distinct()->pluck('performance_guarantee_id')->flip()->all() : [];
+            $rows = Cautions::guaranteeRows($contracts, $asOf, $sent);
+        } else {
+            $rows = Cautions::advanceRows($contracts, $asOf);
+        }
+        return [
+            'type' => $type, 'date' => $asOf, 'longDate' => self::longDate($asOf), 'project' => GuaranteeAlerts::projectLabel($pid),
+            'rows' => $rows, 'expired' => count(array_filter($rows, fn ($x) => $x['expired'])), 'missing' => count(array_filter($rows, fn ($x) => $x['missing'])),
+            'ready' => Loader::hasAdvanceGuarantees(),
             'issuedBy' => ['name' => Ctx::user()->full_name, 'title' => Ctx::title(Ctx::user()), 'date' => Dates::today()],
         ];
     }

@@ -110,14 +110,15 @@ export default function ContractDetail({ readOnly = false }) {
       <div className="cardx p-3 mb-3">
         <div className="section-title mb-3">Informations générales</div>
         <div className="info-grid">
-          <div><span>Entreprise</span><strong>{c.company}</strong></div>
+          <div><span>Titulaire</span><strong>{c.company}</strong></div>
           <div><span>Catégorie</span><strong>{c.category || '—'}</strong></div>
+          {c.acquisitionMode && <div><span>Mode d’acquisition</span><strong>{c.acquisitionMode}{c.acquisitionModeLabel !== c.acquisitionMode && <span className="small text-secondary fw-normal d-block">{c.acquisitionModeLabel}</span>}</strong></div>}
           {c.goodsProcedureLabel && <div><span>Procédure du marché</span><strong>{c.goodsProcedureLabel}</strong></div>}
           {c.stockOnly && <div><span>Unité</span><strong>{c.unitName || '—'}</strong></div>}
           <div><span>Nature des travaux</span><strong>{c.workTypeText || '—'}</strong></div>
           <div><span>Signature</span><strong>{fr(c.signatureDate)}</strong></div>
-          <div><span>{c.renewalNo > 0 ? 'Début de la période' : 'Démarrage'}</span><strong>{fr(c.periodStart)}</strong></div>
-          <div><span>Fin prévue</span><strong>{fr(c.endDate)} ({c.periodMonths} mois)</strong></div>
+          <div><span>{c.renewalNo > 0 ? 'Début de la période' : 'Début d’exécution (démarrage)'}</span><strong>{fr(c.periodStart)}</strong></div>
+          <div><span>Fin contractuelle</span><strong>{fr(c.endDate)} ({c.periodMonths} mois)</strong></div>
           {c.stockOnly ? (
             <>
               <div><span>Montant minimum d’une commande</span><strong className="text-money">{money(c.goodsMinAmount)} USD</strong></div>
@@ -128,6 +129,20 @@ export default function ContractDetail({ readOnly = false }) {
           {c.component && <div><span>Composante</span><strong>{c.component}{c.componentBudget !== null && c.componentBudget !== undefined ? ` — ${money(c.componentBudget).replace(/,00$/, '')} UC` : ''}</strong></div>}
           {c.activityName && <div><span>Activité de la composante</span><strong>{c.activityName}{c.activityBudget !== null && c.activityBudget !== undefined ? ` — ${money(c.activityBudget).replace(/,00$/, '')} UC` : ''}{c.componentCategory && <span className="small text-secondary fw-normal d-block">{/^cat[ée]gorie\b/i.test(c.componentCategory) ? c.componentCategory : `Catégorie ${c.componentCategory}`}</span>}</strong></div>}
           {!c.stockOnly && <div><span>Avance de démarrage</span><strong className="text-money">{num(c.initialFinancingRate, 2)} % — {money(c.advanceOnRequest ? c.advanceDue : c.initialFinancing)}{c.advanceOnRequest && <span className="small text-secondary fw-normal d-block">{c.advanceRequest?.status === 'PAYEE' ? `Payée le ${fr(c.advanceRequest.paidDate)}` : c.advanceRequest ? 'Demandée, à payer' : 'Sur demande de l’entreprise'}</span>}</strong></div>}
+          {!c.stockOnly && !c.advanceOnRequest && Number(c.initialFinancingRate) > 0 && (
+            <div>
+              <span>Caution d’avance de démarrage</span>
+              {c.advanceGuarantee ? (
+                <strong className={c.advanceGuarantee.isExpired ? 'text-danger' : ''}>
+                  {c.advanceGuarantee.reference}{c.advanceGuarantee.bank ? ` · ${c.advanceGuarantee.bank}` : ''}
+                  <span className="small fw-normal d-block">
+                    {c.advanceGuarantee.issueDate ? `Du ${fr(c.advanceGuarantee.issueDate)}` : 'Date non renseignée'}{c.advanceGuarantee.endDate ? ` au ${fr(c.advanceGuarantee.endDate)}` : ''}
+                    {c.advanceGuarantee.validity !== null ? ` · ${c.advanceGuarantee.validity} jours` : ''}{c.advanceGuarantee.isExpired ? ' · expirée' : ''}
+                  </span>
+                </strong>
+              ) : <strong className="text-secondary fw-normal">Non renseignée{c.canManage && !c.isTerminated && !readOnly && <> · <Link to={`/contracts/${c.id}/edit`}>la compléter</Link></>}</strong>}
+            </div>
+          )}
           {!c.stockOnly && <div><span>Paiements enregistrés</span><strong className="text-money">{money(c.totalPaid)}</strong></div>}
           {d.startupAdvance && <div><span>Avance de démarrage</span><strong className="text-money">{money(d.startupAdvance.amount)} ({fr(d.startupAdvance.date)})</strong></div>}
           <div className="grid-span"><span>Activité</span><strong>{c.activity || '—'}</strong></div>
@@ -213,8 +228,8 @@ export default function ContractDetail({ readOnly = false }) {
               <div><span>Banque</span><strong>{g.bank || '—'}</strong></div>
               <div><span>N° garantie</span><strong>{g.account || '—'}</strong></div>
               <div><span>Taux / montant</span><strong>{num(g.rate, 2)} % — {money(g.amount)}</strong></div>
-              <div><span>Début</span><strong>{fr(g.startDate)}</strong></div>
-              <div><span>Échéance</span><strong>{fr(g.endDate)}</strong></div>
+              <div><span>Date d’émission</span><strong>{fr(g.startDate)}</strong></div>
+              <div><span>Date d’expiration</span><strong>{fr(g.endDate)}</strong></div>
               <div><span>État</span><strong><span className={`status status-${g.statusCss}`}>{g.statusLabel}</span>{!g.contractRenewed && <> · {num(g.daysConsumedPercent)} % consommés</>}</strong></div>
             </div>
             <div className="fw-bold mb-2">Historique des prolongements et renouvellements</div>

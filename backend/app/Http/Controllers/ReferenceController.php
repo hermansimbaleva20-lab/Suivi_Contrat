@@ -1,9 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\Cautions;
 use App\Support\ComponentTree;
 use App\Support\Ctx;
 use App\Support\GoodsProcedure;
+use App\Support\Loader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -32,6 +34,9 @@ class ReferenceController extends Controller
             // (décision du 16/11/2026) ; sans la mise à jour de la base, il choisit encore une composante.
             'components' => Schema::hasTable('project_components') ? ComponentTree::load($pid) : [],
             'activitiesReady' => ComponentTree::ready(),
+            // Mode d'acquisition et caution d'avance (22/11/2026), une fois la base mise à jour (V40).
+            'acquisitionModes' => array_map(fn ($code) => ['code' => $code, 'label' => Cautions::MODES[$code]], array_keys(Cautions::MODES)),
+            'cautionsReady' => Loader::hasAdvanceGuarantees(),
         ];
     }
 }

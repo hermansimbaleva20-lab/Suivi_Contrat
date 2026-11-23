@@ -76,6 +76,8 @@ Route::middleware(['auth:sanctum', 'project', 'throttle:api'])->group(function (
         Route::get('/reports/synthesis', [ReportController::class, 'synthesis']);
         Route::get('/reports/execution', [ReportController::class, 'execution']);
         Route::get('/reports/execution/export', [ReportController::class, 'executionExport']);
+        // Cautions d'avance de démarrage et garanties de bonne exécution (22/11/2026) : ?type=avance|garantie&date=
+        Route::get('/reports/cautions', [ReportController::class, 'cautions']);
         // Historisation : aperçu d'une période, états figés, comparaisons, export avec choix des colonnes
         Route::get('/report-snapshots', [ReportSnapshotController::class, 'index']);
         Route::get('/report-snapshots/preview', [ReportSnapshotController::class, 'preview']);

@@ -10,7 +10,8 @@ class Views
         if (!$a) return null;
         return [
             'id' => $a['id'], 'status' => $a['status'], 'rate' => $a['rate'], 'amount' => $a['amount'], 'requestDate' => $a['request_date'], 'requestReference' => $a['request_reference'],
-            'guaranteeBank' => $a['guarantee_bank'], 'guaranteeNumber' => $a['guarantee_number'], 'guaranteeAmount' => $a['guarantee_amount'], 'guaranteeEndDate' => $a['guarantee_end_date'],
+            'guaranteeBank' => $a['guarantee_bank'], 'guaranteeNumber' => $a['guarantee_number'], 'guaranteeAmount' => $a['guarantee_amount'], 'guaranteeIssueDate' => $a['guarantee_issue_date'] ?? null, 'guaranteeEndDate' => $a['guarantee_end_date'],
+            'guaranteeValidity' => Cautions::validity($a['guarantee_issue_date'] ?? null, $a['guarantee_end_date']),
             'paidDate' => $a['paid_date'], 'paymentReference' => $a['payment_reference'],
         ];
     }
@@ -81,6 +82,9 @@ class Views
             // Avance sur demande : montant prévu, et demande en cours ou payée.
             'advanceOnRequest' => GoodsProcedure::governs($c['goods_procedure'] ?? null), 'stockOnly' => GoodsProcedure::stockOnly($c['goods_procedure'] ?? null),
             'advanceDue' => round((float) $c['amount'] * (float) $c['initial_rate'] / 100, 2), 'advanceRequest' => self::advance($c['advance'] ?? null),
+            // Mode d'acquisition et caution d'avance de démarrage (22/11/2026).
+            'acquisitionMode' => $c['acquisition_mode'] ?? '', 'acquisitionModeLabel' => Cautions::modeLabel($c['acquisition_mode'] ?? ''),
+            'advanceGuarantee' => self::advanceGuarantee($c['advance_guarantee'] ?? null),
         ];
         // Avancement pondéré par les montants : coût de l'installation de chantier et base du calcul (installation + sites).
         $w = Metrics::weighting($c);
@@ -111,6 +115,17 @@ class Views
         return [
             'id' => $e['id'], 'kind' => $e['type'] === 'RENOUVELLEMENT' ? 'Renouvellement' : 'Prolongation', 'isRenewal' => $e['type'] === 'RENOUVELLEMENT',
             'startDate' => $e['start'], 'endDate' => $e['end'], 'reason' => $e['reason'], 'createdAt' => $e['created_at'], 'createdBy' => $e['created_by'],
+        ];
+    }
+
+    /** Caution d'avance de démarrage : référence, banque, date de la caution, expiration et validité en jours. */
+    public static function advanceGuarantee(?array $g): ?array
+    {
+        if (!$g) return null;
+        return [
+            'id' => $g['id'], 'reference' => $g['reference'], 'bank' => $g['bank'], 'issueDate' => $g['issue_date'], 'endDate' => $g['end_date'],
+            'validity' => Cautions::validity($g['issue_date'], $g['end_date']), 'observation' => $g['observation'],
+            'isExpired' => $g['end_date'] !== null && Dates::today() > $g['end_date'],
         ];
     }
 

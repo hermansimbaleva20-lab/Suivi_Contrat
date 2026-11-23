@@ -14,7 +14,7 @@ class Structure
 {
     /** Tables métier supprimées puis recréées vides (ordre : enfants avant parents). */
     public const BUSINESS_TABLES = [
-        'user_notifications', 'report_snapshots', 'alert_dispatches', 'contract_advances', 'contract_decomptes', 'fleet_logs', 'fleet_maintenances', 'fleet_insurances', 'fleet_assets', 'stock_movements', 'stock_articles', 'guarantee_extensions', 'performance_guarantees', 'contract_renewals', 'contract_amendments', 'contract_documents', 'contract_payments',
+        'user_notifications', 'report_snapshots', 'alert_dispatches', 'advance_guarantees', 'contract_advances', 'contract_decomptes', 'fleet_logs', 'fleet_maintenances', 'fleet_insurances', 'fleet_assets', 'stock_movements', 'stock_articles', 'guarantee_extensions', 'performance_guarantees', 'contract_renewals', 'contract_amendments', 'contract_documents', 'contract_payments',
         'progress_entries', 'contract_sites', 'contracts', 'companies', 'alerts', 'work_types', 'password_reset_requests',
         'user_reset_tokens', 'audit_logs',
     ];
@@ -93,6 +93,7 @@ class Structure
             $t->string('title')->nullable();
             $t->string('province')->nullable();
             $t->string('category', 80)->nullable();
+            $t->string('acquisition_mode', 80)->nullable(); // AON | AOI | CF | ED, ou le texte d'un autre mode (22/11/2026)
             $t->decimal('amount', 15, 2);
             $t->date('signature_date')->nullable();
             $t->date('start_date')->nullable();
@@ -385,6 +386,7 @@ class Structure
             $t->string('guarantee_bank', 191)->nullable(); // garantie de restitution : BAD et nationale
             $t->string('guarantee_number', 120)->nullable();
             $t->decimal('guarantee_amount', 15, 2)->nullable();
+            $t->date('guarantee_issue_date')->nullable(); // date de la caution (23/11/2026), distincte des dates du contrat
             $t->date('guarantee_end_date')->nullable();
             $t->string('status', 12)->default('DEMANDEE'); // DEMANDEE | PAYEE | REJETEE
             $t->date('paid_date')->nullable();
@@ -394,6 +396,20 @@ class Structure
             $t->unsignedBigInteger('decided_by')->nullable();
             $t->timestamps();
             $t->index(['contract_id', 'status'], 'contract_advances_status_idx');
+        });
+
+        // Caution d'avance de démarrage (22/11/2026) : une par contrat, facultative ; dates propres, distinctes de celles du marché.
+        Schema::create('advance_guarantees', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('project_id')->constrained()->cascadeOnDelete();
+            $t->foreignId('contract_id')->unique()->constrained('contracts')->cascadeOnDelete();
+            $t->string('reference', 120);
+            $t->string('bank_name', 191)->nullable();
+            $t->date('issue_date')->nullable();
+            $t->date('end_date')->nullable();
+            $t->string('observation', 500)->nullable();
+            $t->unsignedBigInteger('created_by')->nullable();
+            $t->timestamps();
         });
 
         Schema::create('contract_decomptes', function (Blueprint $t) {

@@ -112,8 +112,8 @@ export default function Guarantees() {
                 <Field className="col-md-4" label="Taux (%)"><DecimalInput value={dlg.form.rate} onChange={(v) => setForm('rate', v)} /></Field>
               </>
             )}
-            <Field className="col-md-4" label={dlg.kind === 'edit' ? 'Début' : dlg.kind === 'renew' ? 'Début de la nouvelle garantie' : 'Début du prolongement'}><input type="date" className="form-control" value={dlg.form.start_date} onChange={(e) => setForm('start_date', e.target.value)} /></Field>
-            <Field className="col-md-4" label={dlg.kind === 'edit' ? 'Échéance' : 'Nouvelle échéance'}><input type="date" className="form-control" value={dlg.form.end_date} onChange={(e) => setForm('end_date', e.target.value)} /></Field>
+            <Field className="col-md-4" label={dlg.kind === 'edit' ? 'Date d’émission' : dlg.kind === 'renew' ? 'Émission de la nouvelle garantie' : 'Début du prolongement'}><input type="date" className="form-control" value={dlg.form.start_date} onChange={(e) => setForm('start_date', e.target.value)} /></Field>
+            <Field className="col-md-4" label={dlg.kind === 'edit' ? 'Date d’expiration' : 'Nouvelle date d’expiration'}><input type="date" className="form-control" value={dlg.form.end_date} onChange={(e) => setForm('end_date', e.target.value)} /></Field>
             {dlg.kind === 'edit' ? (
               <Field className="col-12" label="Observation"><textarea className="form-control" rows="2" value={dlg.form.observation} onChange={(e) => setForm('observation', e.target.value)} /></Field>
             ) : (

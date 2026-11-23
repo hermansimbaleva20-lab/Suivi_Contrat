@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Support\Cautions;
 use App\Support\ComponentTree;
 use App\Support\Ctx;
 use App\Support\Dates;
@@ -205,12 +206,67 @@ class ContractController extends Controller
         return ['component_id' => $id] + ($ready ? ['activity_id' => null] : []);
     }
 
-    /** La période de la garantie est comprise dans celle du contrat : pas avant son démarrage, pas après sa fin. */
-    public static function checkGuaranteePeriod(string $gStart, string $gEnd, string $start, string $end, array &$e): void
+    /**
+     * Mode d'acquisition (décision du 22/11/2026) : AON, AOI, CF, ED, ou le texte d'un autre mode, saisi une fois avec le
+     * contrat et repris dans les tableaux des cautions et des garanties. Obligatoire ; à la modification, un appel sans le
+     * champ garde celui du contrat. Tant que la base n'est pas à jour (V40), il n'est ni demandé ni enregistré.
+     */
+    private function acquisitionMode(Request $r, array &$e, ?string $current = null, bool $creating = true): ?string
     {
-        if ($gStart < $start) $e['guarantee_start_date'] = 'La garantie ne peut pas commencer avant le démarrage du contrat (' . Dates::fr($start) . ').';
-        if ($gEnd > $end) $e['guarantee_end_date'] = 'La garantie ne peut pas se terminer après la fin du contrat (' . Dates::fr($end) . ').';
-        elseif ($gEnd < $gStart) $e['guarantee_end_date'] = 'La fin de la garantie doit suivre son début.';
+        if (!Loader::hasAdvanceGuarantees()) return null;
+        if (!$creating && !$r->has('acquisition_mode')) return $current;
+        $mode = Cautions::modeFromInput((string) $r->input('acquisition_mode', ''), (string) $r->input('acquisition_mode_other', ''), $error);
+        if ($error) $e['acquisition_mode'] = $error;
+        return $mode;
+    }
+
+    /** Le contrat a une avance de démarrage à la signature : ni service, ni fournitures de bureau, ni biens BAD ou national (avance sur demande). */
+    private static function hasStartupAdvance(string $category, ?string $goodsProcedure, float $rate): bool
+    {
+        return $category !== 'SERVICE' && !GoodsProcedure::stockOnly($goodsProcedure) && !GoodsProcedure::governs($goodsProcedure) && $rate > 0;
+    }
+
+    /**
+     * Caution d'avance de démarrage (décision du 22/11/2026), facultative et complétée plus tard : null quand tous ses champs
+     * sont vides. Ses dates (date de la caution, date d'expiration) sont les siennes, distinctes de celles du marché.
+     */
+    private function advanceGuarantee(Request $r, array &$e): ?array
+    {
+        $ref = trim((string) $r->input('advance_guarantee_reference', ''));
+        $bank = trim((string) $r->input('advance_guarantee_bank', ''));
+        $obs = trim((string) $r->input('advance_guarantee_observation', ''));
+        $issueRaw = trim((string) $r->input('advance_guarantee_issue_date', ''));
+        $endRaw = trim((string) $r->input('advance_guarantee_end_date', ''));
+        if ($ref === '' && $bank === '' && $obs === '' && $issueRaw === '' && $endRaw === '') return null;
+        if (!Loader::hasAdvanceGuarantees()) {
+            $e['advance_guarantee_reference'] = 'La base n’est pas encore à jour (migration du 22/11/2026 ou script V40) : la caution d’avance ne peut pas être enregistrée.';
+            return null;
+        }
+        if ($ref === '') $e['advance_guarantee_reference'] = 'Saisissez la référence de la caution, ou videz ses champs pour la compléter plus tard.';
+        elseif (mb_strlen($ref) > 120) $e['advance_guarantee_reference'] = 'La référence ne doit pas dépasser 120 caractères.';
+        if (mb_strlen($bank) > 191) $e['advance_guarantee_bank'] = 'Le nom de la banque ne doit pas dépasser 191 caractères.';
+        if (mb_strlen($obs) > 500) $e['advance_guarantee_observation'] = 'L’observation ne doit pas dépasser 500 caractères.';
+        $issue = $issueRaw === '' ? null : (Dates::valid($issueRaw) ? Dates::part($issueRaw) : false);
+        $end = $endRaw === '' ? null : (Dates::valid($endRaw) ? Dates::part($endRaw) : false);
+        if ($issue === false) $e['advance_guarantee_issue_date'] = 'La date de la caution n’est pas valide.';
+        if ($end === false) $e['advance_guarantee_end_date'] = 'La date d’expiration n’est pas valide.';
+        if ($issue && $end && $end < $issue) $e['advance_guarantee_end_date'] = 'La date d’expiration doit suivre la date de la caution.';
+        return ['reference' => $ref, 'bank_name' => $bank !== '' ? $bank : null, 'issue_date' => $issue ?: null, 'end_date' => $end ?: null, 'observation' => $obs !== '' ? $obs : null];
+    }
+
+    /** Enregistre la caution d'avance du contrat ; null la retire. */
+    private function saveAdvanceGuarantee(int $pid, int $contractId, ?array $g): void
+    {
+        if (!Loader::hasAdvanceGuarantees()) return;
+        if ($g === null) {
+            DB::table('advance_guarantees')->where('contract_id', $contractId)->delete();
+            return;
+        }
+        if (DB::table('advance_guarantees')->where('contract_id', $contractId)->exists()) {
+            DB::table('advance_guarantees')->where('contract_id', $contractId)->update($g + ['updated_at' => now()]);
+        } else {
+            DB::table('advance_guarantees')->insert($g + ['project_id' => $pid, 'contract_id' => $contractId, 'created_by' => Ctx::user()->id, 'created_at' => now(), 'updated_at' => now()]);
+        }
     }
 
     /** Coût de l'installation de chantier et des travaux préparatoires : 0 si le champ est vide. */
@@ -284,11 +340,12 @@ class ContractController extends Controller
         $guaranteeBank = trim((string) $r->input('guarantee_bank_name', ''));
         if (!$noGuarantee && $guaranteeBank === '') $e['guarantee_bank_name'] = 'La banque émettrice de la garantie est obligatoire.';
         $end = $start ? Dates::addMonths($start, $duration) : null;
-        // Période de la garantie (décision du 11/11/2026) : saisie, comprise dans celle du contrat, jamais après sa fin.
-        // Sans dates transmises, celle du contrat.
+        // Garantie de bonne exécution (décision du 22/11/2026, à la place de celle du 11/11/2026) : date d'émission et date
+        // d'expiration propres, distinctes des dates du marché ; sans dates transmises, celles du contrat.
         $gStart = Dates::valid($r->input('guarantee_start_date')) ? Dates::part($r->input('guarantee_start_date')) : $start;
         $gEnd = Dates::valid($r->input('guarantee_end_date')) ? Dates::part($r->input('guarantee_end_date')) : $end;
-        if (!$noGuarantee && $start && $end) self::checkGuaranteePeriod($gStart, $gEnd, $start, $end, $e);
+        if (!$noGuarantee && $gStart && $gEnd && $gEnd < $gStart) $e['guarantee_end_date'] = 'La date d’expiration de la garantie doit suivre sa date d’émission.';
+        $mode = $this->acquisitionMode($r, $e);
 
         $provinces = array_values(array_unique(array_filter(array_map('trim', (array) $r->input('selected_provinces', [])))));
         $mainProvince = trim((string) $r->input('province', ''));
@@ -311,13 +368,16 @@ class ContractController extends Controller
             $workNames = array_values(array_unique(array_filter(array_column($sites, 'work_type'))));
         }
         $goods = $this->goodsFields($r, $category, (float) $initialRate, $e) + ['organizational_unit_id' => $officeUnit] + $this->componentFields($r, $e);
+        if (Loader::hasAdvanceGuarantees()) $goods['acquisition_mode'] = $mode;
+        // Caution d'avance de démarrage : seulement si le contrat a une avance à la signature.
+        $caution = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate) ? $this->advanceGuarantee($r, $e) : null;
         if ($isMulti && $provinces && $sites) {
             $entered = array_unique(array_filter(array_column($sites, 'province')));
             if (array_diff($provinces, $entered)) $e['sites'] = 'Ajoutez au moins un site pour chaque province sélectionnée.';
         }
         if ($e) $this->invalid($e);
 
-        $id = DB::transaction(function () use ($noGuarantee, $goods, $r, $pid, $number, $companyId, $category, $isMulti, $isOffice, $start, $end, $signature, $duration, $amount, $installation, $initialRate, $gRate, $gStart, $gEnd, $mainProvince, $sites, $workNames, $guaranteeBank) {
+        $id = DB::transaction(function () use ($caution, $noGuarantee, $goods, $r, $pid, $number, $companyId, $category, $isMulti, $isOffice, $start, $end, $signature, $duration, $amount, $installation, $initialRate, $gRate, $gStart, $gEnd, $mainProvince, $sites, $workNames, $guaranteeBank) {
             $cid = DB::table('contracts')->insertGetId([
                 'project_id' => $pid, 'phase_id' => Ctx::phaseId(), 'company_id' => $companyId, 'reference' => $number, 'title' => trim((string) $r->input('title', '')) ?: null,
                 'province' => $mainProvince, 'category' => $category, 'amount' => $amount, 'installation_cost' => $installation, 'start_date' => $start, 'end_date' => $end, 'signature_date' => $signature,
@@ -332,6 +392,7 @@ class ContractController extends Controller
                 'rate' => $rate, 'amount' => round($amount * $rate / 100, 2), 'start_date' => $gStart, 'end_date' => $gEnd,
                 'observation' => trim((string) $r->input('guarantee_observation', '')) ?: null, 'created_at' => now(), 'updated_at' => now(),
             ]);
+            if ($caution) $this->saveAdvanceGuarantee($pid, $cid, $caution);
             foreach ($sites as $s) {
                 $wt = $s['work_type'] !== '' ? $s['work_type'] : ($workNames[0] ?? '');
                 if ($wt !== '') $this->workType($category, $wt, $wt !== self::AEP);
@@ -343,6 +404,8 @@ class ContractController extends Controller
             return $cid;
         });
         $detail = $isOffice ? '' : ' Montant : ' . number_format($amount, 2, ',', ' ') . ' USD, dont installation de chantier ' . number_format((float) $installation, 2, ',', ' ') . ' USD.';
+        if ($mode) $detail .= " Mode d’acquisition : {$mode}.";
+        if ($caution) $detail .= " Caution d’avance n° {$caution['reference']}" . ($caution['bank_name'] ? " ({$caution['bank_name']})" : '') . '.';
         Ctx::audit('CREATION', 'Contract', $id, "Contrat {$number} créé avec " . count($sites) . ' site(s).' . $detail);
         // Le suivi commence : les comptes choisis par le super-admin sont prévenus. Une fourniture de bureau ne se suit que par le stock.
         if (!$officeUnit) {
@@ -389,6 +452,12 @@ class ContractController extends Controller
         $goods['organizational_unit_id'] = $isOffice ? ($wasOffice ? $c['unit_id'] : ((int) Ctx::user()->organizational_unit_id ?: null)) : null;
         // Activité et composante : celles du formulaire ; un appel sans ces champs garde celles du contrat.
         $goods += $r->has('component_id') || $r->has('activity_id') ? $this->componentFields($r, $e, $c['component_id'], $c['activity_id'] ?? null) : ['component_id' => $c['component_id']];
+        if (Loader::hasAdvanceGuarantees()) $goods['acquisition_mode'] = $this->acquisitionMode($r, $e, $c['acquisition_mode'] ?: null, false);
+        // Caution d'avance : celle du formulaire ; un appel sans ses champs garde celle du contrat. Plus d'avance à la signature
+        // (service, fournitures de bureau, biens BAD ou national, taux à 0) : la caution est retirée.
+        $startup = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate);
+        $touchCaution = !$startup || $r->has('advance_guarantee_reference');
+        $caution = $startup && $r->has('advance_guarantee_reference') ? $this->advanceGuarantee($r, $e) : null;
         // Une fois une avance demandée ou un décompte saisi, les règles du marché ne changent plus : les lignes en dépendent.
         $goodsInUse = DB::table('contract_decomptes')->where('contract_id', $id)->where('status', '!=', DecompteLedger::REJECTED)->exists() || DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', 'REJETEE')->exists();
         $goodsTouched = GoodsProcedure::governs($c['goods_procedure']) || GoodsProcedure::governs($goods['goods_procedure']);
@@ -450,7 +519,7 @@ class ContractController extends Controller
         if (!$isWorksNow) $installation = null;
         if ($e) $this->invalid($e);
 
-        DB::transaction(function () use ($goods, $newGuarantee, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $isOffice, $start, $duration, $amount, $installation, $initialRate, $mainProvince, $sites, $c) {
+        DB::transaction(function () use ($touchCaution, $caution, $goods, $newGuarantee, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $isOffice, $start, $duration, $amount, $installation, $initialRate, $mainProvince, $sites, $c) {
             // Après un avenant ou un renouvellement, la fin ne se recalcule que si le démarrage ou la durée changent vraiment.
             $end = ($c['amendments'] || $c['renewals']) && $start === $c['start_date'] && $duration === (int) $c['duration_months'] ? $c['end_date'] : Dates::addMonths($start, $duration);
             $signature = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($c['signature_date'] ?: $start);
@@ -476,23 +545,16 @@ class ContractController extends Controller
             if ($newGuarantee) DB::table('performance_guarantees')->insert($newGuarantee + [
                 'project_id' => $pid, 'contract_id' => $id, 'company_id' => $companyId, 'amount' => round((float) $amount * $newGuarantee['rate'] / 100, 2), 'start_date' => $start, 'end_date' => $end, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            // La garantie reste liée au contrat ; synchroniser son entreprise et son montant si le contrat change. Sa période,
-            // comprise dans celle du contrat, y est ramenée si le contrat raccourcit ou démarre plus tard, tant qu'elle n'a été
-            // ni prolongée ni renouvelée.
-            $guarantees = DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->get(['id', 'rate', 'start_date', 'end_date']);
+            // La garantie reste liée au contrat : synchroniser son entreprise et son montant si le contrat change. Ses dates
+            // d'émission et d'expiration sont les siennes (décision du 22/11/2026) : elles ne suivent plus celles du marché.
+            $guarantees = DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->get(['id', 'rate']);
             foreach ($guarantees as $guarantee) {
                 $rate = $newGuaranteeRate ?? (float) $guarantee->rate;
-                $sync = ['company_id' => $companyId, 'rate' => $rate, 'amount' => round(((float) $amount - (float) $c['renewed_amount']) * $rate / 100, 2), 'updated_at' => now()];
-                // La garantie ne suit pas un contrat renouvelé : elle n'est plus exigée pour la nouvelle période.
-                if (!$c['renewals'] && !DB::table('guarantee_extensions')->where('performance_guarantee_id', $guarantee->id)->exists()) {
-                    $gs = $guarantee->start_date ? Dates::part($guarantee->start_date) : $start;
-                    $ge = $guarantee->end_date ? Dates::part($guarantee->end_date) : $end;
-                    $gs = max($gs, $start);
-                    $ge = min($ge, $end);
-                    $sync += ['start_date' => min($gs, $ge), 'end_date' => $ge];
-                }
-                DB::table('performance_guarantees')->where('id', $guarantee->id)->update($sync);
+                DB::table('performance_guarantees')->where('id', $guarantee->id)->update([
+                    'company_id' => $companyId, 'rate' => $rate, 'amount' => round(((float) $amount - (float) $c['renewed_amount']) * $rate / 100, 2), 'updated_at' => now(),
+                ]);
             }
+            if ($touchCaution) $this->saveAdvanceGuarantee($pid, $id, $caution);
         });
         Ctx::audit('MODIFICATION', 'Contract', $id, "Contrat {$number} modifié avec " . count($sites) . ' site(s) enregistré(s).');
         return ['message' => "Contrat {$number} modifié. Les informations des sites ont également été enregistrées."];

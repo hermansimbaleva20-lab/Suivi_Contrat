@@ -8,6 +8,7 @@ use App\Support\GoodsProcedure;
 use App\Support\Loader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -40,6 +41,13 @@ class ContractAdvanceController extends Controller
         return DB::table('contract_decomptes')->where('contract_id', $contractId)->where('status', '!=', 'REJETE')->exists();
     }
 
+    /** La date de la caution existe (base mise à jour par la migration du 23/11/2026 ou V41). */
+    private static function hasIssueDate(): bool
+    {
+        static $ready = null;
+        return $ready ??= Schema::hasColumn('contract_advances', 'guarantee_issue_date');
+    }
+
     public function store(Request $r, int $id)
     {
         Ctx::need('can_manage_payments');
@@ -52,17 +60,27 @@ class ContractAdvanceController extends Controller
             'request_reference' => 'required|string|max:120',
             'guarantee_bank' => 'required|string|max:191',
             'guarantee_number' => 'required|string|max:120',
+            'guarantee_issue_date' => (self::hasIssueDate() ? 'required' : 'nullable') . '|date_format:Y-m-d',
             'guarantee_end_date' => 'required|date_format:Y-m-d',
-        ], [], ['request_date' => 'date de la demande', 'request_reference' => 'référence de la demande', 'guarantee_bank' => 'banque', 'guarantee_number' => 'n° de la garantie', 'guarantee_end_date' => 'fin de validité']);
+        ], [
+            // Messages en français : le projet n'a pas les traductions de validation de Laravel.
+            'required' => 'Le champ « :attribute » est obligatoire.',
+            'date_format' => 'Le champ « :attribute » doit être une date valide.',
+            'max' => 'Le champ « :attribute » ne doit pas dépasser :max caractères.',
+        ], ['request_date' => 'date de la demande', 'request_reference' => 'n° de référence de l’avance', 'guarantee_bank' => 'banque', 'guarantee_number' => 'n° de la caution',
+            'guarantee_issue_date' => 'date de la caution', 'guarantee_end_date' => 'date d’expiration']);
         $e = [];
         if ($d['request_date'] > Dates::today()) $e['request_date'] = 'La date ne peut pas être postérieure à aujourd’hui.';
-        if ($d['guarantee_end_date'] < $d['request_date']) $e['guarantee_end_date'] = 'La garantie doit rester valable après la date de la demande.';
+        // Dates de la caution (23/11/2026) : les siennes, distinctes de celles du contrat ; valable au moins jusqu'à la demande.
+        $issue = $d['guarantee_issue_date'] ?? null;
+        if ($issue && $d['guarantee_end_date'] < $issue) $e['guarantee_end_date'] = 'La date d’expiration doit suivre la date de la caution.';
+        elseif ($d['guarantee_end_date'] < $d['request_date']) $e['guarantee_end_date'] = 'La caution doit rester valable après la date de la demande.';
         $amount = round((float) $c['amount'] * (float) $c['initial_rate'] / 100, 2);
         $guarantee = Dates::decimal($r->input('guarantee_amount'));
         if ($guarantee === null || $guarantee < $amount) $e['guarantee_amount'] = 'La garantie de restitution doit couvrir l’avance, soit au moins ' . number_format($amount, 2, ',', ' ') . ' USD.';
         if ($e) throw ValidationException::withMessages($e);
 
-        $advanceId = DB::transaction(function () use ($c, $d, $amount, $guarantee) {
+        $advanceId = DB::transaction(function () use ($c, $d, $amount, $guarantee, $issue) {
             DB::table('contracts')->where('id', $c['id'])->lockForUpdate()->first();
             abort_if(DB::table('contract_advances')->where('contract_id', $c['id'])->where('status', '!=', self::REJECTED)->exists(), 422, 'Une demande d’avance est déjà enregistrée pour ce contrat.');
             abort_if(self::hasDecomptes($c['id']), 422, 'Un décompte est déjà enregistré : l’avance ne peut plus être demandée pour ce contrat.');
@@ -70,9 +88,10 @@ class ContractAdvanceController extends Controller
                 'contract_id' => $c['id'], 'request_date' => $d['request_date'], 'request_reference' => trim($d['request_reference']), 'rate' => $c['initial_rate'], 'amount' => $amount,
                 'guarantee_bank' => trim($d['guarantee_bank']), 'guarantee_number' => trim($d['guarantee_number']), 'guarantee_amount' => round($guarantee, 2), 'guarantee_end_date' => $d['guarantee_end_date'],
                 'status' => self::REQUESTED, 'created_by' => Ctx::user()->id, 'created_at' => now(), 'updated_at' => now(),
-            ]);
+            ] + (self::hasIssueDate() ? ['guarantee_issue_date' => $issue] : []));
         });
-        Ctx::audit('CREATION', 'ContractAdvance', $advanceId, "Demande d’avance du contrat {$c['number']} : " . number_format($amount, 2, ',', ' ') . " USD, garantie de restitution n° {$d['guarantee_number']} ({$d['guarantee_bank']}).");
+        Ctx::audit('CREATION', 'ContractAdvance', $advanceId, "Demande d’avance n° {$d['request_reference']} du contrat {$c['number']} : " . number_format($amount, 2, ',', ' ') . " USD, caution n° {$d['guarantee_number']} ({$d['guarantee_bank']})"
+            . ($issue ? ' du ' . Dates::fr($issue) : '') . ' au ' . Dates::fr($d['guarantee_end_date']) . '.');
         return response()->json(['message' => 'Demande d’avance enregistrée : ' . number_format($amount, 2, ',', ' ') . ' USD à payer.', 'id' => $advanceId], 201);
     }
 
