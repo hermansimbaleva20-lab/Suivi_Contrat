@@ -11,7 +11,7 @@ export default function DecomptesToPay({ items, activeId, onPay }) {
   if (!items.length) return null;
   const total = items.reduce((a, x) => a + Number(x.amount), 0);
   return (
-    <section className={`${panel} tw:mb-4 tw:print:hidden`} aria-labelledby="dp-title">
+    <section className={`${panel} action-card tw:mb-4 tw:print:hidden`} aria-labelledby="dp-title">
       <header className="tw:flex tw:flex-wrap tw:items-baseline tw:justify-between tw:gap-x-4 tw:gap-y-1 tw:border-b tw:border-prise-border tw:px-5 tw:py-3.5">
         <h2 id="dp-title" className="tw:m-0 tw:font-display tw:text-[17px] tw:font-bold tw:text-prise-blue">
           {items.length > 1 ? `${items.length} décomptes validés à payer` : 'Un décompte validé à payer'}

@@ -102,7 +102,7 @@ export default function AdvancePanel({ c, canManage, onDone }) {
   const canAct = canManage && !c.isTerminated;
   const expired = a && a.status === 'DEMANDEE' && a.guaranteeEndDate < todayISO();
   return (
-    <section className={`${panel} tw:mb-3 tw:print:hidden`} aria-labelledby="avance-title">
+    <section className={`${panel} action-card tw:mb-3 tw:print:hidden`} aria-labelledby="avance-title">
       <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-x-4 tw:gap-y-3 tw:px-5 tw:py-4">
         <div className="tw:min-w-64 tw:flex-1">
           <h2 id="avance-title" className="tw:m-0 tw:font-display tw:text-[17px] tw:font-bold tw:text-prise-blue">Avance de démarrage sur demande</h2>

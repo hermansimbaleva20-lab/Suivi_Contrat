@@ -81,8 +81,8 @@ export default function Payments() {
           <AdvancePanel c={c} canManage={can('canManagePayments')} onDone={(message) => { say(message); reload(); }} />
 
           {editable && (
-            <form ref={formRef} className="cardx form-card p-3 mb-3" onSubmit={save}>
-              <div className="section-title mb-1">{paying ? `Paiement de ${paying.number}` : 'Nouveau paiement'}</div>
+            <form ref={formRef} className="cardx form-card form-block fb-contrat p-3 mb-3" onSubmit={save}>
+              <div className="section-title mb-1"><i className="bi bi-cash-stack fb-icon" aria-hidden="true" />{paying ? `Paiement de ${paying.number}` : 'Nouveau paiement'}</div>
               <div className="section-subtitle mb-3">{paying ? `Contrat ${paying.contractNumber}. Vérifiez le montant, repris de la colonne MONTANT PAYÉ du décompte, puis renseignez la date et les références.` : (c.advanceOnRequest ? 'Paiement sans décompte. L’avance de démarrage de ce marché se renseigne dans le panneau ci-dessus.' : 'Paiement sans décompte, par exemple l’avance de démarrage.')}</div>
               <div className="row g-3">
                 <Field className="col-md-3" label="Date du paiement"><input type="date" className="form-control" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></Field>
@@ -103,7 +103,7 @@ export default function Payments() {
           )}
 
           <div className="cardx p-3 mb-4">
-            <div className="section-title mb-3">Paiements enregistrés</div>
+            <div className="section-title"><span className="title-chip" aria-hidden="true"><i className="bi bi-receipt" /></span>Paiements enregistrés</div>
             <div className="table-wrap">
               <table className="table table-hover align-middle">
                 <thead><tr><th>Date</th><th>Montant</th><th>Référence</th><th>Observation</th>{editable && <th />}</tr></thead>
