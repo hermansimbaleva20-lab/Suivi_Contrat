@@ -1,0 +1,237 @@
+/*
+ * PRISE / PREDIRE — couche « relief » (décision du 22/11/2026), chargée en dernier, après theme-predire-signature.css.
+ * Elle corrige la pâleur des textes et retire les tics de tableau de bord générique, sans toucher à l'identité :
+ * mêmes couleurs de projet, mêmes quatre couches de la barre latérale, mêmes deux familles de caractères.
+ *
+ * Barre latérale : plus aucun texte translucide. Chaque encre est une couleur pleine, mesurée sur le fond le plus clair
+ * de la barre (la lueur centrale) : texte principal 12:1 au moins, secondaire 8:1, titres de section 6:1, icônes 5:1.
+ * Contenu : encres secondaires assombries (thème clair), cartes plus tenues (rayon 12 px, filet net, ombre courte),
+ * chiffres des indicateurs dans la famille des titres. Le thème sombre garde ses jetons mesurés (theme-sombre.css).
+ */
+
+/* ================================================================== Encres de la barre latérale, par projet */
+body .sidebar {
+  --sb-ink: #f5fcf8;
+  --sb-ink-2: #d3f0df;
+  --sb-label: #9fe0bb;
+  --sb-icon: #92dcb3;
+  --sb-rule: rgba(159, 224, 187, .2);
+  --sb-panel: rgba(0, 20, 11, .38);
+  --sb-panel-line: rgba(159, 224, 187, .22);
+  --sb-hover: rgba(255, 255, 255, .075);
+  --sb-shadow: 0 1px 0 rgba(0, 12, 6, .35);
+}
+html[data-project="predire"] body .sidebar {
+  --sb-ink: #f3fcfb;
+  --sb-ink-2: #cdeeeb;
+  --sb-label: #8fe0d6;
+  --sb-icon: #86d9cf;
+  --sb-rule: rgba(143, 224, 214, .2);
+  --sb-panel: rgba(0, 18, 19, .38);
+  --sb-panel-line: rgba(143, 224, 214, .24);
+  --sb-shadow: 0 1px 0 rgba(0, 10, 11, .4);
+}
+
+/* Lueur centrale adoucie : c'est sous elle que les textes perdaient leur contraste. Les quatre couches et le pas de 32 px
+   restent ceux du 19/11/2026 ; seule l'intensité de la lueur baisse. */
+html:not([data-project="predire"]) body .sidebar {
+  background:
+    radial-gradient(130% 90% at 50% 42%, transparent 52%, rgba(1, 14, 8, .55) 100%),
+    linear-gradient(90deg, rgba(110, 231, 160, .08) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(rgba(110, 231, 160, .08) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(85% 42% at 50% 42%, rgba(52, 194, 122, .19), transparent 72%),
+    linear-gradient(180deg, #042a18 0%, #093a23 50%, #052c1a 100%) !important;
+}
+html[data-project="predire"]:not([data-theme="dark"]) body .sidebar {
+  background:
+    radial-gradient(130% 90% at 50% 42%, transparent 52%, rgba(1, 18, 18, .55) 100%),
+    linear-gradient(90deg, rgba(126, 224, 214, .085) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(rgba(126, 224, 214, .085) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(85% 42% at 50% 42%, rgba(38, 198, 218, .2), transparent 72%),
+    linear-gradient(180deg, #032527 0%, #063f42 50%, #042e30 100%) !important;
+}
+
+/* ------------------------------------------------------------------ Marque */
+@media (min-width: 851px) {
+  body .sidebar .brand { gap: 2px !important; padding: 4px 10px 12px !important; margin-bottom: 2px !important; border-bottom: 1px solid var(--sb-rule) !important; }
+  body .sidebar .brand-code { font-size: 26px !important; font-weight: 800 !important; letter-spacing: .06em !important; color: #fff !important; text-shadow: var(--sb-shadow); }
+  body .sidebar .brand-title { font-size: 12.5px !important; font-weight: 600 !important; line-height: 1.35 !important; color: var(--sb-ink-2) !important; }
+}
+
+/* ------------------------------------------------------------------ Phase */
+body .sidebar .phase-switcher { background: var(--sb-panel) !important; border-color: var(--sb-panel-line) !important; }
+body .sidebar .phase-switcher .phase-label {
+  color: var(--sb-label) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase;
+}
+body .sidebar .phase-switcher .phase-label .bi { color: var(--sb-icon); }
+
+/* ------------------------------------------------------------------ Titres de section du menu */
+body .sidebar .nav-section,
+body .sidebar .nav-section span {
+  color: var(--sb-label) !important;
+  opacity: 1 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .14em !important;
+}
+body .sidebar .nav-section::after,
+body .sidebar .nav-section span::after { background: var(--sb-rule) !important; }
+
+/* ------------------------------------------------------------------ Options du menu */
+body .sidebar .side-nav .nav-link {
+  color: var(--sb-ink) !important;
+  font-size: 14.5px;
+  font-weight: 600 !important;
+  text-shadow: var(--sb-shadow);
+}
+body .sidebar .side-nav .nav-link > .bi:first-child { color: var(--sb-icon); transition: color .15s ease; }
+body .sidebar .side-nav .nav-link .nav-caret { color: var(--sb-label); }
+body .sidebar .side-nav .nav-link:hover { background: var(--sb-hover) !important; color: #fff !important; }
+body .sidebar .side-nav .nav-link:hover > .bi:first-child { color: #fff; }
+body .sidebar .side-nav.has-marker .nav-link.active,
+body .sidebar .side-nav.has-marker .nav-link.active > .bi:first-child { color: #fff !important; }
+body .sidebar .side-nav .nav-link.nav-sub { color: var(--sb-ink-2) !important; font-size: 13.5px; font-weight: 500 !important; }
+body .sidebar .side-nav .nav-link.nav-sub.active { color: #fff !important; font-weight: 700 !important; }
+body .sidebar .nav-subnav::before { background: var(--sb-rule) !important; }
+/* Repère de l'option active : fond plus franc, trait de la couleur des titres de section. */
+.nav-marker { background: linear-gradient(90deg, rgba(255, 255, 255, .17), rgba(255, 255, 255, .09) 75%) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 6px 16px -10px rgba(0, 0, 0, .6) !important; }
+.nav-marker::before { background: var(--sb-label, #9fe0bb) !important; box-shadow: none !important; }
+
+/* ------------------------------------------------------------------ Session : identité complète, actions nommées */
+body .sidebar .sidebar-user { background: var(--sb-panel) !important; border: 1px solid var(--sb-panel-line) !important; }
+body .sidebar .sidebar-user .session-label { color: var(--sb-label) !important; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .12em !important; }
+body .sidebar .sidebar-user .name { color: #fff !important; }
+body .sidebar .sidebar-user .meta { color: var(--sb-ink-2) !important; }
+body .sidebar .sidebar-user .meta-unit { color: var(--sb-label) !important; }
+body .sidebar .sidebar-user .logout-btn { color: var(--sb-ink) !important; background: rgba(255, 255, 255, .06) !important; border: 1px solid var(--sb-panel-line) !important; }
+body .sidebar .sidebar-user .logout-btn:hover { background: rgba(255, 255, 255, .14) !important; color: #fff !important; }
+
+/* Ordinateur, écran assez haut : nom et poste en entier (sur deux lignes au besoin), puis les deux actions avec leur
+   libellé, côte à côte. Sur les écrans courts, la ligne compacte de prise-v19.css reste en place. */
+@media (min-width: 851px) and (min-height: 801px) {
+  /* « Session utilisateur » au-dessus du nom : libellé redondant, retiré pour garder toutes les options à l'écran. */
+  body .sidebar .sidebar-user .session-label { display: none !important; }
+  body .sidebar .side-nav .nav-link { min-height: 41px !important; }
+  body .sidebar .sidebar-user .su-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 10px 8px !important;
+  }
+  body .sidebar .sidebar-user .avatar { grid-column: 1; grid-row: 1; }
+  body .sidebar .sidebar-user .su-text { grid-column: 1 / -1; grid-row: 1; padding-left: 46px; min-height: 36px; }
+  body .sidebar .sidebar-user .name,
+  body .sidebar .sidebar-user .meta { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word; }
+  body .sidebar .sidebar-user .name { font-size: 13.5px !important; line-height: 1.25 !important; }
+  body .sidebar .sidebar-user .meta { font-size: 11.5px !important; line-height: 1.35 !important; margin-top: 2px !important; }
+  body .sidebar .sidebar-user .logout-btn {
+    grid-row: 2;
+    width: 100% !important;
+    height: 32px;
+    padding: 0 8px !important;
+    gap: 6px;
+    font-size: 12px !important;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  body .sidebar .sidebar-user .logout-btn span { display: inline !important; }
+  body .sidebar .sidebar-user .logout-btn i { font-size: 15px !important; }
+}
+
+/* ================================================================== Contenu : encres et surfaces (thème clair) */
+@media screen {
+  html:not([data-theme="dark"]):not([data-project="predire"]) {
+    --ink: #0e2018;
+    --ink-soft: #364b40;   /* 9,6:1 sur blanc (4b6357 avant : 6,4:1) */
+    --prise-muted: #4a5e53; /* 6,9:1 sur blanc */
+    --line: #d4e0d8;
+    --tw-color-prise-muted: #4a5e53;
+  }
+  html[data-project="predire"]:not([data-theme="dark"]) {
+    --ink: #0a2224;
+    --ink-soft: #33504f;   /* 8,9:1 sur blanc */
+    --prise-muted: #43605f; /* 6,8:1 sur blanc */
+    --line: #cde2e0;
+    --tw-color-prise-muted: #43605f;
+  }
+}
+
+/* Titres de page plus affirmés, description lisible */
+body .page-head h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+body .page-desc { color: var(--ink-soft); font-size: 14.5px; }
+
+/* Cartes : rayon tenu, filet net, ombre courte et décalée (plus de grand flou mou). */
+body .cardx { border-radius: 12px !important; border-color: var(--line) !important; box-shadow: 0 1px 2px rgba(8, 30, 20, .06), 0 4px 12px -6px rgba(8, 30, 20, .12) !important; }
+html[data-theme="dark"] body .cardx { box-shadow: var(--shadow-card) !important; }
+body .table-wrap { border-radius: 10px; }
+
+/* Indicateurs : plus de filet irisé en tête ; le chiffre parle, dans la famille des titres, la pastille de ton reste. */
+body .kpi::before { display: none !important; }
+body .kpi .label { font-size: 11px; font-weight: 700; letter-spacing: .09em; color: var(--ink-soft); }
+body .kpi .value { font-family: var(--ff-title) !important; font-size: 38px; font-weight: 700; letter-spacing: -.01em; line-height: 1; margin-top: 12px; font-variant-numeric: tabular-nums lining-nums; }
+body .kpi .muted, body .kpi small, body .kpi .hint { color: var(--ink-soft) !important; }
+body .kpi:hover { transform: translateY(-1px); }
+
+/* Tableaux : en-têtes lisibles (11 px, gras, encre secondaire pleine) */
+body .table thead th { color: var(--ink-soft) !important; font-size: 11px !important; font-weight: 700 !important; }
+
+/* Textes « muted » de Bootstrap et des écrans : jamais plus clairs que l'encre secondaire mesurée */
+body .text-muted, body .muted { color: var(--prise-muted) !important; }
+
+/*
+ * Bandeau d'indicateurs (grand écran) : une rangée qui ne contient que des indicateurs devient un seul registre, découpé
+ * par des filets verticaux, au lieu de quatre cartes identiques posées côte à côte. En dessous de 1200 px, les
+ * indicateurs passent à la ligne et gardent leurs cartes.
+ */
+@media (min-width: 1200px) {
+  body .row:has(> [class*="col-"] > .kpi):not(:has(> [class*="col-"] > :not(.kpi))) {
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 0;
+    margin-inline: 0;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(8, 30, 20, .06), 0 4px 12px -6px rgba(8, 30, 20, .12);
+  }
+  html[data-theme="dark"] body .row:has(> [class*="col-"] > .kpi):not(:has(> [class*="col-"] > :not(.kpi))) { box-shadow: var(--shadow-card); }
+  body .row:has(> [class*="col-"] > .kpi):not(:has(> [class*="col-"] > :not(.kpi))) > [class*="col-"] > .kpi {
+    height: 100%;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent;
+    transition: background-color .15s ease;
+  }
+  body .row:has(> [class*="col-"] > .kpi):not(:has(> [class*="col-"] > :not(.kpi))) > [class*="col-"] + [class*="col-"] > .kpi { border-left: 1px solid var(--line) !important; }
+  body .row:has(> [class*="col-"] > .kpi):not(:has(> [class*="col-"] > :not(.kpi))) > [class*="col-"] > .kpi:hover { transform: none; background: var(--surface-sunk); }
+}
+
+/* Menu plus long que l'écran : fondu en bas de la zone qui défile (la suite se devine, rien n'est coupé net) ; la marge
+   basse laisse la dernière option entièrement visible une fois le menu défilé jusqu'au bout. */
+@media (min-width: 851px) {
+  body .sidebar .side-nav {
+    padding-bottom: 22px !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+  }
+}
+
+/*
+ * Élévation des ouvrages (décision du 22/11/2026) : en filigrane au pied du contenu, les ouvrages que suivent les
+ * projets — forage et château d'eau, réseau d'AEP enterré, borne-fontaine, centre de santé, école, bloc de latrines.
+ * Dessin au trait généré par scripts/ouvrages.mjs (quatre teintes), première couche des fonds de .content
+ * (prise-design.css, theme-sombre.css, theme-predire-signature.css). Derrière les cartes, jamais sous les données ;
+ * absent à l'impression.
+ */
+@media screen {
+  html { --ouvrages: url('/images/ouvrages-prise.svg'); }
+  html[data-theme="dark"] { --ouvrages: url('/images/ouvrages-prise-sombre.svg'); }
+  html[data-project="predire"] { --ouvrages: url('/images/ouvrages-predire.svg'); }
+  html[data-project="predire"][data-theme="dark"] { --ouvrages: url('/images/ouvrages-predire-sombre.svg'); }
+}
+@media print { html { --ouvrages: none; } }

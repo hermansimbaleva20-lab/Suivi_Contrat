@@ -13,6 +13,8 @@ import './styles/theme-sombre.css';
 // Espace PREDIRE : le bleu de son logo (fichier généré par scripts/theme-predire.mjs, puis réglages à la main).
 import './styles/theme-predire.css';
 import './styles/theme-predire-signature.css';
+// Couche « relief » (22/11/2026) : encres pleines de la barre latérale, encres secondaires et cartes plus nettes.
+import './styles/prise-relief.css';
 import App from './App.jsx';
 import { installPressFeedback } from './lib/pressFeedback.js';
 import { installTheme } from './lib/theme.js';

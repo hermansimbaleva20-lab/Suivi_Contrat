@@ -213,12 +213,15 @@ body, body .app-shell { background: var(--canvas) !important; }
 body .content {
   background-color: var(--canvas) !important;
   background-image:
+    var(--ouvrages, none),
     radial-gradient(52rem 32rem at 100% 0%, rgba(94, 234, 212, .12), transparent 70%),
     radial-gradient(44rem 30rem at 0% 100%, rgba(232, 200, 115, .12), transparent 70%),
     radial-gradient(40rem 26rem at 58% 42%, rgba(134, 239, 172, .08), transparent 72%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='560' viewBox='0 0 760 560' fill='none' stroke='%23064d25' stroke-opacity='.075' stroke-width='1'%3E%3Cpath d='M520 120c90-20 190 30 205 120s-55 170-150 185-205-20-230-110 85-175 175-195z'/%3E%3Cpath d='M528 158c66-14 138 22 150 88s-40 124-110 135-150-15-168-80 62-128 128-143z'/%3E%3Cpath d='M536 196c44-9 90 15 98 58s-26 82-72 89-98-10-110-53 40-84 84-94z'/%3E%3Cpath d='M545 232c24-5 50 8 54 32s-14 44-39 48-54-5-60-29 22-46 45-51z'/%3E%3Cpath d='M60 420c80-40 210-30 270 30s30 120-60 130-260-10-280-80 -10-60 70-80z'/%3E%3Cpath d='M90 450c55-26 145-20 186 20s20 82-42 89-178-7-192-55 -7-40 48-54z'/%3E%3Cpath d='M122 478c30-14 82-11 104 11s11 46-24 50-98-4-106-31 -3-21 26-30z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: 0 0, 0 0, 0 0, right -120px bottom -60px;
+  background-position: center bottom 2px, 0 0, 0 0, 0 0, right -120px bottom -60px;
+  /* Élévation des ouvrages (AEP, centre de santé, école, latrines) : couche --ouvrages, définie dans prise-relief.css. */
+  background-size: min(1180px, 92%) auto, auto, auto, auto, auto;
 }
 
 /* En-tête : filet irisé en pied */
