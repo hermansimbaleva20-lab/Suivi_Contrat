@@ -25,6 +25,15 @@ class CautionsTest extends TestCase
         ];
     }
 
+    public function test_procedure_imposee_par_le_mode_d_acquisition(): void
+    {
+        $this->assertSame('NATIONALE', Cautions::procedureForMode('BIENS', 'AON', null));
+        $this->assertSame('BAD', Cautions::procedureForMode('BIENS', 'AOI', 'NATIONALE'));
+        $this->assertNull(Cautions::procedureForMode('BIENS', 'AON', 'FOURNITURES_BUREAU'), 'Fournitures de bureau : circuit propre.');
+        $this->assertNull(Cautions::procedureForMode('TRAVAUX', 'AON', null));
+        $this->assertNull(Cautions::procedureForMode('BIENS', 'CF', null));
+    }
+
     public function test_validite_en_jours_comme_le_tableau_du_projet(): void
     {
         $this->assertSame(121, Cautions::validity('2024-03-20', '2024-07-19'));

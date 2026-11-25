@@ -220,6 +220,15 @@ class ContractController extends Controller
         return $mode;
     }
 
+    /** Marché de biens (décision du 25/11/2026) : AON impose la procédure nationale, AOI la procédure BAD. */
+    private function checkModeProcedure(string $category, ?string $mode, ?string $procedure, array &$e): void
+    {
+        $expected = Cautions::procedureForMode($category, $mode, $procedure);
+        if ($expected && $procedure !== $expected && !isset($e['goods_procedure'])) {
+            $e['goods_procedure'] = 'Mode d’acquisition ' . trim((string) $mode) . ' : la procédure du marché est la ' . ($expected === GoodsProcedure::BAD ? 'procédure BAD' : 'procédure nationale') . '.';
+        }
+    }
+
     /** Le contrat a une avance de démarrage à la signature : ni service, ni fournitures de bureau, ni biens BAD ou national (avance sur demande). */
     private static function hasStartupAdvance(string $category, ?string $goodsProcedure, float $rate): bool
     {
@@ -371,6 +380,7 @@ class ContractController extends Controller
         }
         $goods = $this->goodsFields($r, $category, (float) $initialRate, $e) + ['organizational_unit_id' => $officeUnit] + $this->componentFields($r, $e);
         if (Loader::hasAdvanceGuarantees()) $goods['acquisition_mode'] = $mode;
+        $this->checkModeProcedure($category, $mode, $goods['goods_procedure'] ?? null, $e);
         // Caution d'avance de démarrage : seulement si le contrat a une avance à la signature.
         $caution = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate) ? $this->advanceGuarantee($r, $e, $signature) : null;
         if ($isMulti && $provinces && $sites) {
@@ -455,6 +465,10 @@ class ContractController extends Controller
         // Activité et composante : celles du formulaire ; un appel sans ces champs garde celles du contrat.
         $goods += $r->has('component_id') || $r->has('activity_id') ? $this->componentFields($r, $e, $c['component_id'], $c['activity_id'] ?? null) : ['component_id' => $c['component_id']];
         if (Loader::hasAdvanceGuarantees()) $goods['acquisition_mode'] = $this->acquisitionMode($r, $e, $c['acquisition_mode'] ?: null, false);
+        // Un ancien contrat qui ne respecte pas encore la règle reste modifiable tant que ni le mode ni la procédure ne changent.
+        if ((string) ($goods['acquisition_mode'] ?? $c['acquisition_mode']) !== (string) $c['acquisition_mode'] || (string) ($goods['goods_procedure'] ?? '') !== (string) $c['goods_procedure'] || $category !== $c['category']) {
+            $this->checkModeProcedure($category, $goods['acquisition_mode'] ?? $c['acquisition_mode'], $goods['goods_procedure'] ?? null, $e);
+        }
         // Caution d'avance : celle du formulaire ; un appel sans ses champs garde celle du contrat. Plus d'avance à la signature
         // (service, fournitures de bureau, biens BAD ou national, taux à 0) : la caution est retirée.
         $startup = self::hasStartupAdvance($category, $goods['goods_procedure'] ?? null, (float) $initialRate);

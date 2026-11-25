@@ -21,6 +21,19 @@ final class Cautions
 
     public const OTHER = 'AUTRE';
 
+    /** Procédure d'un marché de BIENS selon son mode d'acquisition (décision du 25/11/2026). */
+    public const PROCEDURE_BY_MODE = ['AON' => GoodsProcedure::NATIONAL, 'AOI' => GoodsProcedure::BAD];
+
+    /**
+     * Procédure imposée par le mode d'acquisition d'un marché de biens, ou null (autre mode, autre catégorie, fournitures de
+     * bureau, qui gardent leur propre circuit).
+     */
+    public static function procedureForMode(string $category, ?string $mode, ?string $procedure): ?string
+    {
+        if ($category !== 'BIENS' || $procedure === GoodsProcedure::OFFICE) return null;
+        return self::PROCEDURE_BY_MODE[trim((string) $mode)] ?? null;
+    }
+
     /** Valeur enregistrée → [code du formulaire, texte d'un autre mode]. */
     public static function modeInput(?string $stored): array
     {

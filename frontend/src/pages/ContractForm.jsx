@@ -9,6 +9,9 @@ import { DecimalInput, Field, Loading, Notice, PageHead } from '../components/ui
 const AEP = 'Système d’AEP';
 const blankSite = () => ({ id: 0, name: '', province: '', work_type: '', description: '', quantity: '1', amount: '' });
 const filled = (v) => String(v ?? '').trim() !== '';
+// Procédure d'un marché de biens selon le mode d'acquisition (décision du 25/11/2026).
+const PROCEDURE_BY_MODE = { AON: 'NATIONALE', AOI: 'BAD' };
+const PROCEDURE_LABEL = { NATIONALE: 'procédure nationale', BAD: 'procédure BAD' };
 const toInput = (v) => (v === null || v === undefined ? '' : String(v).replace('.', ','));
 // Validité, en jours, d'une caution ou d'une garantie : de sa date à sa date d'expiration (comme le tableau du projet).
 const validityDays = (from, to) => (from && to ? Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) : null);
@@ -68,14 +71,27 @@ export default function ContractForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, logisticOnly, goods]);
   const shownProcedures = (goods?.procedures || []).filter((p) => (p.code === 'FOURNITURES_BUREAU' ? can('canManageStock') : can('canManageContracts')));
+  // Marché de biens (décision du 25/11/2026) : AON → procédure nationale, AOI → procédure BAD (fournitures de bureau à part).
+  const forcedProcedure = isGoods && f.goods_procedure !== 'FOURNITURES_BUREAU' ? PROCEDURE_BY_MODE[f.acquisition_mode] || null : null;
+  const followMode = (mode, category, procedure, origin) => {
+    const target = PROCEDURE_BY_MODE[mode];
+    if (goods && category === 'BIENS' && target && procedure !== 'FOURNITURES_BUREAU' && procedure !== target) chooseGoods(target, origin);
+  };
+  const setMode = (v) => {
+    set('acquisition_mode')(v);
+    followMode(v, f.category, f.goods_procedure, f.goods_origin);
+  };
   const setTranche = (key, rate) => setF((s) => ({ ...s, payment_schedule: s.payment_schedule.map((t) => (t.key === key ? { ...t, rate } : t)) }));
   const scheduleTotal = f.payment_schedule.reduce((a, t) => a + (parseDecimal(t.rate) || 0), parseDecimal(f.initial_financing_rate) || 0);
   // Changer de catégorie retire une entreprise d'une autre catégorie (décision du 18/11/2026) ; une entreprise sans catégorie reste.
-  const setCategory = (v) => setF((s) => {
-    const chosen = (ref.data?.companies || []).find((c) => String(c.id) === String(s.company_id));
-    const keep = !chosen || !chosen.category || chosen.category === v;
-    return { ...s, category: v, ...(keep ? {} : { company_id: '' }), ...(v === 'SERVICE' ? { initial_financing_rate: '0' } : {}) };
-  });
+  const setCategory = (v) => {
+    setF((s) => {
+      const chosen = (ref.data?.companies || []).find((c) => String(c.id) === String(s.company_id));
+      const keep = !chosen || !chosen.category || chosen.category === v;
+      return { ...s, category: v, ...(keep ? {} : { company_id: '' }), ...(v === 'SERVICE' ? { initial_financing_rate: '0' } : {}) };
+    });
+    followMode(f.acquisition_mode, v, f.goods_procedure, f.goods_origin);
+  };
 
   const modes = ref.data?.acquisitionModes || [];
   const modeCodes = modes.map((m) => m.code);
@@ -247,7 +263,7 @@ export default function ContractForm() {
             {cautionsReady && (
               <>
                 <Field className="col-md-4" label="Mode d’acquisition" error={errors.acquisition_mode}>
-                  <select className="form-select" value={f.acquisition_mode} onChange={(e) => set('acquisition_mode')(e.target.value)} required>
+                  <select className="form-select" value={f.acquisition_mode} onChange={(e) => setMode(e.target.value)} required>
                     <option value="">— Sélectionner —</option>
                     {modes.map((m) => <option key={m.code} value={m.code}>{m.code} — {m.label}</option>)}
                     <option value="AUTRE">Autre mode (à préciser)</option>
@@ -385,7 +401,15 @@ export default function ContractForm() {
             <div className="section-title mb-3"><i className="bi bi-diagram-3 fb-icon" aria-hidden="true" />Procédure du marché</div>
             {errors.goods_procedure && <div className="text-danger small mb-2">{errors.goods_procedure}</div>}
             <div className="d-flex flex-wrap gap-2 mb-3" role="radiogroup" aria-label="Procédure du marché">
-              {shownProcedures.map((p) => <label key={p.code} className="check-pill"><input type="radio" name="goods-procedure" checked={f.goods_procedure === p.code} onChange={() => chooseGoods(p.code, f.goods_origin)} />{p.label}</label>)}
+              {shownProcedures.map((p) => {
+                // Procédure imposée par le mode d'acquisition : l'autre procédure (BAD ou nationale) n'est pas proposée.
+                const locked = !!forcedProcedure && p.code !== forcedProcedure && p.code !== 'FOURNITURES_BUREAU';
+                return (
+                  <label key={p.code} className={`check-pill${locked ? ' opacity-50' : ''}`} title={locked ? `Mode ${f.acquisition_mode} : ${PROCEDURE_LABEL[forcedProcedure]}` : undefined}>
+                    <input type="radio" name="goods-procedure" checked={f.goods_procedure === p.code} disabled={locked} onChange={() => chooseGoods(p.code, f.goods_origin)} />{p.label}
+                  </label>
+                );
+              })}
             </div>
             {isOffice && (
               <>
