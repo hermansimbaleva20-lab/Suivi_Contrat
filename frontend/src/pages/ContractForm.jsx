@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, apiError, fieldErrors } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLoad } from '../lib/hooks.js';
-import { addMonths, fr, money, parseDecimal } from '../lib/format.js';
+import { addMonths, fr, money, parseDecimal, todayISO } from '../lib/format.js';
 import { DecimalInput, Field, Loading, Notice, PageHead } from '../components/ui.jsx';
 
 const AEP = 'Système d’AEP';
@@ -16,6 +16,10 @@ const toInput = (v) => (v === null || v === undefined ? '' : String(v).replace('
 // Validité, en jours, d'une caution ou d'une garantie : de sa date à sa date d'expiration (comme le tableau du projet).
 const validityDays = (from, to) => (from && to ? Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) : null);
 const daysText = (n) => (n === null ? '—' : `${n} jour${Math.abs(n) > 1 ? 's' : ''}`);
+const ADVANCE_REQUEST_BLANK = {
+  advance_request_request_reference: '', advance_request_request_date: '', advance_request_guarantee_number: '', advance_request_guarantee_bank: '',
+  advance_request_guarantee_issue_date: '', advance_request_guarantee_end_date: '', advance_request_guarantee_amount: '',
+};
 
 export default function ContractForm() {
   const { id } = useParams();
@@ -34,6 +38,8 @@ export default function ContractForm() {
     // Mode d'acquisition et caution d'avance de démarrage (décision du 22/11/2026).
     acquisition_mode: '', acquisition_mode_other: '', advance_guarantee_reference: '', advance_guarantee_bank: '',
     advance_guarantee_issue_date: '', advance_guarantee_end_date: '', advance_guarantee_observation: '',
+    // Avance sur demande (biens BAD ou national), saisie ou corrigée dans la modification du contrat (décision du 25/11/2026).
+    ...ADVANCE_REQUEST_BLANK,
   });
   const [sites, setSites] = useState([blankSite()]);
   const [errors, setErrors] = useState({});
@@ -100,6 +106,8 @@ export default function ContractForm() {
     const c = current.data?.contract;
     if (!c || !ref.data) return;
     const types = (c.workTypeText || '').split(';').map((x) => x.trim()).filter(Boolean);
+    const g = current.data.guarantee;
+    const a = c.advanceRequest;
     setF((s) => ({
       ...s, reference: c.number, company_id: String(c.companyId), category: c.category || 'TRAVAUX', province: c.province || '',
       selected_provinces: c.provinces || [], signature_date: c.signatureDate || '', start_date: c.startDate || '', duration_months: String(c.durationMonths || 12),
@@ -118,6 +126,16 @@ export default function ContractForm() {
       advance_guarantee_reference: c.advanceGuarantee?.reference || '', advance_guarantee_bank: c.advanceGuarantee?.bank || '',
       advance_guarantee_issue_date: c.advanceGuarantee?.issueDate || '', advance_guarantee_end_date: c.advanceGuarantee?.endDate || '',
       advance_guarantee_observation: c.advanceGuarantee?.observation || '',
+      // Garantie de bonne exécution et avance sur demande, modifiables ici (décision du 25/11/2026).
+      ...(g ? {
+        guarantee_bank_name: g.bank || '', guarantee_account_number: g.account || '', guarantee_start_date: g.startDate || '', guarantee_end_date: g.endDate || '',
+        guarantee_observation: g.observation || '',
+      } : {}),
+      ...(a ? {
+        advance_request_request_reference: a.requestReference || '', advance_request_request_date: a.requestDate || '', advance_request_guarantee_number: a.guaranteeNumber || '',
+        advance_request_guarantee_bank: a.guaranteeBank || '', advance_request_guarantee_issue_date: a.guaranteeIssueDate || '', advance_request_guarantee_end_date: a.guaranteeEndDate || '',
+        advance_request_guarantee_amount: toInput(a.guaranteeAmount),
+      } : ADVANCE_REQUEST_BLANK),
     }));
     setSites((c.sites || []).map((x) => ({ id: x.id, name: x.name, province: x.province, work_type: x.workType, description: x.description, quantity: String(x.quantity), amount: toInput(x.amount) })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,6 +162,11 @@ export default function ContractForm() {
   // Avance de démarrage à la signature : ni service, ni fournitures de bureau, ni biens BAD ou national (avance sur demande).
   const startupAdvance = !isService && !isOffice && !governed;
   const advanceRate = parseDecimal(f.initial_financing_rate) || 0;
+  // Avance sur demande (biens BAD ou national) : la demande en cours ou payée ; sans demande, les champs restent facultatifs
+  // tant qu'aucun n'est rempli, puis tous deviennent obligatoires.
+  const request = edit ? loaded?.advanceRequest || null : null;
+  const canPay = can('canManagePayments');
+  const requestRequired = !!request || Object.keys(ADVANCE_REQUEST_BLANK).some((k) => filled(f[k]));
   // Composantes enregistrées au préalable (Administration › Composantes) : le contrat choisit une activité d'une catégorie
   // d'une composante, facultativement (décision du 16/11/2026) ; la composante et la catégorie en découlent.
   const components = ref.data?.components || [];
@@ -573,17 +596,84 @@ export default function ContractForm() {
           </div>
         )}
 
+        {edit && governed && advanceRate > 0 && (
+          <div className="cardx form-card form-block fb-avance p-3 mb-3">
+            <div className="section-title mb-1"><i className="bi bi-cash-coin fb-icon" aria-hidden="true" />Avance de démarrage sur demande</div>
+            <div className="small text-secondary mb-3">
+              {!request ? 'Aucune demande enregistrée.' : request.status === 'PAYEE'
+                ? `Payée le ${fr(request.paidDate)}${request.paymentReference ? ` (réf. ${request.paymentReference})` : ''}.` : 'Demandée, paiement à renseigner dans Finance › Paiements.'}
+            </div>
+            {canPay ? (
+              <div className="row g-3">
+                <Field className="col-md-4" label="N° de référence de l’avance" error={errors.advance_request_request_reference}>
+                  <input className="form-control" maxLength={120} value={f.advance_request_request_reference} onChange={(e) => set('advance_request_request_reference')(e.target.value)} required={requestRequired} placeholder="Ex. : lettre n° 12/2026" />
+                </Field>
+                <Field className="col-md-3" label="Date de la demande" error={errors.advance_request_request_date}>
+                  <input type="date" className="form-control" value={f.advance_request_request_date} max={request?.paidDate || todayISO()} onChange={(e) => set('advance_request_request_date')(e.target.value)} required={requestRequired} />
+                </Field>
+                <Field className="col-md-3" label="Montant de l’avance (USD)">
+                  <input className="form-control text-money amount-computed" value={money(request ? request.amount : (computed ? total : parseDecimal(f.amount) || 0) * advanceRate / 100)} readOnly tabIndex={-1} />
+                </Field>
+                <div className="col-12"><div className="section-subtitle fw-semibold mt-2">Caution d’avance de démarrage</div></div>
+                <Field className="col-md-4" label="N° de la caution" error={errors.advance_request_guarantee_number}>
+                  <input className="form-control" maxLength={120} value={f.advance_request_guarantee_number} onChange={(e) => set('advance_request_guarantee_number')(e.target.value)} required={requestRequired} />
+                </Field>
+                <Field className="col-md-4" label="Banque" error={errors.advance_request_guarantee_bank}>
+                  <input className="form-control" maxLength={191} value={f.advance_request_guarantee_bank} onChange={(e) => set('advance_request_guarantee_bank')(e.target.value)} required={requestRequired} />
+                </Field>
+                <Field className="col-md-4" label="Montant de la caution (USD)" error={errors.advance_request_guarantee_amount}>
+                  <DecimalInput value={f.advance_request_guarantee_amount} onChange={set('advance_request_guarantee_amount')} required={requestRequired} placeholder={money(request ? request.amount : (computed ? total : parseDecimal(f.amount) || 0) * advanceRate / 100)} />
+                </Field>
+                <Field className="col-md-3" label="Date de la caution" error={errors.advance_request_guarantee_issue_date}>
+                  <input type="date" className="form-control" value={f.advance_request_guarantee_issue_date} min={f.signature_date || f.start_date || undefined} onChange={(e) => set('advance_request_guarantee_issue_date')(e.target.value)} required={requestRequired} />
+                </Field>
+                <Field className="col-md-3" label="Date d’expiration" error={errors.advance_request_guarantee_end_date}>
+                  <input type="date" className="form-control" value={f.advance_request_guarantee_end_date} min={f.advance_request_guarantee_issue_date || undefined} onChange={(e) => set('advance_request_guarantee_end_date')(e.target.value)} required={requestRequired} />
+                </Field>
+                <Field className="col-md-2" label="Validité">
+                  <input className="form-control amount-computed" value={daysText(validityDays(f.advance_request_guarantee_issue_date, f.advance_request_guarantee_end_date))} readOnly tabIndex={-1} />
+                </Field>
+              </div>
+            ) : request && (
+              <div className="small">
+                Avance n° {request.requestReference} · caution n° {request.guaranteeNumber} ({request.guaranteeBank}) : {money(request.guaranteeAmount)} USD
+                {request.guaranteeIssueDate ? `, du ${fr(request.guaranteeIssueDate)}` : ''} au {fr(request.guaranteeEndDate)}
+              </div>
+            )}
+          </div>
+        )}
+
         {edit && current.data?.guarantee && (
           <div className="cardx form-card form-block fb-garantie p-3 mb-3">
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <div>
-                <div className="section-title"><i className="bi bi-shield-check fb-icon" aria-hidden="true" />Garantie de bonne exécution</div>
-                <div className="small text-secondary mt-1">
-                  N° {current.data.guarantee.account || '—'} · {current.data.guarantee.bank || '—'} · émise le {fr(current.data.guarantee.startDate)} · expire le {fr(current.data.guarantee.endDate)}
-                </div>
-              </div>
-              {can('canManageGuarantees') && <Link to="/guarantees" className="btn btn-outline-primary btn-sm"><i className="bi bi-shield-check me-1" />Modifier dans Finance › Garanties</Link>}
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <div className="section-title"><i className="bi bi-shield-check fb-icon" aria-hidden="true" />Garantie de bonne exécution</div>
+              {can('canManageGuarantees') && <Link to="/guarantees" className="btn btn-outline-primary btn-sm"><i className="bi bi-arrow-repeat me-1" />Prolonger ou renouveler</Link>}
             </div>
+            {can('canManageGuarantees') ? (
+              <div className="row g-3">
+                {/* Taux d'un marché de biens BAD ou national : dans « Procédure du marché ». */}
+                {!governed && <Field className="col-md-3" label="Taux (%)" error={errors.guarantee_rate}><DecimalInput value={f.guarantee_rate} onChange={set('guarantee_rate')} required /></Field>}
+                <Field className="col-md-3" label="Montant de la garantie (USD)">
+                  <input className="form-control text-money amount-computed" value={money(((computed ? total : parseDecimal(f.amount) || 0) - renewedAmount) * (parseDecimal(f.guarantee_rate) || 0) / 100)} readOnly tabIndex={-1} />
+                </Field>
+                <Field className="col-md-3" label="N° de la garantie" error={errors.guarantee_account_number}><input className="form-control" value={f.guarantee_account_number} onChange={(e) => set('guarantee_account_number')(e.target.value)} /></Field>
+                <Field className="col-md-3" label="Banque émettrice" error={errors.guarantee_bank_name}><input className="form-control" value={f.guarantee_bank_name} onChange={(e) => set('guarantee_bank_name')(e.target.value)} required /></Field>
+                <Field className="col-md-3" label="Date d’émission" error={errors.guarantee_start_date}>
+                  <input type="date" className="form-control" value={f.guarantee_start_date} onChange={(e) => set('guarantee_start_date')(e.target.value)} required />
+                </Field>
+                <Field className="col-md-3" label="Date d’expiration" error={errors.guarantee_end_date}>
+                  <input type="date" className="form-control" value={f.guarantee_end_date} min={f.guarantee_start_date || undefined} onChange={(e) => set('guarantee_end_date')(e.target.value)} required />
+                </Field>
+                <Field className="col-md-2" label="Validité">
+                  <input className="form-control amount-computed" value={daysText(validityDays(f.guarantee_start_date, f.guarantee_end_date))} readOnly tabIndex={-1} />
+                </Field>
+                <Field className="col-md-4" label="Observations"><input className="form-control" value={f.guarantee_observation} onChange={(e) => set('guarantee_observation')(e.target.value)} /></Field>
+              </div>
+            ) : (
+              <div className="small text-secondary">
+                N° {current.data.guarantee.account || '—'} · {current.data.guarantee.bank || '—'} · émise le {fr(current.data.guarantee.startDate)} · expire le {fr(current.data.guarantee.endDate)}
+              </div>
+            )}
           </div>
         )}
 

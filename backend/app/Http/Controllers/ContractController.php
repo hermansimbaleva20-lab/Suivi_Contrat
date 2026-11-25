@@ -220,6 +220,59 @@ class ContractController extends Controller
         return $mode;
     }
 
+    /**
+     * Garantie de bonne exécution corrigée dans la modification du contrat (décision du 25/11/2026), comme dans Finance ›
+     * Garanties : n°, banque, dates d'émission et d'expiration (les siennes), observations, et le taux hors marché de biens
+     * BAD ou national (dont le taux suit la procédure). Seulement avec « Gérer les garanties » ; prolongations et
+     * renouvellements restent dans Finance › Garanties. Un appel sans ces champs garde la garantie telle quelle.
+     */
+    private function guaranteeEdit(Request $r, array &$e, int $pid, int $id, ?string $procedure, ?float &$newRate): ?array
+    {
+        if (!$r->has('guarantee_start_date') || !Ctx::can('can_manage_guarantees') || GoodsProcedure::stockOnly($procedure)) return null;
+        $g = DB::table('performance_guarantees')->where('project_id', $pid)->where('contract_id', $id)->first();
+        if (!$g) return null;
+        $after = [
+            'bank_name' => trim((string) $r->input('guarantee_bank_name', '')), 'account_number' => trim((string) $r->input('guarantee_account_number', '')),
+            'start_date' => Dates::valid($r->input('guarantee_start_date')) ? Dates::part($r->input('guarantee_start_date')) : null,
+            'end_date' => Dates::valid($r->input('guarantee_end_date')) ? Dates::part($r->input('guarantee_end_date')) : null,
+            'observation' => trim((string) $r->input('guarantee_observation', '')),
+        ];
+        if ($after['bank_name'] === '') $e['guarantee_bank_name'] = 'La banque émettrice de la garantie est obligatoire.';
+        if (!$after['start_date']) $e['guarantee_start_date'] = 'La date d’émission de la garantie est obligatoire.';
+        if (!$after['end_date']) $e['guarantee_end_date'] = 'La date d’expiration de la garantie est obligatoire.';
+        elseif ($after['start_date'] && $after['end_date'] <= $after['start_date']) $e['guarantee_end_date'] = 'La date d’expiration doit suivre la date d’émission.';
+        if (!GoodsProcedure::governs($procedure) && $r->filled('guarantee_rate')) {
+            $rate = Dates::decimal($r->input('guarantee_rate'));
+            if ($rate === null || $rate <= 0 || $rate > 100) $e['guarantee_rate'] = 'Le taux de garantie doit être supérieur à 0 et inférieur ou égal à 100 %.';
+            else $newRate = $rate;
+        }
+        $before = ['bank_name' => (string) $g->bank_name, 'account_number' => (string) $g->account_number, 'start_date' => Dates::part($g->start_date), 'end_date' => Dates::part($g->end_date), 'observation' => (string) $g->observation];
+        $rateBefore = (float) $g->rate;
+        $rateAfter = $newRate ?? $rateBefore;
+        return ['id' => (int) $g->id, 'before' => $before + ['rate' => $rateBefore], 'after' => $after, 'auditAfter' => $after + ['rate' => $rateAfter],
+            'changed' => $before != $after || abs($rateAfter - $rateBefore) > 0.0001];
+    }
+
+    /**
+     * Avance sur demande d'un marché de biens BAD ou national saisie ou corrigée dans la modification du contrat (décision du
+     * 25/11/2026), avec les contrôles de Finance › Paiements : n° de l'avance, date de la demande, caution (n°, banque, dates,
+     * montant). Seulement avec « Gérer les paiements ». Sans demande et sans aucun champ rempli, rien n'est enregistré ; le
+     * paiement, le rejet et l'annulation restent dans Paiements.
+     */
+    private function advanceRequestEdit(Request $r, array &$e, int $id, ?string $procedure, float $rate, float $amount, ?string $signedOn): ?array
+    {
+        if (!$r->has('advance_request_request_reference') || !Ctx::can('can_manage_payments') || !GoodsProcedure::governs($procedure) || $rate <= 0) return null;
+        $in = [];
+        foreach (ContractAdvanceController::FIELDS as $k) $in[$k] = $r->input("advance_request_{$k}");
+        $current = DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', ContractAdvanceController::REJECTED)->orderByDesc('id')->first();
+        if (!$current && !array_filter($in, fn ($v) => trim((string) $v) !== '')) return null;
+        $advance = $current ? (float) $current->amount : round($amount * $rate / 100, 2);
+        [$errors, $data] = ContractAdvanceController::check($in, $signedOn, $advance, $current && $current->status === ContractAdvanceController::PAID && $current->paid_date ? Dates::part($current->paid_date) : null);
+        foreach ($errors as $k => $m) $e["advance_request_{$k}"] = $m;
+        if (!$current && ContractAdvanceController::blockedByDecomptes($id)) $e['advance_request_request_reference'] = 'Un décompte est déjà enregistré : l’avance ne peut plus être demandée pour ce contrat.';
+        return ['current' => $current, 'data' => $data, 'amount' => $advance];
+    }
+
     /** Marché de biens (décision du 25/11/2026) : AON impose la procédure nationale, AOI la procédure BAD. */
     private function checkModeProcedure(string $category, ?string $mode, ?string $procedure, array &$e): void
     {
@@ -535,9 +588,11 @@ class ContractController extends Controller
             elseif ($amount < (float) $c['renewed_amount']) $e['amount'] = 'Le montant ne peut pas être inférieur aux montants ajoutés par les renouvellements (' . number_format((float) $c['renewed_amount'], 2, ',', ' ') . ' USD).';
         }
         if (!$isWorksNow) $installation = null;
+        $guaranteeEdit = $this->guaranteeEdit($r, $e, $pid, $id, $goods['goods_procedure'] ?? null, $newGuaranteeRate);
+        $advanceEdit = $this->advanceRequestEdit($r, $e, $id, $goods['goods_procedure'] ?? null, (float) $initialRate, (float) $amount, $signedOn);
         if ($e) $this->invalid($e);
 
-        DB::transaction(function () use ($touchCaution, $caution, $goods, $newGuarantee, $newGuaranteeRate, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $isOffice, $start, $duration, $amount, $installation, $initialRate, $mainProvince, $sites, $c) {
+        DB::transaction(function () use ($touchCaution, $caution, $goods, $newGuarantee, $newGuaranteeRate, $guaranteeEdit, $advanceEdit, $r, $pid, $id, $number, $companyId, $category, $isWorks, $isMulti, $isOffice, $start, $duration, $amount, $installation, $initialRate, $mainProvince, $sites, $c) {
             // Après un avenant ou un renouvellement, la fin ne se recalcule que si le démarrage ou la durée changent vraiment.
             $end = ($c['amendments'] || $c['renewals']) && $start === $c['start_date'] && $duration === (int) $c['duration_months'] ? $c['end_date'] : Dates::addMonths($start, $duration);
             $signature = Dates::valid($r->input('signature_date')) ? Dates::part($r->input('signature_date')) : ($c['signature_date'] ?: $start);
@@ -573,7 +628,33 @@ class ContractController extends Controller
                 ]);
             }
             if ($touchCaution) $this->saveAdvanceGuarantee($pid, $id, $caution);
+            if ($guaranteeEdit) DB::table('performance_guarantees')->where('id', $guaranteeEdit['id'])->update($guaranteeEdit['after'] + ['updated_at' => now()]);
+            if ($advanceEdit && $advanceEdit['current']) {
+                DB::table('contract_advances')->where('id', $advanceEdit['current']->id)->update(ContractAdvanceController::columns($advanceEdit['data']) + ['updated_at' => now()]);
+            } elseif ($advanceEdit) {
+                abort_if(DB::table('contract_advances')->where('contract_id', $id)->where('status', '!=', ContractAdvanceController::REJECTED)->exists(), 422, 'Une demande d’avance est déjà enregistrée pour ce contrat.');
+                $advanceEdit['id'] = DB::table('contract_advances')->insertGetId(ContractAdvanceController::columns($advanceEdit['data']) + [
+                    'contract_id' => $id, 'rate' => $initialRate, 'amount' => $advanceEdit['amount'], 'status' => ContractAdvanceController::REQUESTED,
+                    'created_by' => Ctx::user()->id, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
         });
+        if ($guaranteeEdit && $guaranteeEdit['changed']) {
+            Ctx::auditChange('MODIFICATION_GARANTIE', 'PerformanceGuarantee', $guaranteeEdit['id'], "Garantie du contrat {$number} modifiée avec le contrat.", $guaranteeEdit['before'], $guaranteeEdit['auditAfter']);
+        }
+        if ($advanceEdit && $advanceEdit['current']) {
+            $after = ContractAdvanceController::columns($advanceEdit['data']);
+            $before = [];
+            foreach ($after as $k => $v) {
+                $old = $advanceEdit['current']->{$k} ?? null;
+                $before[$k] = $k === 'guarantee_amount' ? ($old === null ? null : round((float) $old, 2)) : (str_ends_with($k, '_date') && $old ? Dates::part($old) : $old);
+            }
+            if ($before != $after) {
+                Ctx::auditChange('MODIFICATION', 'ContractAdvance', $advanceEdit['current']->id, 'Corrigée avec le contrat : ' . ContractAdvanceController::auditText($advanceEdit['data'], $number, (float) $advanceEdit['current']->amount), $before, $after);
+            }
+        } elseif ($advanceEdit) {
+            Ctx::audit('CREATION', 'ContractAdvance', $advanceEdit['id'], ContractAdvanceController::auditText($advanceEdit['data'], $number, $advanceEdit['amount']));
+        }
         Ctx::audit('MODIFICATION', 'Contract', $id, "Contrat {$number} modifié avec " . count($sites) . ' site(s) enregistré(s).');
         return ['message' => "Contrat {$number} modifié. Les informations des sites ont également été enregistrées."];
     }
